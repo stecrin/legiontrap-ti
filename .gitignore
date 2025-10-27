@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+.env.*
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+
+# Docker
+*.log
+
+# Misc
+*.sqlite
+*.sqlite3
