@@ -19,3 +19,6 @@ dist/
 # Misc
 *.sqlite
 *.sqlite3
+.smoke_before
+storage/
+*.bak
