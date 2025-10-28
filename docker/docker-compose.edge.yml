@@ -1,0 +1,23 @@
+services:
+  api:
+    build:
+      context: ../ui/backend
+      dockerfile: Dockerfile
+    container_name: legiontrap-api
+    ports:
+      - "8088:8000"
+    volumes:
+      - ../ui/backend/app:/app/app:rw
+      - ../storage:/data:rw
+    environment:
+      - PRIVACY_MODE=on
+      - EVENTS_PATH=/data/events.jsonl
+      - ROTATE_MAX_BYTES=1000000
+      - RETENTION_DAYS=14
+      - API_KEY=dev-123
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;print(urllib.request.urlopen('http://localhost:8000/api/health').read())"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
