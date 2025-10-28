@@ -1,6 +1,7 @@
 # LegionTrap TI
 
 ![CI](https://github.com/stecrin/legiontrap-ti/actions/workflows/ci.yml/badge.svg)
+
 Modular, edge-ready honeynet with privacy-by-design, ATT&CK/Sigma exports, and a clean UI.
 
 ## Status
@@ -50,5 +51,20 @@ Runs a quick end-to-end check: health, auth guard, ingest one event, stats delta
     make logs     # follow API logs
     make down     # stop containers
 
-### Demo data
-Run `make seed` to load sample events for screenshots/tests.
+### Seed demo data
+Populate the API with a few example failed-logins so you can test charts/exports:
+
+    make seed
+    # verify:
+    curl -s -H 'x-api-key: dev-123' http://127.0.0.1:8088/api/stats | python -m json.tool
+    curl -s -H 'x-api-key: dev-123' http://127.0.0.1:8088/api/iocs/ufw.txt
+    curl -s -H 'x-api-key: dev-123' http://127.0.0.1:8088/api/iocs/pf.conf
+
+### Environment configuration
+| Variable           | Default              | Description                                                        |
+|--------------------|----------------------|--------------------------------------------------------------------|
+| `API_KEY`          | `dev-123`            | Required header value for protected endpoints (`x-api-key`).       |
+| `PRIVACY_MODE`     | `on`                 | If `on`, redacts/limits PII in normalized data & exports.          |
+| `EVENTS_PATH`      | `/data/events.jsonl` | File path for JSON Lines event storage.                            |
+| `ROTATE_MAX_BYTES` | `1000000`            | Max size in bytes before log rotation of `events.jsonl`.           |
+| `RETENTION_DAYS`   | `14`                 | Days to keep rotated event files.                                  |
