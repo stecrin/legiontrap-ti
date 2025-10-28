@@ -49,3 +49,6 @@ Runs a quick end-to-end check: health, auth guard, ingest one event, stats delta
     make smoke    # run end-to-end test
     make logs     # follow API logs
     make down     # stop containers
+
+### Demo data
+Run `make seed` to load sample events for screenshots/tests.
