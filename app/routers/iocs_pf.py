@@ -1,3 +1,4 @@
+import ipaddress
 import json
 import os
 import pathlib
@@ -12,6 +13,7 @@ from fastapi.responses import PlainTextResponse
 router = APIRouter()
 
 IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+PRIVACY_MODE = os.environ.get("PRIVACY_MODE", "").lower() in {"1", "true", "on", "yes"}
 
 
 def _events_path() -> pathlib.Path:
@@ -53,15 +55,10 @@ NESTED_SUBKEYS: tuple[str, ...] = ("ip", "addr", "address", "host")
 
 
 def _extract_from_obj(obj: Any) -> Iterable[str]:
-    """Extract IPv4 strings from various shapes:
-    - direct string values on common keys
-    - nested dicts with {ip|addr|address|host}
-    - any string content via regex fallback
-    """
+    """Extract IPv4 strings from various shapes."""
     found: list[str] = []
 
     if isinstance(obj, dict):
-        # 1) Preferred keys (flat / nested)
         for k in POSSIBLE_KEYS:
             if k in obj:
                 v = obj[k]
@@ -72,17 +69,14 @@ def _extract_from_obj(obj: Any) -> Iterable[str]:
                         sub_v = v.get(sub)
                         if isinstance(sub_v, str):
                             found.extend(IPV4_RE.findall(sub_v))
-                # regex scan of JSON for that value (covers deeper nesting)
                 with suppress(Exception):
                     found.extend(IPV4_RE.findall(json.dumps(v)))
 
-        # 2) message/log-like fields
         for msg_key in ("message", "msg", "log", "event", "raw"):
             v = obj.get(msg_key)
             if isinstance(v, str):
                 found.extend(IPV4_RE.findall(v))
 
-        # 3) Fallback: scan entire event JSON
         with suppress(Exception):
             found.extend(IPV4_RE.findall(json.dumps(obj)))
 
@@ -92,14 +86,37 @@ def _extract_from_obj(obj: Any) -> Iterable[str]:
     return found
 
 
+def _is_public_ipv4(ip: str) -> bool:
+    """True if ip is a globally routable IPv4 address."""
+    try:
+        ip4 = ipaddress.IPv4Address(ip)
+        return ip4.is_global  # excludes private, reserved, multicast, loopback, link-local, etc.
+    except ipaddress.AddressValueError:
+        return False
+
+
+def _mask_ip(ip: str) -> str:
+    """Privacy mode: mask last octet."""
+    try:
+        ipaddress.IPv4Address(ip)
+        parts = ip.split(".")
+        parts[-1] = "x"
+        return ".".join(parts)
+    except ipaddress.AddressValueError:
+        return ip
+
+
 def unique_attacker_ips(events_path: pathlib.Path) -> list[str]:
     seen: set[str] = set()
     ips: list[str] = []
     for ev in iter_events(events_path):
         for ip in _extract_from_obj(ev):
-            if ip not in seen:
-                seen.add(ip)
-                ips.append(ip)
+            if not _is_public_ipv4(ip):
+                continue
+            out = _mask_ip(ip) if PRIVACY_MODE else ip
+            if out not in seen:
+                seen.add(out)
+                ips.append(out)
     return ips
 
 
