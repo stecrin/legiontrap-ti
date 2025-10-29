@@ -30,7 +30,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -51,7 +51,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -72,7 +72,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -93,7 +93,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -114,7 +114,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -135,7 +135,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -156,7 +156,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -177,7 +177,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -198,7 +198,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -219,7 +219,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -240,7 +240,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -261,7 +261,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -282,7 +282,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -303,7 +303,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -324,7 +324,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -345,7 +345,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -366,7 +366,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -387,7 +387,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -408,7 +408,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -429,7 +429,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -450,7 +450,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -471,7 +471,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -492,7 +492,7 @@ jobs:
           pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
       - uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.python-version }}
           path: coverage.xml
       - uses: actions/checkout@v4
 
@@ -523,5 +523,5 @@ jobs:
       - name: Upload coverage XML
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml-${{ github.run_attempt }}
+          name: coverage-xml-${{ matrix.python-version }}-${{ github.run_attempt }}
           path: coverage.xml
