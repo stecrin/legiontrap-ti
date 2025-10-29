@@ -68,3 +68,30 @@ Populate the API with a few example failed-logins so you can test charts/exports
 | `EVENTS_PATH`      | `/data/events.jsonl` | File path for JSON Lines event storage.                            |
 | `ROTATE_MAX_BYTES` | `1000000`            | Max size in bytes before log rotation of `events.jsonl`.           |
 | `RETENTION_DAYS`   | `14`                 | Days to keep rotated event files.                                  |
+### Events paging & time filter
+
+Fetch events in pages and/or only after a given timestamp.
+
+- `limit` — max events to return (default 50).
+- `after_ts` — ISO8601 timestamp; returns events strictly after this time.
+
+Examples:
+
+```bash
+# First page (default limit)
+curl -s -H 'x-api-key: dev-123' \
+  'http://127.0.0.1:8088/api/events/paged' | python -m json.tool
+
+# Small page size (e.g., 2)
+curl -s -H 'x-api-key: dev-123' \
+  'http://127.0.0.1:8088/api/events/paged?limit=2' | python -m json.tool
+
+# Only events after a timestamp (UTC)
+curl -s -H 'x-api-key: dev-123' \
+  'http://127.0.0.1:8088/api/events/paged?after_ts=2025-01-01T00:00:00Z' | python -m json.tool
+
+# Combine limit + after_ts
+curl -s -H 'x-api-key: dev-123' \
+  'http://127.0.0.1:8088/api/events/paged?limit=3&after_ts=2025-01-01T00:00:00Z' | python -m json.tool
+
+```
