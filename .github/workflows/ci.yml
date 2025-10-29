@@ -9,7 +9,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
-      - run: pip install -r ui/backend/requirements.txt black ruff pytest
+      - run: pip install -r ui/backend/requirements.txt black ruff pytest pytest-cov
       - run: black --check .
       - run: ruff check .
-      - run: pytest -q
+      - run: pytest -q --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
