@@ -4,8 +4,9 @@ import sys
 # Make 'app' importable from repo root
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "ui", "backend"))
 
-from app.main import app  # type: ignore
 from fastapi.testclient import TestClient  # type: ignore
+
+from app.main import app  # type: ignore
 
 client = TestClient(app)
 

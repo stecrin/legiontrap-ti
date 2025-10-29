@@ -96,3 +96,21 @@ curl -s -H 'x-api-key: dev-123' \
   'http://127.0.0.1:8088/api/events/paged?limit=3&after_ts=2025-01-01T00:00:00Z' | python -m json.tool
 
 ```
+
+## 🔎 Quick smoke test (local)
+
+With the API running locally (default: `http://127.0.0.1:8088`) you can verify core routes:
+
+```bash
+# open route
+curl -fsS http://127.0.0.1:8088/api/health | python -m json.tool
+
+# protected routes (require x-api-key)
+H='x-api-key: dev-123'
+curl -fsS -H "$H" http://127.0.0.1:8088/api/stats | python -m json.tool
+curl -fsS -H "$H" http://127.0.0.1:8088/api/iocs/ufw.txt | sed -n '1,20p'
+
+
+Negative-key check (should be **401**):
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -H 'x-api-key: BADKEY' http://127.0.0.1:8088/api/stats
