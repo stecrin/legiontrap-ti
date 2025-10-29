@@ -1,6 +1,7 @@
 # LegionTrap TI
 
 ![CI](https://github.com/stecrin/legiontrap-ti/actions/workflows/ci.yml/badge.svg)
+![Release](https://img.shields.io/github/v/release/stecrin/legiontrap-ti?label=release)
 
 Modular, edge-ready honeynet with privacy-by-design, ATT&CK/Sigma exports, and a clean UI.
 
