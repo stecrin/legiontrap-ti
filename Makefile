@@ -69,3 +69,5 @@ logs:
 
 clean:
 	@rm -f .smoke_before storage/events.jsonl
+seed:
+	@./scripts/seed_demo.sh
