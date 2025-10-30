@@ -1,37 +1,29 @@
 import os
-import pathlib
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Header, HTTPException
+
+from . import iocs_pf
 
 router = APIRouter()
 
 
-def _events_path() -> pathlib.Path:
-    return pathlib.Path(os.environ.get("EVENTS_PATH", "storage/events.jsonl"))
+@router.get("/api/stats")
+def get_stats(x_api_key: str | None = Header(default=None, alias="x-api-key")):
+    expected = os.getenv("API_KEY") or "dev-123"
+    if not x_api_key or x_api_key != expected:
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
-
-def verify_api_key(x_api_key: str | None = Header(default=None)):
-    expected = (
-        os.environ.get("API_KEY")
-        or os.environ.get("LEGION_API_KEY")
-        or os.environ.get("APP_API_KEY")
-        or "dev-123"
-    )
-    if x_api_key != expected:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid api key")
-    return True
-
-
-@router.get("/api/stats", dependencies=[Depends(verify_api_key)])
-def get_stats():
-    """Count lines in EVENTS_PATH (tiny health-ish stat)."""
-    p = _events_path()
     total = 0
-    if p.exists():
-        with p.open("r", encoding="utf-8") as f:
-            for _ in f:
-                total += 1
-    # Provide both shapes for compatibility:
-    # - legacy: {"events": N}
-    # - new:    {"counts": {"total": N}}
-    return {"events": total, "counts": {"total": total}}
+    uniq = set()
+    for ev in iocs_pf.iter_events():
+        total += 1
+        ip = ev.get("src_ip")
+        if ip:
+            uniq.add(ip)
+
+    return {
+        "counts": {"total": total, "unique_ips": len(uniq), "last_24h": 0},
+        "total_events": total,
+        "unique_ips": len(uniq),
+        "last_24h": 0,
+    }
