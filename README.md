@@ -1,5 +1,26 @@
 # LegionTrap TI
 
+## 🚀 Roadmap & Future Features
+
+LegionTrap TI is evolving into a **complete Threat Intelligence and Honeynet platform**, built for security professionals, researchers, and educators.
+
+| Phase | Focus Area | Key Deliverables | Status |
+|-------|-------------|------------------|--------|
+| **Phase 1** | 🧩 Core API + IOC Exports | FastAPI backend, privacy masking, IOC generation, local seed data | ✅ Completed |
+| **Phase 2** | ⚙️ CI/CD Automation | Semantic Release, GitHub Actions, changelog automation, version badges | ✅ Completed |
+| **Phase 3** | 📊 Dashboard UI | Interactive React-based dashboard (FastAPI + Tailwind + Plotly) | 🔄 In progress |
+| **Phase 4** | 🧠 Threat Intelligence Engine | Automatic enrichment (GeoIP, ASN, MITRE ATT&CK mapping) | ⏳ Planned |
+| **Phase 5** | ☁️ Cloud & Edge Profiles | Cloud federation + distributed event collectors | ⏳ Planned |
+| **Phase 6** | 🔔 Alerting & Integrations | Telegram & SIEM integration, webhooks, email alerts | ⏳ Planned |
+
+Each phase builds upon the previous one — modular, reproducible, and secure by design.
+
+---
+
+**Educational-grade honeynet system** that teaches, detects, and defends.
+
+---
+
 ## 💡 Vision
 
 LegionTrap TI was born from a simple idea: to turn raw hacker noise into real, understandable insight.
