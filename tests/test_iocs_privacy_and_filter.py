@@ -15,7 +15,7 @@ import tempfile
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import app.routers.iocs_pf as iocs_pf  # import module form for reload()
+from app.routers import iocs_pf  # import module form for reload()
 
 H = {"x-api-key": "dev-123"}
 

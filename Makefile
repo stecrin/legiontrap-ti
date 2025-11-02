@@ -8,3 +8,8 @@ up:
 
 smoke:
 	@./scripts/smoke.sh
+
+# run IOC export tests only
+test-iocs:
+	@export API_KEY=dev-123; \
+	PYTHONPATH=$(PWD) pytest -v tests/test_iocs.py

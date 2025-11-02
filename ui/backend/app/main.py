@@ -221,11 +221,22 @@ def iocs_ufw():
     return "\n".join(lines) + ("\n" if lines else "")
 
 
-@app.get("/api/iocs/pf.conf", response_class=PlainTextResponse, dependencies=[Depends(_secure_dep)])
-def iocs_pf():
-    ips = _collect_ips()
-    body = ", ".join(ips) if ips else ""
-    return f"table <blocked_ips> persist {{ {body} }}\nblock in quick from <blocked_ips> to any\n"
+@app.get("/api/iocs/pf.conf")
+def _pf_conf_ui():
+    # Delegate to the tested collector; honor EVENTS_FILE/EVENTS_PATH
+    import os as _os
+    from pathlib import Path as _P
+
+    from app.routers import iocs_pf as iocs_mod
+
+    path_str = _os.getenv("EVENTS_FILE") or _os.getenv("EVENTS_PATH") or "storage/events.jsonl"
+    ips = iocs_mod.unique_attacker_ips(_P(path_str))
+    ip_list = ", ".join(ips)
+    return PlainTextResponse(
+        f"""table <blocked_ips> persist {{ {ip_list} }}
+block in quick from <blocked_ips> to any
+"""
+    )
 
 
 @app.get("/api/config", dependencies=[Depends(_secure_dep)])
