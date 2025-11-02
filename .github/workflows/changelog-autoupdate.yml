@@ -1,0 +1,39 @@
+name: 🔄 Auto-Update Changelog on Tag Push
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger only on version tags like v0.1.2
+
+permissions:
+  contents: write  # Needed to commit changelog updates
+
+jobs:
+  update-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Needed for git history
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install auto-changelog tool
+        run: |
+          pip install git-changelog
+
+      - name: Generate or update CHANGELOG.md
+        run: |
+          git-changelog --output CHANGELOG.md --in-place --tag-pattern '^v' --template keepachangelog
+
+      - name: Commit and push changelog
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "🧾 Auto-update changelog for $GITHUB_REF_NAME" || echo "No changes to commit"
+          git push origin main
