@@ -42,6 +42,46 @@ using containerized environments, reproducible builds, and automated release pip
 
 Modular, edge-ready honeynet with privacy-by-design, ATT&CK/Sigma exports, and a clean UI.
 
+---
+
+## 🏗️ Architecture Overview
+
+🧠 **LegionTrap TI** is built around a modular, containerized architecture designed for clarity, privacy, and flexibility.
+
+    ┌──────────────────────────────┐
+    │          Frontend UI         │
+    │   (Future dashboard / React) │
+    └─────────────┬────────────────┘
+                  │ REST API
+    ┌─────────────┴────────────────┐
+    │         FastAPI Backend      │
+    │  - Event ingestion & parsing │
+    │  - IOC export generation     │
+    │  - Privacy masking & config  │
+    └─────────────┬────────────────┘
+                  │ JSONL Storage
+    ┌─────────────┴────────────────┐
+    │       Storage & Logging      │
+    │  - Persistent JSONL events   │
+    │  - Rotating logs / retention │
+    └─────────────┬────────────────┘
+                  │
+    ┌─────────────┴────────────────┐
+    │        Docker Compose        │
+    │  - Edge deployment profile   │
+    │  - Cloud profile (planned)   │
+    └──────────────────────────────┘
+
+
+🧩 **Key principles:**
+- Minimal dependencies for reliability
+- Reproducible, portable container setup
+- Configurable privacy and export modes
+- Modular paths for integration with honeypots and TI feeds
+- Built for both **edge** and **cloud** environments
+
+---
+
 
 ## Status
 
