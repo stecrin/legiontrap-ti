@@ -2,35 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
+and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2025-10-29
-### Added
-- Seed script: `scripts/seed_demo.sh` and `make seed`.
-- README: Quick start, auth, privacy mode, smoke test.
-- README: Environment configuration table.
-- README: Events paging & time-filter examples.
-- CI: GitHub Actions workflow (black, ruff, pytest).
-- License: MIT.
+<!-- insertion marker -->
+## [v0.1.3-auto](https://github.com/stecrin/legiontrap-ti/releases/tag/v0.1.3-auto) - 2025-11-02
 
-### Changed
-- Makefile: developer targets (up/logs/down/smoke/seed).
+<small>[Compare with v0.1.2-auto](https://github.com/stecrin/legiontrap-ti/compare/v0.1.2-auto...v0.1.3-auto)</small>
 
-## [0.1.1] - 2025-11-02
-### Added
-- Finalized IOC export module (`iocs_pf.py`) with full test coverage (12/12 passing).
-- Nested IP extraction for multiple keys (`src_ip`, `source_ip`, `ip`, `client_ip`, `remote_addr`).
-- Privacy mode masking (`PRIVACY_MODE=on`) for safe IOC sharing.
+## [v0.1.2-auto](https://github.com/stecrin/legiontrap-ti/releases/tag/v0.1.2-auto) - 2025-11-02
 
-### Changed
-- Refactored pf.conf exporter with tempdir detection and file-readiness wait loop.
-- Improved debug logging with file preview and size verification.
-- Standardized imports and formatting (Black/isort/Ruff compliance).
+<small>[Compare with v0.1.1](https://github.com/stecrin/legiontrap-ti/compare/v0.1.1...v0.1.2-auto)</small>
+
+## [v0.1.1](https://github.com/stecrin/legiontrap-ti/releases/tag/v0.1.1) - 2025-11-02
+
+<small>[Compare with v0.1.0](https://github.com/stecrin/legiontrap-ti/compare/v0.1.0...v0.1.1)</small>
 
 ### Fixed
-- Resolved test path conflicts under pytest temporary directories.
-- Eliminated false “# empty table” cases during IOC export.
 
-### CI
-- Pre-commit hooks: Black, isort, Ruff, whitespace trim.
-- ✅ All pytest cases passing (`12/12`) on Python 3.13.
+- fix(iocs): regex-scan events; public IPv4 filter; privacy mask respected ([ccf83ff](https://github.com/stecrin/legiontrap-ti/commit/ccf83ff5dd78bf5ca59e9a10141fb2d1d72fcbc2) by stecrin).
+
+## [v0.1.0](https://github.com/stecrin/legiontrap-ti/releases/tag/v0.1.0) - 2025-10-29
+
+<small>[Compare with first commit](https://github.com/stecrin/legiontrap-ti/compare/79e73d9dfa337d05c3fddba5bcd20b94d49014f8...v0.1.0)</small>
+
+### Changed
+
+- changelog: start CHANGELOG.md for v0.1.0 ([b3d8867](https://github.com/stecrin/legiontrap-ti/commit/b3d886709af2829be5c142144d6bc79203ab3b17) by stecrin).
+
