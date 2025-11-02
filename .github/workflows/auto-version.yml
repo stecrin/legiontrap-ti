@@ -13,6 +13,7 @@ permissions:
 jobs:
   bump-version:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,9 +25,11 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install semantic-release
+      # Install all required dependencies locally
+      - name: Install semantic-release and plugins
         run: |
-          npm install -g \
+          npm install --save-dev \
+            semantic-release \
             @semantic-release/git \
             @semantic-release/changelog \
             @semantic-release/github \
@@ -34,7 +37,8 @@ jobs:
             @semantic-release/release-notes-generator \
             conventional-changelog-conventionalcommits
 
+      # Run semantic-release
       - name: Run semantic-release
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
