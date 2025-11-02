@@ -1,6 +1,6 @@
 # LegionTrap TI
 
-##💡 Vision
+## 💡 Vision
 
 LegionTrap TI was born from a simple idea: to turn raw hacker noise into real, understandable insight.
 It’s not just another honeypot... it’s a living system that listens, learns, and reacts.
