@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.1.5](https://github.com/stecrin/legiontrap-ti/compare/v0.1.4...v0.1.5) (2025-11-02)
+
+### Bug Fixes
+
+* trigger changelog generation for v0.1.5 ([246d1f8](https://github.com/stecrin/legiontrap-ti/commit/246d1f8e7745d32d41328021e147698c116dda0f))
+
 ## [0.1.4](https://github.com/stecrin/legiontrap-ti/compare/v0.1.3...v0.1.4) (2025-11-02)
 
 ### Bug Fixes
