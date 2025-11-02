@@ -2,9 +2,9 @@
 
 ![CI](https://github.com/stecrin/legiontrap-ti/actions/workflows/ci.yml/badge.svg)
 ![Release](https://img.shields.io/github/v/release/stecrin/legiontrap-ti?label=release)
+![Changelog](https://img.shields.io/badge/Changelog-Auto--Generated-blueviolet.svg)
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Tests](https://github.com/stecrin/legiontrap-ti/actions/workflows/ci.yml/badge.svg)
-
 
 Modular, edge-ready honeynet with privacy-by-design, ATT&CK/Sigma exports, and a clean UI.
 
@@ -58,7 +58,6 @@ If the app is running in a clean environment, this will automatically:
 1. Set `PYTHONPATH` and `API_KEY`
 2. Run `pytest -v tests/test_iocs.py`
 3. Display pass/fail results in detailed mode
-
 
 ---
 
@@ -166,112 +165,38 @@ curl -s -H 'x-api-key: dev-123' http://127.0.0.1:8088/api/iocs/pf.conf
 
 ---
 
-## IOC exports
+## 🚀 Release Automation
 
-* **UFW (deny list):**
+This repository uses **semantic-release** to automatically handle versioning, tagging, and changelog updates.
 
-  ```bash
-  H='x-api-key: dev-123'
-  curl -s -H "$H" http://127.0.0.1:8088/api/iocs/ufw.txt | sed -n '1,50p'
-  ```
+### How it works
 
-  Example lines (privacy off):
+Each time a commit is pushed to `main`:
 
-  ```
-  deny from 203.0.113.10
-  deny from 8.8.8.8
-  ```
+1. GitHub Actions runs the **Auto Version & Release** workflow.
+2. The workflow installs all semantic-release dependencies.
+3. Based on your commit messages, it determines the correct semantic version bump.
+4. It generates or updates the `CHANGELOG.md`.
+5. It creates and publishes a new GitHub Release with tag and changelog notes.
 
-  Example lines (privacy on):
+### Conventional Commit Examples
 
-  ```
-  deny from 203.0.113.x
-  deny from 8.8.8.x
-  ```
+| Commit type | Example                             | Effect                    |
+| ----------- | ----------------------------------- | ------------------------- |
+| **fix:**    | `fix: resolve missing IOC export`   | 🩹 Patch release (x.x.+1) |
+| **feat:**   | `feat: add new dashboard API route` | 🚀 Minor release (x.+1.0) |
+| **perf!:**  | `perf!: refactor ingestion engine`  | ⚡ Major release (+1.0.0)  |
 
-* **pf.conf (FreeBSD/macOS PF table):**
+### Manual Trigger
 
-  ```bash
-  H='x-api-key: dev-123'
-  curl -s -H "$H" http://127.0.0.1:8088/api/iocs/pf.conf | sed -n '1,50p'
-  ```
-
-  Example (privacy off):
-
-  ```
-  table <blocked_ips> persist { 203.0.113.10, 8.8.8.8 }
-  block in quick from <blocked_ips> to any
-  ```
-
----
-
-## Events paging & time filter
-
-Fetch events in pages and/or only after a given timestamp.
-
-* `limit` — max events to return (default 50)
-* `after_ts` — ISO8601 timestamp; returns events strictly after this time
+You can manually trigger a semantic release without changes:
 
 ```bash
-# First page (default limit)
-curl -s -H 'x-api-key: dev-123' \
-  'http://127.0.0.1:8088/api/events/paged' | python -m json.tool
-
-# Small page size (e.g., 2)
-curl -s -H 'x-api-key: dev-123' \
-  'http://127.0.0.1:8088/api/events/paged?limit=2' | python -m json.tool
-
-# Only events after a timestamp (UTC)
-curl -s -H 'x-api-key: dev-123' \
-  'http://127.0.0.1:8088/api/events/paged?after_ts=2025-01-01T00:00:00Z' | python -m json.tool
-
-# Combine limit + after_ts
-curl -s -H 'x-api-key: dev-123' \
-  'http://127.0.0.1:8088/api/events/paged?limit=3&after_ts=2025-01-01T00:00:00Z' | python -m json.tool
+git commit --allow-empty -m "chore(release): trigger semantic-release"
+git push origin main
 ```
 
----
-
-## API reference (MVP)
-
-* `GET /api/health` — liveness probe (no auth).
-* `GET /api/config` — current effective config (auth).
-* `GET /api/stats` — aggregate counts by time/source/type (auth).
-* `GET /api/events` — all events (auth; may be large).
-* `GET /api/events/paged?limit=&after_ts=` — paginated/time-filtered (auth).
-* `GET /api/iocs/ufw.txt` — UFW deny rules (auth).
-* `GET /api/iocs/pf.conf` — PF table & block rule (auth).
-* `POST /api/ingest` — normalize + append single event (auth; JSON body).
-* `POST /api/events` — append normalized event (auth; JSON body).
-
-**Example ingest:**
-
-```bash
-H='x-api-key: dev-123'
-curl -s -H "$H" -H 'Content-Type: application/json' \
-  -d '{"source":"cowrie","type":"auth_failed","data":{"username":"root","password":"test","ip":"203.0.113.99"}}' \
-  http://127.0.0.1:8088/api/ingest | python -m json.tool
-```
-
----
-
-## 🔎 Quick smoke test (local)
-
-With the API running locally (default: `http://127.0.0.1:8088`) you can verify core routes:
-
-```bash
-# open route
-curl -fsS http://127.0.0.1:8088/api/health | python -m json.tool
-
-# protected routes (require x-api-key)
-H='x-api-key: dev-123'
-curl -fsS -H "$H" http://127.0.0.1:8088/api/stats | python -m json.tool
-curl -fsS -H "$H" http://127.0.0.1:8088/api/iocs/ufw.txt | sed -n '1,20p'
-curl -fsS -H "$H" http://127.0.0.1:8088/api/iocs/pf.conf | sed -n '1,20p'
-
-# Negative-key check (should be 401)
-curl -s -o /dev/null -w '%{http_code}\n' -H 'x-api-key: BADKEY' http://127.0.0.1:8088/api/stats
-```
+A new version will be created if the last commit didn’t already match the changelog.
 
 ---
 
@@ -289,20 +214,11 @@ make down     # stop containers
 
 ## Troubleshooting
 
-* **Accidentally pasted README text into your shell**
-  That runs non-commands like headings. Always paste *only* terminal commands (like above), not Markdown.
-
-* **401 Unauthorized**
-  Ensure you pass `x-api-key` and that `API_KEY` is set in compose/env.
-
-* **Port already in use**
-  Free 8088 or change the port in compose and `make up` again.
-
-* **No IOC output**
-  Confirm events path (see precedence), that events contain public IPv4s, and run `make seed`.
-
-* **Events file path confusion**
-  Remember precedence: `EVENTS_FILE` overrides `EVENTS_PATH`, otherwise `storage/events.jsonl` is used.
+* **Accidentally pasted README text into your shell** — only paste command sections.
+* **401 Unauthorized** — ensure `x-api-key` matches your configured `API_KEY`.
+* **Port already in use** — free 8088 or change port in compose.
+* **No IOC output** — ensure valid events and correct `EVENTS_FILE`.
+* **Events path confusion** — `EVENTS_FILE` overrides `EVENTS_PATH`, otherwise `storage/events.jsonl` is used.
 
 ---
 
