@@ -32,8 +32,14 @@ jobs:
             @semantic-release/changelog \
             @semantic-release/github
 
-      - name: Run semantic-release
+            - name: Run semantic-release
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          npx semantic-release
+          npx semantic-release \
+            --no-ci \
+            --plugins @semantic-release/commit-analyzer \
+                     @semantic-release/release-notes-generator \
+                     @semantic-release/github \
+                     @semantic-release/git \
+                     @semantic-release/changelog
