@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.1.4](https://github.com/stecrin/legiontrap-ti/compare/v0.1.3...v0.1.4) (2025-11-02)
+
+### Bug Fixes
+
+* semantic-release test bump ([61b9bed](https://github.com/stecrin/legiontrap-ti/commit/61b9bedeb2ed534572d0ac23dc0b64c6d9819213))
+
 ## [0.1.3](https://github.com/stecrin/legiontrap-ti/compare/v0.1.2...v0.1.3) (2025-11-02)
 
 
