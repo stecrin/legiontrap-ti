@@ -22,7 +22,26 @@ Every small defense matters in securing humanity’s future.*
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Tests](https://github.com/stecrin/legiontrap-ti/actions/workflows/ci.yml/badge.svg)
 
+---
+
+## 🧠 Tech Stack
+
+Built with modern, modular, and production-grade technologies:
+
+![Python](https://img.shields.io/badge/Python-3.13-blue?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-Framework-009688?logo=fastapi&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-2088FF?logo=githubactions&logoColor=white)
+![Semantic Release](https://img.shields.io/badge/Semantic%20Release-Automated%20Versioning-blueviolet?logo=semanticrelease&logoColor=white)
+![MIT License](https://img.shields.io/badge/License-MIT-green.svg)
+
+The system is designed to be **secure, reproducible, and easy to extend**,
+using containerized environments, reproducible builds, and automated release pipelines.
+
+---
+
 Modular, edge-ready honeynet with privacy-by-design, ATT&CK/Sigma exports, and a clean UI.
+
 
 ## Status
 
