@@ -1,3 +1,10 @@
+## [0.1.2](https://github.com/stecrin/legiontrap-ti/compare/v0.1.1...v0.1.2) (2025-11-02)
+
+
+### Bug Fixes
+
+* trigger semantic release test ([6d49ac7](https://github.com/stecrin/legiontrap-ti/commit/6d49ac75b9b22aceb1441a7552525bc01fb8f583))
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
@@ -29,4 +36,3 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
 - changelog: start CHANGELOG.md for v0.1.0 ([b3d8867](https://github.com/stecrin/legiontrap-ti/commit/b3d886709af2829be5c142144d6bc79203ab3b17) by stecrin).
-
