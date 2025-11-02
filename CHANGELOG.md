@@ -1,3 +1,15 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+
+## [0.1.3](https://github.com/stecrin/legiontrap-ti/compare/v0.1.2...v0.1.3) (2025-11-02)
+
+
+### Bug Fixes
+
+* trigger semantic-release validation ([179db18](https://github.com/stecrin/legiontrap-ti/commit/179db1864607e619157eccdf8d8843ac3e052162))
+
 ## [0.1.2](https://github.com/stecrin/legiontrap-ti/compare/v0.1.1...v0.1.2) (2025-11-02)
 
 
