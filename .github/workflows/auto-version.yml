@@ -13,6 +13,7 @@ permissions:
 jobs:
   bump-version:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,10 +27,13 @@ jobs:
 
       - name: Install semantic-release
         run: |
-          npm install -g semantic-release @semantic-release/git @semantic-release/changelog @semantic-release/github
+          npm install -g semantic-release \
+            @semantic-release/git \
+            @semantic-release/changelog \
+            @semantic-release/github
 
       - name: Run semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           npx semantic-release
