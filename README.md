@@ -103,7 +103,6 @@ Modular, edge-ready honeynet with privacy-by-design, ATT&CK/Sigma exports, and a
 
 ---
 
-
 ## Status
 
 Initializing repository skeleton (Step 1).
@@ -335,6 +334,27 @@ pytest -q
 git add app/routers/iocs_pf.py Makefile README.md
 git commit -m "Docs: enhance README; add IOC examples; clarify EVENTS_FILE precedence; expand API reference"
 ```
+
+---
+
+## 🧾 Changelog & Release History
+
+All versions are automatically generated and documented through **semantic-release**.
+
+🔖 **Latest stable release:**
+[![GitHub release](https://img.shields.io/github/v/release/stecrin/legiontrap-ti?label=Current%20Version&color=blue)](https://github.com/stecrin/legiontrap-ti/releases/latest)
+
+📜 **Full Changelog:**
+[View CHANGELOG.md →](https://github.com/stecrin/legiontrap-ti/blob/main/CHANGELOG.md)
+
+Each new version is automatically published via GitHub Actions whenever commits follow the
+**Conventional Commits** format (e.g., `feat:`, `fix:`, `docs:`).
+
+Example workflow:
+1. Push a properly formatted commit (e.g., `fix: improve IOC export masking`).
+2. CI detects it and triggers `semantic-release`.
+3. A new version tag (like `v0.1.4`) is created automatically.
+4. The changelog and GitHub Release notes are generated and updated for you.
 
 ---
 
