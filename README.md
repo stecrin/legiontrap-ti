@@ -1,6 +1,6 @@
 # LegionTrap TI
 
-**💡 Vision**
+##💡 Vision
 
 LegionTrap TI was born from a simple idea: to turn raw hacker noise into real, understandable insight.
 It’s not just another honeypot... it’s a living system that listens, learns, and reacts.
@@ -14,6 +14,7 @@ Step by step, LegionTrap TI is evolving into a smart, self-sustaining platform t
 Every small defense matters in securing humanity’s future.*
 
 **— Stefan Cringusi**
+
 
 ![CI](https://github.com/stecrin/legiontrap-ti/actions/workflows/ci.yml/badge.svg)
 ![Release](https://img.shields.io/github/v/release/stecrin/legiontrap-ti?label=release)
