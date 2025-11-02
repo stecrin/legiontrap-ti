@@ -1,5 +1,19 @@
 # LegionTrap TI
 
+💡 Vision
+
+LegionTrap TI was born from a simple idea: to turn raw hacker noise into real, understandable insight.
+It’s not just another honeypot... it’s a living system that listens, learns, and reacts.
+Every IP that touches your network leaves a trace, and LegionTrap TI captures it, cleans it, and turns it into something you can actually use.
+
+The goal is independence.
+You don’t need a massive enterprise setup or cloud subscription to understand who’s targeting you; you can host your own private threat-intelligence environment, built with open tools and transparent logic.
+Step by step, LegionTrap TI is evolving into a smart, self-sustaining platform that detects, analyzes, and reports attacks in real time, helping you stay one step ahead without relying on anyone else’s system.
+
+*Pleased to stand among those securing humanity’s future in the digital age.
+Every small defense matters in securing humanity’s future.*
+**— Stefan Cringusi**
+
 ![CI](https://github.com/stecrin/legiontrap-ti/actions/workflows/ci.yml/badge.svg)
 ![Release](https://img.shields.io/github/v/release/stecrin/legiontrap-ti?label=release)
 ![Changelog](https://img.shields.io/badge/Changelog-Auto--Generated-blueviolet.svg)
