@@ -24,7 +24,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install black ruff pytest pytest-cov pytest-env
+          pip install fastapi uvicorn httpx black ruff pytest pytest-cov pytest-env
+
 
       - name: Lint & format check
         run: |
