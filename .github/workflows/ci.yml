@@ -19,11 +19,11 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: ui/backend/requirements.txt
+          cache-dependency-path: requirements.txt
 
       - name: Install dependencies
         run: |
-          pip install -r ui/backend/requirements.txt
+          pip install -r requirements.txt
           pip install black ruff pytest pytest-cov
 
       - name: Lint & format check
@@ -38,12 +38,13 @@ jobs:
 
       - name: Run tests with coverage
         env:
-          PYTHONPATH: ui/backend
+          PYTHONPATH: app
           API_KEY: dev-123
           EVENTS_PATH: ${{ github.workspace }}/storage/test-events.jsonl
+          PRIVACY_MODE: false
         run: |
           echo "Using PYTHONPATH=$PYTHONPATH"
-          pytest -vv tests --cov=ui/backend/app --cov-report=term-missing:skip-covered --cov-report=xml
+          pytest -vv tests --cov=app --cov-report=term-missing:skip-covered --cov-report=xml
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
