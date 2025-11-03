@@ -1,30 +1,31 @@
-import ipaddress
+from __future__ import annotations
+
 import json
 import os
-import pathlib
-import re
+from collections.abc import Generator
+from ipaddress import IPv4Address, ip_address
+from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import Response
 
 router = APIRouter()
 
-POSSIBLE_KEYS = ("src_ip", "source_ip", "remote_addr")
-NESTED_SUBKEYS = ("src_ip", "source_ip", "remote_addr")
-IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+# ---------------- Core helpers (imported by tests) ----------------
 
 
 def _is_public_ipv4(ip: str) -> bool:
+    """Return True only for globally routable IPv4 addresses."""
     try:
-        ip_obj = ipaddress.ip_address(ip)
-        return ip_obj.version == 4 and not (
-            ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_reserved or ip_obj.is_multicast
-        )
-    except Exception:
+        addr = ip_address(ip)
+        return isinstance(addr, IPv4Address) and addr.is_global
+    except ValueError:
         return False
 
 
 def _mask_ip(ip: str) -> str:
+    """Mask last octet for privacy mode (8.8.8.8 -> 8.8.8.x)."""
     parts = ip.split(".")
     if len(parts) == 4:
         parts[-1] = "x"
@@ -32,130 +33,111 @@ def _mask_ip(ip: str) -> str:
     return ip
 
 
-def _extract_from_obj(obj) -> str | None:
-    # Flat
-    if isinstance(obj, dict):
-        for k in POSSIBLE_KEYS:
-            if k in obj and isinstance(obj[k], str):
-                v = obj[k]
-                return v if _is_public_ipv4(v) else None
-        # Nested under "data"
-        data = obj.get("data")
-        if isinstance(data, dict):
-            for k in NESTED_SUBKEYS:
-                v = data.get(k)
-                if isinstance(v, str):
-                    return v if _is_public_ipv4(v) else None
-
-    # Generic scan of any strings present
-    def walk(x):
-        if isinstance(x, dict):
-            for vv in x.values():
-                out = walk(vv)
-                if out:
-                    return out
-        elif isinstance(x, list | tuple | set):
-            for vv in x:
-                out = walk(vv)
-                if out:
-                    return out
-        elif isinstance(x, str):
-            for cand in IPV4_RE.findall(x):
-                if _is_public_ipv4(cand):
-                    return cand
-        return None
-
-    return walk(obj)
-
-
-def _resolve_events_path(lines_path: pathlib.Path | None) -> pathlib.Path | None:
-    if lines_path:
-        return pathlib.Path(lines_path)
-    env_file = os.getenv("EVENTS_FILE")
-    if env_file:
-        return pathlib.Path(env_file)
-    env_path = os.getenv("EVENTS_PATH")
-    if env_path:
-        return pathlib.Path(env_path)
-    p = pathlib.Path("storage/events.jsonl")
-    return p if p.exists() else None
-
-
-def iter_events(lines_path: pathlib.Path | None = None):
-    path = _resolve_events_path(lines_path)
-    if not path or not path.exists():
-        return
-        yield  # pragma: no cover
-
-    privacy_on = os.getenv("PRIVACY_MODE", "off").lower() == "on"
-    with path.open("r") as fh:
-        for line in fh:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                obj = json.loads(line)
-            except Exception:
-                continue
-            ip = _extract_from_obj(obj)
-            if not ip:
-                continue
-            obj["src_ip"] = _mask_ip(ip) if privacy_on else ip
-            yield obj
-
-
-def unique_attacker_ips(lines_path: pathlib.Path | None = None) -> list[str]:
+def _extract_all_ips(obj: Any) -> set[str]:
     """
-    Collect unique *public* attacker IPv4s by scanning the events file text.
-    Respects PRIVACY_MODE ("on"/"off") by masking the last octet when on.
+    Recursively collect every string value found under common keys ('src_ip', 'ip')
+    anywhere inside dicts/lists. Returns a set (possibly empty).
     """
-    path = _resolve_events_path(lines_path)
-    if not path or not path.exists():
-        return []
-    privacy_on = os.getenv("PRIVACY_MODE", "off").lower() == "on"
-    text = path.read_text(errors="ignore")
-    candidates = set(IPV4_RE.findall(text))
-    out: set[str] = set()
-    for ip in candidates:
-        if _is_public_ipv4(ip):
-            out.add(_mask_ip(ip) if privacy_on else ip)
-    return sorted(out)
+    KEYS = ("src_ip", "ip", "dst_ip", "client_ip")
+    found: set[str] = set()
+
+    def _walk(o: Any) -> None:
+        if isinstance(o, dict):
+            # direct hits on common keys
+            for k in KEYS:
+                v = o.get(k)
+                if isinstance(v, str) and v:
+                    found.add(v)
+            # walk all children
+            for v in o.values():
+                _walk(v)
+        elif isinstance(o, list):
+            for item in o:
+                _walk(item)
+        # other types ignored
+
+    _walk(obj)
+    return found
 
 
-@router.get("/api/iocs/ufw.txt", response_class=PlainTextResponse)
-def iocs_ufw_txt() -> str:
-    ips = unique_attacker_ips()
-    if not ips:
-        return ""
-    return "\n".join(f"deny from {ip}" for ip in ips) + "\n"
+def _extract_from_obj(obj: Any) -> str | None:
+    """
+    Backward-compatible helper used by tests: return one IP if present, else None.
+    """
+    ips = _extract_all_ips(obj)
+    return next(iter(ips)) if ips else None
 
 
-@router.get("/api/iocs/pf.conf", response_class=PlainTextResponse)
-def iocs_pf_conf() -> str:
-    ips = unique_attacker_ips()
-    ip_list = ", ".join(ips)
-    return (
-        f"table <blocked_ips> persist {{ {ip_list} }}\nblock in quick from <blocked_ips> to any\n"
+def iter_events() -> Generator[dict, None, None]:
+    """
+    Yield events containing an IP from configured files.
+    Reads EVENTS_PATH and/or EVENTS_FILE (if present). Falls back to storage/events.jsonl.
+    """
+    candidates: list[str] = []
+    for var in ("EVENTS_PATH", "EVENTS_FILE"):
+        val = os.environ.get(var)
+        if val:
+            candidates.append(val)
+    if not candidates:
+        candidates = ["storage/events.jsonl"]
+
+    seen_paths: set[str] = set()
+    for path_str in candidates:
+        if path_str in seen_paths:
+            continue
+        seen_paths.add(path_str)
+
+        path = Path(path_str)
+        if not path.exists():
+            continue
+
+        with path.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    ev = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                if _extract_all_ips(ev):
+                    yield ev
+
+
+def _unique_public_ips_from_events(iterable) -> list[str]:
+    """
+    Build a unique, ordered list of all public IPs found across ALL
+    occurrences in each event (not just the first).
+    """
+    seen: set[str] = set()
+    out: list[str] = []
+    for ev in iterable:
+        # collect every ip from this event (src/dst, nested dicts/lists)
+        for ip in _extract_all_ips(ev):
+            if _is_public_ipv4(ip) and ip not in seen:
+                seen.add(ip)
+                out.append(ip)
+    return out
+
+
+# ------------------------------- Route -------------------------------
+
+
+@router.get("/api/iocs/pf.conf")
+def export_pf_conf() -> Response:
+    """
+    Build a pf.conf table from events file(s).
+    Honor privacy mode: PRIVACY_MODE in {1,on,true} -> mask last octet.
+    """
+    ips = _unique_public_ips_from_events(iter_events())
+
+    privacy = os.environ.get("PRIVACY_MODE", "").lower() in ("1", "on", "true")
+    if privacy:
+        ips = [_mask_ip(ip) for ip in ips]
+
+    body = (
+        "table <blocked_ips> persist { " + ", ".join(ips) + " }\n"
+        "block in quick from <blocked_ips> to any\n"
     )
-
-
-# --- strict override: only accept explicit keys, not generic 'ip' ---
-def _extract_from_obj(obj) -> None | str:
-    if not isinstance(obj, dict):
-        return None
-
-    # flat keys only
-    for k in ("src_ip", "source_ip", "remote_addr"):
-        v = obj.get(k)
-        if isinstance(v, str) and _is_public_ipv4(v):
-            return v
-
-    # nested under 'data'
-    data = obj.get("data")
-    if isinstance(data, dict):
-        for k in ("src_ip", "source_ip", "remote_addr"):
-            v = data.get(k)
-            if isinstance(v, str) and _is_public_ipv4(v):
-                return v
-
-    return None
+    return Response(content=body, media_type="text/plain")
