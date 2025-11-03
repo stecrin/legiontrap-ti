@@ -15,8 +15,8 @@ from fastapi import (
     Query,
     Request,
 )
+from fastapi.responses import PlainTextResponse
 
-from app.routers.iocs_pf import router as iocs_pf_router  # <-- moved up here
 from ui.backend.app.enrichment.manager import EnrichmentManager
 
 from .normalizer import normalize_event
@@ -25,9 +25,6 @@ from .notifier import notify
 enricher = EnrichmentManager()
 
 app = FastAPI(title="LegionTrap TI API", version="0.3.0")
-
-app.include_router(iocs_pf_router)  # keep this here
-
 
 # --- rotation/retention knobs ---
 ROTATE_MAX_BYTES = int(os.getenv("ROTATE_MAX_BYTES", "1000000"))
@@ -39,8 +36,7 @@ API_KEY = os.getenv("API_KEY")
 
 
 def _api_key_check(x_api_key: str | None):
-    api_key = os.getenv("API_KEY")
-    if api_key and x_api_key != api_key:
+    if API_KEY and x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 
@@ -156,3 +152,53 @@ async def test_endpoint(request: Request):
     data = await request.json()
     print("[TEST] got data:", data)
     return {"echo": data}
+
+
+@app.get("/api/iocs/ufw.txt")
+async def iocs_ufw_txt():
+    import json
+    import os
+    from pathlib import Path
+
+    events_path = Path(os.getenv("EVENTS_PATH", "storage/events.jsonl"))
+    seen, ips = set(), []
+    if events_path.exists():
+        for line in events_path.read_text(encoding="utf-8").splitlines():
+            try:
+                evt = json.loads(line)
+            except Exception:
+                continue
+            ip = ((evt.get("data") or {}).get("ip")) or None
+            if ip and ip not in seen:
+                seen.add(ip)
+                ips.append(ip)
+    body = "\n".join(f"deny from {ip}" for ip in ips)
+    if body:
+        body += "\n"
+    return PlainTextResponse(body)
+
+
+@app.get("/api/iocs/pf.conf")
+async def iocs_pf_conf():
+    import json
+    import os
+    from pathlib import Path
+
+    from fastapi.responses import PlainTextResponse
+
+    events_path = Path(os.getenv("EVENTS_PATH", "storage/events.jsonl"))
+    ips = set()
+    if events_path.exists():
+        for line in events_path.read_text(encoding="utf-8").splitlines():
+            try:
+                evt = json.loads(line)
+                ip = (evt.get("data") or {}).get("ip")
+                if ip:
+                    ips.add(ip)
+            except Exception:
+                continue
+    ip_list = ", ".join(sorted(ips))
+    body = (
+        f"table <blocked_ips> persist {{ {ip_list} }}\nblock in quick from <blocked_ips> to any\n"
+    )
+    return PlainTextResponse(body)
