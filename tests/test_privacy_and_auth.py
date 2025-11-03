@@ -4,13 +4,13 @@ from importlib import reload
 
 from fastapi.testclient import TestClient
 
-from ui.backend.app.main import app
+from app.main import app
 
 
 def test_bad_key_gets_401(monkeypatch):
     monkeypatch.setenv("API_KEY", "secret-xyz")
 
-    from ui.backend.app.core import config
+    from app.core import config
 
     reload(config)
 
@@ -29,7 +29,7 @@ def test_privacy_mode_hashes_outputs(monkeypatch):
     monkeypatch.setenv("PRIVACY_MODE", "true")
     monkeypatch.setenv("FEED_SALT", "testsalt")
 
-    from ui.backend.app.core import config
+    from app.core import config
 
     reload(config)
 
