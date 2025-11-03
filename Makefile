@@ -13,3 +13,5 @@ smoke:
 	@echo "[iocs]";   curl -s -H "$(H)" http://127.0.0.1:$(PORT)/api/iocs.json | python3 -m json.tool
 	@echo "[ufw]";    curl -s -H "$(H)" http://127.0.0.1:$(PORT)/api/iocs/ufw.txt
 	@echo "[pf]";     curl -s -H "$(H)" http://127.0.0.1:$(PORT)/api/iocs/pf.conf
+ui:
+\tuv run fastapi dev app/main.py --port 8088
