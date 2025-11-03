@@ -9,9 +9,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.responses import PlainTextResponse, Response
 
+
 # ---------------- Security guard ----------------
-
-
 def require_api_key(x_api_key: str | None = Header(default=None)):
     """Reject requests without or with wrong API key."""
     api_key = os.environ.get("API_KEY")
@@ -27,8 +26,6 @@ router = APIRouter()
 
 
 # ---------------- Core helpers ----------------
-
-
 def _is_public_ipv4(ip: str) -> bool:
     """Return True for IPv4s not in private/reserved/link-local ranges."""
     try:
@@ -121,7 +118,8 @@ def _unique_public_ips_from_events(iterable):
     """Extract unique public IPs from events, applying privacy masking if enabled."""
     seen = set()
     ips = []
-    privacy_mode = os.environ.get("PRIVACY_MODE", "").lower() in ("1", "true", "on")
+    privacy_env = os.environ.get("PRIVACY_MODE")
+    privacy_mode = str(privacy_env).strip().lower() in ("1", "true", "on") if privacy_env else False
 
     for ev in iterable:
         for ip in _extract_all_ips(ev):
@@ -133,9 +131,7 @@ def _unique_public_ips_from_events(iterable):
 
 
 # ------------------------------- Routes -------------------------------
-
-
-@router.get("/api/iocs/ufw.txt", dependencies=[Depends(require_api_key)])
+@router.get("/ufw.txt", dependencies=[Depends(require_api_key)])
 def export_ufw_txt() -> Response:
     """Build a UFW-style deny list (hash if privacy enabled)."""
     ips = _unique_public_ips_from_events(iter_events())
@@ -156,7 +152,7 @@ def export_ufw_txt() -> Response:
     return PlainTextResponse(body)
 
 
-@router.get("/api/iocs/pf.conf", dependencies=[Depends(require_api_key)])
+@router.get("/pf.conf", dependencies=[Depends(require_api_key)])
 def export_pf_conf() -> Response:
     """Build a PF-style table."""
     ips = _unique_public_ips_from_events(iter_events())
