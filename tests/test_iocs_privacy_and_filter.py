@@ -7,12 +7,11 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import importlib
 import json
 import os
 import tempfile
+from importlib import reload
 
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.routers import iocs_pf  # import module form for reload()
@@ -34,23 +33,20 @@ def write_events(path: str) -> None:
             f.write(json.dumps(e) + "\n")
 
 
-def build_client(monkeypatch, events_path: str, privacy: str | None) -> TestClient:
-    # Point the router at our temp file
-    monkeypatch.setenv("EVENTS_PATH", events_path)
-    # Make sure any API-key check matches our header (if your app checks env)
-    for k in ("API_KEY", "LEGION_API_KEY", "APP_API_KEY"):
-        monkeypatch.setenv(k, "dev-123")
-    if privacy is None:
-        monkeypatch.delenv("PRIVACY_MODE", raising=False)
-    else:
+def build_client(monkeypatch, events_path, privacy=None):
+    monkeypatch.setenv("EVENTS_FILE", events_path)
+    monkeypatch.setenv("API_KEY", "dev-123")
+    if privacy:
         monkeypatch.setenv("PRIVACY_MODE", privacy)
 
-    # Reload module so it re-reads PRIVACY_MODE (and other env) at import time
-    importlib.reload(iocs_pf)
+    # ✅ Reload actual modules, not FastAPI object
 
-    app = FastAPI()
-    app.include_router(iocs_pf.router)  # only the router under test
-    return TestClient(app)
+    reload(iocs_pf)
+    import app.main as main
+
+    reload(main)
+
+    return TestClient(main.app)
 
 
 def test_pf_conf_filters_non_public(monkeypatch):

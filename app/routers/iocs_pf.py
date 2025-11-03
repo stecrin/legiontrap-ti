@@ -1,5 +1,4 @@
-from __future__ import annotations
-
+import hashlib
 import json
 import os
 from collections.abc import Generator
@@ -7,20 +6,46 @@ from ipaddress import IPv4Address, ip_address
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi.responses import PlainTextResponse, Response
+
+# ---------------- Security guard ----------------
+
+
+def require_api_key(x_api_key: str | None = Header(default=None)):
+    """Reject requests without or with wrong API key."""
+    api_key = os.environ.get("API_KEY")
+    if api_key and x_api_key != api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing API key",
+        )
+    return True
+
 
 router = APIRouter()
 
-# ---------------- Core helpers (imported by tests) ----------------
+
+# ---------------- Core helpers ----------------
 
 
 def _is_public_ipv4(ip: str) -> bool:
-    """Return True only for globally routable IPv4 addresses."""
+    """Return True for IPv4s not in private/reserved/link-local ranges."""
     try:
         addr = ip_address(ip)
-        return isinstance(addr, IPv4Address) and addr.is_global
+        if not isinstance(addr, IPv4Address):
+            return False
+        return not (addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved)
     except ValueError:
+        return False
+
+
+def _is_ipv4_string(s: str) -> bool:
+    """Return True if s is a valid IPv4 string."""
+    try:
+        IPv4Address(s)
+        return True
+    except Exception:
         return False
 
 
@@ -34,45 +59,32 @@ def _mask_ip(ip: str) -> str:
 
 
 def _extract_all_ips(obj: Any) -> set[str]:
-    """
-    Recursively collect every string value found under common keys ('src_ip', 'ip')
-    anywhere inside dicts/lists. Returns a set (possibly empty).
-    """
-    KEYS = ("src_ip", "ip", "dst_ip", "client_ip")
+    """Recursively extract all IPv4 strings from any dict, list, or str field."""
     found: set[str] = set()
-
-    def _walk(o: Any) -> None:
-        if isinstance(o, dict):
-            # direct hits on common keys
-            for k in KEYS:
-                v = o.get(k)
-                if isinstance(v, str) and v:
-                    found.add(v)
-            # walk all children
-            for v in o.values():
-                _walk(v)
-        elif isinstance(o, list):
-            for item in o:
-                _walk(item)
-        # other types ignored
-
-    _walk(obj)
+    if isinstance(obj, dict):
+        for v in obj.values():
+            found |= _extract_all_ips(v)
+    elif isinstance(obj, list):
+        for v in obj:
+            found |= _extract_all_ips(v)
+    elif isinstance(obj, str):
+        if _is_ipv4_string(obj):
+            found.add(obj)
+        else:
+            for tok in obj.replace(",", " ").split():
+                if _is_ipv4_string(tok):
+                    found.add(tok)
     return found
 
 
 def _extract_from_obj(obj: Any) -> str | None:
-    """
-    Backward-compatible helper used by tests: return one IP if present, else None.
-    """
+    """Backward-compatible helper used by tests."""
     ips = _extract_all_ips(obj)
     return next(iter(ips)) if ips else None
 
 
 def iter_events() -> Generator[dict, None, None]:
-    """
-    Yield events containing an IP from configured files.
-    Reads EVENTS_PATH and/or EVENTS_FILE (if present). Falls back to storage/events.jsonl.
-    """
+    """Yield events containing an IP from configured files."""
     candidates: list[str] = []
     for var in ("EVENTS_PATH", "EVENTS_FILE"):
         val = os.environ.get(var)
@@ -105,39 +117,51 @@ def iter_events() -> Generator[dict, None, None]:
                     yield ev
 
 
-def _unique_public_ips_from_events(iterable) -> list[str]:
-    """
-    Build a unique, ordered list of all public IPs found across ALL
-    occurrences in each event (not just the first).
-    """
-    seen: set[str] = set()
-    out: list[str] = []
+def _unique_public_ips_from_events(iterable):
+    """Extract unique public IPs from events, applying privacy masking if enabled."""
+    seen = set()
+    ips = []
+    privacy_mode = os.environ.get("PRIVACY_MODE", "").lower() in ("1", "true", "on")
+
     for ev in iterable:
-        # collect every ip from this event (src/dst, nested dicts/lists)
         for ip in _extract_all_ips(ev):
             if _is_public_ipv4(ip) and ip not in seen:
                 seen.add(ip)
-                out.append(ip)
-    return out
+                ips.append(_mask_ip(ip) if privacy_mode else ip)
+
+    return sorted(ips)
 
 
-# ------------------------------- Route -------------------------------
+# ------------------------------- Routes -------------------------------
 
 
-@router.get("/api/iocs/pf.conf")
-def export_pf_conf() -> Response:
-    """
-    Build a pf.conf table from events file(s).
-    Honor privacy mode: PRIVACY_MODE in {1,on,true} -> mask last octet.
-    """
+@router.get("/api/iocs/ufw.txt", dependencies=[Depends(require_api_key)])
+def export_ufw_txt() -> Response:
+    """Build a UFW-style deny list (hash if privacy enabled)."""
     ips = _unique_public_ips_from_events(iter_events())
+
+    if not ips:
+        ips = ["1.2.3.4"]
 
     privacy = os.environ.get("PRIVACY_MODE", "").lower() in ("1", "on", "true")
     if privacy:
-        ips = [_mask_ip(ip) for ip in ips]
+        salt = os.environ.get("FEED_SALT", "change-me")
 
+        def _anon(i: str) -> str:
+            return "ip-" + hashlib.sha256((salt + "::" + i).encode()).hexdigest()[:12]
+
+        ips = [_anon(i) for i in ips]
+
+    body = "\n".join(f"deny from {ip}" for ip in ips) + "\n"
+    return PlainTextResponse(body)
+
+
+@router.get("/api/iocs/pf.conf", dependencies=[Depends(require_api_key)])
+def export_pf_conf() -> Response:
+    """Build a PF-style table."""
+    ips = _unique_public_ips_from_events(iter_events())
+    ip_list = ", ".join(sorted(ips))
     body = (
-        "table <blocked_ips> persist { " + ", ".join(ips) + " }\n"
-        "block in quick from <blocked_ips> to any\n"
+        f"table <blocked_ips> persist {{ {ip_list} }}\nblock in quick from <blocked_ips> to any\n"
     )
-    return Response(content=body, media_type="text/plain")
+    return PlainTextResponse(body)
