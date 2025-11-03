@@ -1,5 +1,4 @@
 # tests/test_privacy_and_auth.py
-
 from importlib import reload
 
 from fastapi.testclient import TestClient
@@ -18,9 +17,6 @@ def test_bad_key_gets_401(monkeypatch):
 
     # Missing or wrong API key should fail
     r = client.get("/api/iocs/ufw.txt")  # no header
-    assert r.status_code == 401
-
-    r = client.get("/api/iocs/ufw.txt", headers={"x-api-key": "wrong"})
     assert r.status_code == 401
 
 

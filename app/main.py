@@ -8,7 +8,7 @@ from app.routers.stats import router as stats_router
 app = FastAPI()
 
 # Include routers
-app.include_router(iocs_pf_router)
+app.include_router(iocs_pf_router, prefix="/api/iocs")
 app.include_router(stats_router)
 
 

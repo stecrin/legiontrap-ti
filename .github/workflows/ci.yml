@@ -26,8 +26,6 @@ jobs:
           pip install -r requirements.txt
           pip install black ruff pytest pytest-cov pytest-env fastapi httpx pydantic-settings
 
-
-
       - name: Lint & format check
         run: |
           black --check .
