@@ -13,6 +13,7 @@ LegionTrap TI is evolving into a **complete Threat Intelligence and Honeynet pla
 | **Phase 5** | ☁️ Cloud & Edge Profiles | Cloud federation + distributed event collectors | ⏳ Planned |
 | **Phase 6** | 🔔 Alerting & Integrations | Telegram & SIEM integration, webhooks, email alerts | ⏳ Planned |
 
+
 Each phase builds upon the previous one — modular, reproducible, and secure by design.
 
 ---
@@ -355,6 +356,39 @@ Example workflow:
 2. CI detects it and triggers `semantic-release`.
 3. A new version tag (like `v0.1.4`) is created automatically.
 4. The changelog and GitHub Release notes are generated and updated for you.
+
+---
+
+## 🧩 Recent Technical Milestone – Router Prefix & Privacy Refactor (Nov 2025)
+
+**Goal:**
+Refactor the routing structure, harden environment variable parsing, and ensure full CI coverage for the `legiontrap-ti` backend.
+
+**Key Achievements:**
+- **Unified API structure** by moving `/api/iocs` prefix to `main.py`
+- **Simplified routes** for `ufw.txt` and `pf.conf` exports
+- **Improved `PRIVACY_MODE` handling** – tolerant to missing or invalid values
+- **Enhanced test environment** using `pytest-env` with deterministic variables
+- **CI pipeline modernized:**
+  - Added Python 3.11 on `ubuntu-24.04`
+  - Added dependencies: `fastapi`, `httpx`, `pytest`, `pydantic-settings`
+  - 100 % test pass rate confirmed on GitHub Actions
+- **Conflict-free rebase & merge:**
+  - Clean interactive rebase across 10 + commits
+  - Squash-merged into `main` with consistent formatting
+
+**Result:**
+A stable, production-ready backend foundation with consistent test, lint, and CI configuration.
+Closed successfully on **3 Nov 2025** with **zero failing tests** and **100 % CI success**.
+
+---
+
+### 📘 Next Focus Area
+
+The next active development cycle will target:
+- **Dashboard integration** (Streamlit or Dash UI)
+- **Threat-intelligence enrichment** (GeoIP, ASN, ATT&CK mapping)
+- **Deployment packaging** (Docker Compose profiles, release tagging)
 
 ---
 
