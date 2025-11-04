@@ -23,3 +23,6 @@ dist/
 storage/
 *.bak
 artifacts/
+
+# Local backups
+*.bak.*
