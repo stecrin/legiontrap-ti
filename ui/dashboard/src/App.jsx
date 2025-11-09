@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { getStats, getPfConf } from './lib/api';
 import RecentEvents from "./components/RecentEvents";
+import EventTrends from "./components/EventTrends";
+
 
 // keep <body> background in sync with dashboard theme
 function useBodyBgSync(color) {
@@ -192,8 +194,12 @@ export default function App() {
 {pf || 'Loading…'}
           </pre>
         </section>
+        {/* 📈 Event Trends chart */}
+        <div style={{ marginTop: 28 }}>
+          <EventTrends dark={dark} />
+        </div>
 
-        {/* Recent Events Table */}
+        {/* 🧾 Recent Events table */}
         <div style={{ marginTop: 28 }}>
           <RecentEvents dark={dark} />
         </div>
