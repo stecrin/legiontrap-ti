@@ -65,4 +65,3 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
 - changelog: start CHANGELOG.md for v0.1.0 ([b3d8867](https://github.com/stecrin/legiontrap-ti/commit/b3d886709af2829be5c142144d6bc79203ab3b17) by stecrin).
-

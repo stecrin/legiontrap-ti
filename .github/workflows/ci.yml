@@ -25,6 +25,11 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install black ruff pytest pytest-cov pytest-env fastapi httpx pydantic-settings
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> feat/dashboard-polish
 
       - name: Lint & format check
         run: |

@@ -1,46 +1,62 @@
+# ----------------------------------------------------------------------
 # tests/test_privacy_and_auth.py
+# Unit tests for API key enforcement and privacy mode behavior.
+# These validate the /api/iocs endpoints and ensure privacy masking logic
+# works as intended when PRIVACY_MODE is enabled.
+# ----------------------------------------------------------------------
+
+import json
+import os
 from importlib import reload
 
 from fastapi.testclient import TestClient
 
-from app.main import app
+import app.main as main
 
 
-def test_bad_key_gets_401(monkeypatch):
-    monkeypatch.setenv("API_KEY", "secret-xyz")
+def test_api_key_required(monkeypatch):
+    """Ensure endpoints reject missing or invalid API key."""
+    # Patch the API_KEY environment variable to simulate protection
+    monkeypatch.setenv("API_KEY", "secret")
 
-    from app.core import config
+    # Reload app to apply the env var
+    reload(main)
+    client = TestClient(main.app)
 
-    reload(config)
+    # 1️⃣ Missing key → should be 401
+    r = client.get("/api/iocs/pf.conf")
+    assert r.status_code == 401
 
-    client = TestClient(app)
-
-    # Missing or wrong API key should fail
-    r = client.get("/api/iocs/ufw.txt")  # no header
+    # 2️⃣ Wrong key → should be 401
+    r = client.get("/api/iocs/ufw.txt", headers={"x-api-key": "wrong"})
     assert r.status_code == 401
 
 
 def test_privacy_mode_hashes_outputs(monkeypatch):
-    monkeypatch.setenv("API_KEY", "secret-xyz")
+    """Ensure privacy mode anonymizes IPs in exported lists."""
+    monkeypatch.setenv("API_KEY", "secret")
     monkeypatch.setenv("PRIVACY_MODE", "true")
-    monkeypatch.setenv("FEED_SALT", "testsalt")
+    monkeypatch.setenv("FEED_SALT", "unit-test-salt")
 
-    from app.core import config
+    # Create a temporary events file with one IP
+    os.makedirs("storage", exist_ok=True)
+    path = "storage/events.jsonl"
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(json.dumps({"ip": "8.8.8.8"}) + "\n")
 
-    reload(config)
+    reload(main)
+    client = TestClient(main.app)
 
-    # reload router after env change
-    from app.routers import iocs_pf
-
-    reload(iocs_pf)
-
-    client = TestClient(app)
-
-    # Now the app sees the new env vars
-    r = client.get("/api/iocs/ufw.txt", headers={"x-api-key": "secret-xyz"})
+    # Request UFW export
+    r = client.get("/api/iocs/ufw.txt", headers={"x-api-key": "secret"})
     assert r.status_code == 200
-    text = r.text
-    # raw IPs should not be visible
-    assert "1.2.3.4" not in text
-    # but hashed markers should appear
-    assert "ip-" in text
+    body = r.text.strip()
+    assert "8.8.8.8" not in body  # IP should be hashed
+    assert "deny from ip-" in body  # Hashed prefix present
+
+    # Request PF export
+    r = client.get("/api/iocs/pf.conf", headers={"x-api-key": "secret"})
+    assert r.status_code == 200
+    body = r.text.strip()
+    assert "8.8.8.8" not in body
+    assert "ip-" in body
