@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+
+## [0.2.0](https://github.com/stecrin/legiontrap-ti/compare/v0.1.6...v0.2.0) (2025-11-09)
+
+### Features
+
+* **backend:** scaffold privacy/auth & IOC endpoints; ruff UP038; fix release.config.js newline ([b2fdb2b](https://github.com/stecrin/legiontrap-ti/commit/b2fdb2bce91221a032448d061b500b13c56f8196))
+* **ui:** add EventTrends chart with fade-in animation, spinner, and empty state handling ([d1d218e](https://github.com/stecrin/legiontrap-ti/commit/d1d218eb0d8bfb127e39ad43507d901e6f8d3808))
+
+### Bug Fixes
+
+* **lint:** rename ambiguous variable 'l' to 'line' in events router ([fceb677](https://github.com/stecrin/legiontrap-ti/commit/fceb67704b54d17b929c2ef2de0d2f66fd7de39c))
+
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
