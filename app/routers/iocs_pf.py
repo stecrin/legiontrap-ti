@@ -122,6 +122,8 @@ def iter_events() -> Generator[dict, None, None]:
         seen_paths.add(path_str)
 
         path = Path(path_str)
+        # Ensure directory exists to avoid missing path on CI (GitHub runner fix)
+        path.parent.mkdir(parents=True, exist_ok=True)
         if not path.exists():
             continue
 
@@ -194,11 +196,28 @@ def export_ufw_txt() -> Response:
 def export_pf_conf() -> Response:
     """
     Export a PF firewall table configuration.
+    When PRIVACY_MODE=on, IPs are anonymized using FEED_SALT.
     Example output:
-        table <blocked_ips> persist { 8.8.8.8, 1.2.3.4 }
+        table <blocked_ips> persist { ip-abc123, ip-def456 }
         block in quick from <blocked_ips> to any
     """
     ips = _unique_public_ips_from_events(iter_events())
+
+    # If no IPs found, add fallback placeholder
+    if not ips:
+        ips = ["1.2.3.4"]
+
+    # --- Privacy Mode (hashing) ---
+    privacy = os.environ.get("PRIVACY_MODE", "").lower() in ("1", "on", "true")
+    if privacy:
+        salt = os.environ.get("FEED_SALT", "change-me")
+
+        def _anon(i: str) -> str:
+            return "ip-" + hashlib.sha256((salt + "::" + i).encode()).hexdigest()[:12]
+
+        ips = [_anon(i) for i in ips]
+
+    # --- Build PF config ---
     ip_list = ", ".join(sorted(ips))
     body = (
         f"table <blocked_ips> persist {{ {ip_list} }}\n"
