@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.2.1](https://github.com/stecrin/legiontrap-ti/compare/v0.2.0...v0.2.1) (2025-11-10)
+
+### Bug Fixes
+
+* **ui:** resolve dashboard merge markers and restore from feat/dashboard-polish ([1a3a66a](https://github.com/stecrin/legiontrap-ti/commit/1a3a66a16c0f61aa28ff70df85d54f2b9e27b3bc))
+
 ## [0.2.0](https://github.com/stecrin/legiontrap-ti/compare/v0.1.6...v0.2.0) (2025-11-09)
 
 ### Features
