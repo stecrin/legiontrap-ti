@@ -1,5 +1,21 @@
 # LegionTrap TI
 
+## Table of Contents
+- [Vision](#-vision)
+- [Roadmap](#-roadmap--future-features)
+- [Tech Stack](#-tech-stack)
+- [Architecture Overview](#-architecture-overview)
+- [Quick Start](#quick-start-local)
+- [API Endpoints](#api-endpoints)
+- [Environment Configuration](#environment-configuration)
+- [Privacy & Anonymization](#privacy--anonymization)
+- [Tests & CI](#tests-ioc-exports)
+- [Troubleshooting (Local & CI)](#troubleshooting-local--ci)
+- [Release Automation](#-release-automation)
+- [Contributing](#contributing)
+- [License](#license)
+
+
 ## 🚀 Roadmap & Future Features
 
 LegionTrap TI is evolving into a **complete Threat Intelligence and Honeynet platform**, built for security professionals, researchers, and educators.
@@ -37,14 +53,6 @@ Every small defense matters in securing humanity’s future.*
 
 **— Stefan Cringusi**
 
-
-![CI](https://github.com/stecrin/legiontrap-ti/actions/workflows/ci.yml/badge.svg)
-![Release](https://img.shields.io/github/v/release/stecrin/legiontrap-ti?label=release)
-![Changelog](https://img.shields.io/badge/Changelog-Auto--Generated-blueviolet.svg)
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
-![Tests](https://github.com/stecrin/legiontrap-ti/actions/workflows/ci.yml/badge.svg)
-
----
 
 ## 🧠 Tech Stack
 
@@ -126,6 +134,20 @@ curl -s -H "$H" http://127.0.0.1:8088/api/stats  | python -m json.tool
 curl -s -H "$H" http://127.0.0.1:8088/api/iocs/ufw.txt
 curl -s -H "$H" http://127.0.0.1:8088/api/iocs/pf.conf
 ```
+
+---
+
+## API Endpoints
+
+| Method | Path                    | Auth | Description                           |
+|-------:|-------------------------|:----:|---------------------------------------|
+| GET    | `/api/health`           |  No  | Liveness check                         |
+| GET    | `/api/config`           | Yes  | Current runtime config                 |
+| GET    | `/api/stats`            | Yes  | Simple stats from ingested events      |
+| GET    | `/api/iocs/ufw.txt`     | Yes  | UFW deny list (privacy-aware)          |
+| GET    | `/api/iocs/pf.conf`     | Yes  | PF table config (privacy-aware)        |
+
+**Auth header:** `x-api-key: <API_KEY>`
 
 ---
 
@@ -246,6 +268,33 @@ The API resolves the events file as:
 
 ---
 
+## Privacy & Anonymization
+
+LegionTrap TI supports two privacy strategies for exported IOCs:
+
+1. **Masked last octet** (default with `PRIVACY_MODE=on` and no salt):
+   - `8.8.8.8` → `8.8.8.x`
+2. **Hashed tokens** (enable with both `PRIVACY_MODE=on` and `FEED_SALT`):
+   - `8.8.8.8` → `ip-<hashprefix>` (deterministic per salt)
+
+**Examples**
+```bash
+# Masking
+PRIVACY_MODE=on API_KEY=dev-123 \
+curl -s -H 'x-api-key: dev-123' http://127.0.0.1:8088/api/iocs/pf.conf
+# -> table <blocked_ips> persist { 1.1.1.x, 8.8.8.x }
+
+# Hashing
+PRIVACY_MODE=on FEED_SALT=my-secret-salt API_KEY=dev-123 \
+curl -s -H 'x-api-key: dev-123' http://127.0.0.1:8088/api/iocs/pf.conf
+# -> table <blocked_ips> persist { ip-12ab34cd56ef, ip-... }
+
+# Notes
+Hashing is deterministic for the same FEED_SALT + IP.
+Private/loopback/link-local/reserved IPs are filtered out.
+
+---
+
 ## Seed demo data
 
 Populate the API with a few example failed-logins so you can test charts/exports:
@@ -315,6 +364,17 @@ make down     # stop containers
 * **Port already in use** — free 8088 or change port in compose.
 * **No IOC output** — ensure valid events and correct `EVENTS_FILE`.
 * **Events path confusion** — `EVENTS_FILE` overrides `EVENTS_PATH`, otherwise `storage/events.jsonl` is used.
+
+**No IOC output / empty `pf.conf`:**
+- Ensure **events file exists and contains at least one public IPv4**.
+- Precedence is `EVENTS_FILE → EVENTS_PATH → storage/events.jsonl`.
+- On CI, the tests create a temp events file. If you run the app in CI yourself, also ensure the `storage/` directory exists or set `EVENTS_FILE` explicitly.
+
+**401 Unauthorized:**
+- Your header must be `x-api-key: <API_KEY>`, and `<API_KEY>` must match the environment.
+
+**Port in use / server not starting:**
+- Free port `8088` or change it in your run command/compose profile.
 
 ---
 
