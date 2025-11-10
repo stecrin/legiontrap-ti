@@ -1,2 +1,4 @@
+fastapi
 uvicorn[standard]==0.29.0
 geoip2
+pydantic
