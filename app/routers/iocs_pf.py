@@ -1,8 +1,9 @@
 # ----------------------------------------------------------------------
 # LegionTrap TI - IOC Exporter (PF, UFW)
-# This module defines FastAPI routes for exporting Indicators of Compromise (IOCs)
-# into firewall-compatible formats (UFW and PF). It also enforces API key access
-# and supports privacy-masked exports.
+# ----------------------------------------------------------------------
+# This module provides FastAPI routes for exporting Indicators of Compromise (IOCs)
+# into firewall-compatible formats (UFW and PF). Each export can optionally
+# anonymize IP addresses for privacy and requires an API key for access.
 # ----------------------------------------------------------------------
 
 import hashlib
@@ -20,7 +21,7 @@ from fastapi.responses import PlainTextResponse, Response
 # ---------------- Security guard ----------------
 def require_api_key(x_api_key: str | None = Header(default=None)):
     """
-    Reject requests without or with wrong API key.
+    Reject requests without or with the wrong API key.
     Protects all IOC export endpoints from unauthorized access.
     """
     api_key = os.environ.get("API_KEY")
@@ -38,19 +39,21 @@ router = APIRouter()
 
 # ---------------- Core helpers ----------------
 def _is_public_ipv4(ip: str) -> bool:
-    """Return True for IPv4s not in private/reserved/link-local ranges."""
+    """
+    Return True for valid IPv4 addresses that are *not* private, loopback,
+    link-local, or reserved (RFC1918, RFC3330, etc.).
+    """
     try:
         addr = ip_address(ip)
         if not isinstance(addr, IPv4Address):
             return False
-        # Skip non-public ranges (RFC1918, loopback, link-local, reserved)
         return not (addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved)
     except ValueError:
         return False
 
 
 def _is_ipv4_string(s: str) -> bool:
-    """Return True if s is a valid IPv4 string."""
+    """Check whether a string looks like a valid IPv4 address."""
     try:
         IPv4Address(s)
         return True
@@ -59,7 +62,7 @@ def _is_ipv4_string(s: str) -> bool:
 
 
 def _mask_ip(ip: str) -> str:
-    """Mask last octet for privacy mode (8.8.8.8 -> 8.8.8.x)."""
+    """Mask the last octet for privacy (e.g. 8.8.8.8 → 8.8.8.x)."""
     parts = ip.split(".")
     if len(parts) == 4:
         parts[-1] = "x"
@@ -69,8 +72,8 @@ def _mask_ip(ip: str) -> str:
 
 def _extract_all_ips(obj: Any) -> set[str]:
     """
-    Recursively extract all IPv4 strings from any dict, list, or string field.
-    Supports deep traversal of event data structures.
+    Recursively extract all IPv4 strings from nested dicts/lists/strings.
+    Used to scan events for any IP occurrences.
     """
     found: set[str] = set()
     if isinstance(obj, dict):
@@ -83,6 +86,7 @@ def _extract_all_ips(obj: Any) -> set[str]:
         if _is_ipv4_string(obj):
             found.add(obj)
         else:
+            # Extract potential IPs from comma/space-separated text
             for tok in obj.replace(",", " ").split():
                 if _is_ipv4_string(tok):
                     found.add(tok)
@@ -90,15 +94,18 @@ def _extract_all_ips(obj: Any) -> set[str]:
 
 
 def _extract_from_obj(obj: Any) -> str | None:
-    """Backward-compatible helper used by tests."""
+    """Return the first detected IP from any object (legacy compatibility)."""
     ips = _extract_all_ips(obj)
     return next(iter(ips)) if ips else None
 
 
 def iter_events() -> Generator[dict, None, None]:
     """
-    Yield all events containing IPs from configured JSONL sources.
-    Uses environment variables EVENTS_PATH or EVENTS_FILE for custom paths.
+    Yield all event entries containing IPs from one or more JSONL files.
+    Paths can be customized with:
+      - EVENTS_PATH
+      - EVENTS_FILE
+    Falls back to 'storage/events.jsonl' by default.
     """
     candidates: list[str] = []
     for var in ("EVENTS_PATH", "EVENTS_FILE"):
@@ -128,15 +135,14 @@ def iter_events() -> Generator[dict, None, None]:
                 except json.JSONDecodeError:
                     continue
 
-                # Only yield events that actually contain an IP
                 if _extract_all_ips(ev):
                     yield ev
 
 
 def _unique_public_ips_from_events(iterable):
     """
-    Extract unique public IPs from events, applying privacy masking if enabled.
-    Deduplicates and preserves stable ordering.
+    Extract unique public IPs from events, apply privacy masking if enabled,
+    and sort them for reproducible output.
     """
     seen = set()
     ips = []
@@ -152,19 +158,24 @@ def _unique_public_ips_from_events(iterable):
 
 
 # ------------------------------- Routes -------------------------------
+# Both routes below are under /api/iocs/ so the dashboard and pf.conf generator
+# can query them directly via HTTP.
+# ----------------------------------------------------------------------
 
 
-@router.get("/api/iocs/ufw.txt", dependencies=[Depends(require_api_key)])
+@router.get("/ufw.txt", dependencies=[Depends(require_api_key)])
 def export_ufw_txt() -> Response:
     """
-    Build a UFW-style deny list from current event data.
-    If PRIVACY_MODE is enabled, hashes IPs with a salt.
+    Export a UFW-compatible deny list.
+    Example output:
+        deny from 8.8.8.8
+        deny from 1.2.3.4
+    When PRIVACY_MODE=on, IPs are anonymized using FEED_SALT.
     """
     ips = _unique_public_ips_from_events(iter_events())
 
-    # Default placeholder IP if no data is found
     if not ips:
-        ips = ["1.2.3.4"]
+        ips = ["1.2.3.4"]  # fallback example
 
     privacy = os.environ.get("PRIVACY_MODE", "").lower() in ("1", "on", "true")
     if privacy:
@@ -179,11 +190,13 @@ def export_ufw_txt() -> Response:
     return PlainTextResponse(body)
 
 
-@router.get("/api/iocs/pf.conf", dependencies=[Depends(require_api_key)])
+@router.get("/pf.conf", dependencies=[Depends(require_api_key)])
 def export_pf_conf() -> Response:
     """
-    Build a PF firewall configuration table containing blocked IPs.
-    Uses the same privacy and deduplication logic as UFW export.
+    Export a PF firewall table configuration.
+    Example output:
+        table <blocked_ips> persist { 8.8.8.8, 1.2.3.4 }
+        block in quick from <blocked_ips> to any
     """
     ips = _unique_public_ips_from_events(iter_events())
     ip_list = ", ".join(sorted(ips))
