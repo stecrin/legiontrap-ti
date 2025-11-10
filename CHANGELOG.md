@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.2.2](https://github.com/stecrin/legiontrap-ti/compare/v0.2.1...v0.2.2) (2025-11-10)
+
+### Bug Fixes
+
+* **ci:** remove merge markers from CI workflow ([38c2781](https://github.com/stecrin/legiontrap-ti/commit/38c27815316cbeaa5a1c9b8f3bc7982f85276782))
+
 ## [0.2.1](https://github.com/stecrin/legiontrap-ti/compare/v0.2.0...v0.2.1) (2025-11-10)
 
 ### Bug Fixes
