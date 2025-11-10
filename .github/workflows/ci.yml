@@ -4,13 +4,13 @@ permissions:
 
 on:
   push:
+    branches: [ main ]
   pull_request:
   workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-24.04
-
     steps:
       - uses: actions/checkout@v4
 
@@ -23,35 +23,15 @@ jobs:
 
       - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install black ruff pytest pytest-cov pytest-env fastapi httpx pydantic-settings
 
-
->>>>>>> feat/dashboard-polish
-
-      - name: Lint & format check
+      - name: Lint
         run: |
           black --check .
           ruff check .
 
-      - name: Prepare test environment
+      - name: Tests
         run: |
-          mkdir -p storage
-          echo '{"src_ip": "1.2.3.4"}' > storage/test-events.jsonl
-
-      - name: Run tests with coverage
-        env:
-          PYTHONPATH: .
-          API_KEY: dev-123
-          EVENTS_PATH: ${{ github.workspace }}/storage/test-events.jsonl
-          PRIVACY_MODE: false
-        run: |
-          echo "Using PYTHONPATH=$PYTHONPATH"
-          pytest -vv tests --cov=app --cov-report=term-missing:skip-covered --cov-report=xml
-
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage.xml
-          overwrite: true
+          pytest -q
