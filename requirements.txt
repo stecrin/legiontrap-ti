@@ -2,3 +2,8 @@ fastapi
 uvicorn[standard]==0.29.0
 geoip2
 pydantic
+pydantic-settings
+python-dotenv
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
