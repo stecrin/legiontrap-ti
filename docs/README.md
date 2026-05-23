@@ -2,7 +2,7 @@
 
 **Document type:** Documentation index and navigation guide
 **Audience:** Engineers, contributors, autonomous agents, new maintainers
-**Last reviewed:** 2026-05-22
+**Last reviewed:** 2026-05-23
 
 ---
 
@@ -61,6 +61,12 @@ Layer 2: Technical Architecture
   AI_ROADMAP.md      — AI integration stages and prerequisites
   FEDERATION_VISION.md — Federation protocol design
 
+Layer 2b: Implementation Blueprints (Phase 1–5)
+  DATABASE_SCHEMA.md         — Canonical SQL schema; all tables, indexes, seed data
+  MIGRATION_GUIDE.md         — JSONL→SQLite migration procedure; Alembic setup; import tool
+  INGESTION_PIPELINE.md      — POST /api/ingest specification; normalization; deduplication
+  AI_REASONING_ARCHITECTURE.md — Retrieval-then-reason pattern; SQL context queries; prompt design
+
 Layer 3: Operational and Conceptual Reference
   BEHAVIORAL_INTELLIGENCE.md — Core concept: behavioral fingerprinting and campaign memory
   SECURITY_AUDIT.md          — Known vulnerabilities, severity ratings, remediation plan
@@ -93,6 +99,10 @@ These documents define how the system is built and how it will evolve. They chan
 | `ROADMAP.md` | Technical | Phases 0–7 with exit criteria, sequencing rationale, and anti-patterns to avoid |
 | `AI_ROADMAP.md` | Technical | AI integration in 6 stages; backend options; privacy constraints; risk table |
 | `FEDERATION_VISION.md` | Technical | Privacy-preserving fingerprint federation; trust tiers; protocol design; privacy attack analysis |
+| `DATABASE_SCHEMA.md` | Blueprint | Canonical SQL schema; all tables, indexes, Alembic migration names, seed data, retention policy |
+| `MIGRATION_GUIDE.md` | Blueprint | Step-by-step JSONL→SQLite migration; import tool spec; Alembic env.py setup; rollback plan |
+| `INGESTION_PIPELINE.md` | Blueprint | `POST /api/ingest` spec; normalization functions; deduplication; Pydantic models; repository interface |
+| `AI_REASONING_ARCHITECTURE.md` | Blueprint | Retrieval-then-reason design; 7 context SQL queries; prompt structure; privacy rules; backend config |
 
 ### Operational and Conceptual Documents
 
@@ -143,11 +153,11 @@ Required: `SECURITY_AUDIT.md` → `ARCHITECTURE.md` → `AUTONOMOUS_OPERATIONS.m
 | Phase | Focus | Primary Document | Supporting Documents |
 |---|---|---|---|
 | Phase 0 | Security hygiene | `SECURITY_AUDIT.md` | `ARCHITECTURE.md` |
-| Phase 1 | SQLite storage | `ARCHITECTURE.md` | `ROADMAP.md` |
-| Phase 2 | Ingestion API | `ROADMAP.md` | `ARCHITECTURE.md` |
-| Phase 3 | GeoIP enrichment | `ROADMAP.md` | `ARCHITECTURE.md` |
-| Phase 4 | ATT&CK / standard exports | `ROADMAP.md` | `BEHAVIORAL_INTELLIGENCE.md` |
-| Phase 5 | First AI integration | `AI_ROADMAP.md` | `ROADMAP.md` |
+| Phase 1 | SQLite storage | `DATABASE_SCHEMA.md` | `MIGRATION_GUIDE.md`, `ARCHITECTURE.md` |
+| Phase 2 | Ingestion API | `INGESTION_PIPELINE.md` | `DATABASE_SCHEMA.md`, `ROADMAP.md` |
+| Phase 3 | GeoIP enrichment | `INGESTION_PIPELINE.md` | `DATABASE_SCHEMA.md` |
+| Phase 4 | ATT&CK / standard exports | `DATABASE_SCHEMA.md` | `BEHAVIORAL_INTELLIGENCE.md` |
+| Phase 5 | First AI integration | `AI_REASONING_ARCHITECTURE.md` | `AI_ROADMAP.md`, `ROADMAP.md` |
 | Phase 6 | Behavioral memory | `BEHAVIORAL_INTELLIGENCE.md` | `AI_ROADMAP.md` |
 | Phase 7 | Federation | `FEDERATION_VISION.md` | `BEHAVIORAL_INTELLIGENCE.md` |
 
