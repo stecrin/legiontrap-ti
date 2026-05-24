@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from contextlib import contextmanager
 
-from sqlalchemy import Engine, create_engine, event
+from sqlalchemy import Engine, create_engine, event, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -65,6 +65,75 @@ def _get_session_factory() -> sessionmaker:
     if _SessionLocal is None:
         _SessionLocal = sessionmaker(get_engine(), autocommit=False, autoflush=False)
     return _SessionLocal
+
+
+def create_all_tables(engine: Engine) -> None:
+    """
+    Create all Phase 1 tables directly using DDL. Intended for test fixtures
+    and local development bootstrapping only.
+
+    Production deployments must use `alembic upgrade head` instead. This
+    function must never be called from application startup code.
+    """
+    with engine.connect() as conn:
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS event_types ("
+                "id TEXT PRIMARY KEY, label TEXT NOT NULL, "
+                "attack_tactic TEXT, attack_technique TEXT, description TEXT)"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT OR IGNORE INTO event_types "
+                "(id, label, attack_tactic, attack_technique) VALUES "
+                "('auth_failed','SSH Authentication Failure','Credential Access','T1110.001'),"
+                "('auth_success','SSH Authentication Success','Initial Access','T1078'),"
+                "('port_scan','Port Scan Probe','Discovery','T1046'),"
+                "('http_probe','HTTP Endpoint Probe','Discovery','T1595.002'),"
+                "('malware_upload','Malware Upload Attempt','Execution','T1204'),"
+                "('command_exec','Remote Command Execution','Execution','T1059'),"
+                "('unknown','Unknown Event Type',NULL,NULL)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS raw_events ("
+                "id TEXT PRIMARY KEY, ts TEXT NOT NULL, ingested_at TEXT NOT NULL, "
+                "source TEXT NOT NULL, raw_json TEXT NOT NULL)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS source_ips ("
+                "ip TEXT PRIMARY KEY, first_seen TEXT NOT NULL, last_seen TEXT NOT NULL, "
+                "event_count INTEGER NOT NULL DEFAULT 0, country_code TEXT, "
+                "country_name TEXT, asn INTEGER, asn_org TEXT, "
+                "is_tor_exit INTEGER NOT NULL DEFAULT 0, "
+                "is_vpn INTEGER NOT NULL DEFAULT 0, "
+                "reputation_score REAL, tags TEXT)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS events ("
+                "id TEXT PRIMARY KEY, ts TEXT NOT NULL, src_ip TEXT, "
+                "dst_port INTEGER, protocol TEXT, event_type TEXT NOT NULL, "
+                "service TEXT, country_code TEXT, country_name TEXT, city TEXT, "
+                "asn INTEGER, asn_org TEXT, campaign_id TEXT, "
+                "schema_version INTEGER NOT NULL DEFAULT 1, "
+                "FOREIGN KEY (id) REFERENCES raw_events(id) ON DELETE CASCADE, "
+                "FOREIGN KEY (event_type) REFERENCES event_types(id))"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS audit_log ("
+                "id TEXT PRIMARY KEY, ts TEXT NOT NULL, event_type TEXT NOT NULL, "
+                "auth_method TEXT, source_ip TEXT, detail TEXT)"
+            )
+        )
+        conn.commit()
 
 
 @contextmanager
