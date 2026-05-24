@@ -145,13 +145,11 @@ These defaults are in the public source code. Any deployment that does not expli
 
 ---
 
-### H-003: Deprecated datetime.utcnow()
+### H-003: Deprecated datetime.utcnow() — RESOLVED (stale)
 
-**File:** `app/routers/stats.py:58`
+**File:** `app/utils/auth.py`
 **Severity:** Medium (will become High on Python 3.13+)
-**Description:** `datetime.utcnow()` is deprecated in Python 3.12 and removed in Python 3.14. The deprecation warning is emitted on every test run.
-
-**Remediation:** Replace with `datetime.now(datetime.UTC)` (Python 3.11+) or `datetime.now(timezone.utc)`.
+**Status:** Already resolved. `app/utils/auth.py` uses `datetime.now(UTC)` throughout. The original file reference (`stats.py:58`) was incorrect — `stats.py` has no `datetime` usage. No further action required.
 
 **Effort:** 5 minutes.
 
@@ -248,7 +246,7 @@ The following must be true before any internet-facing deployment:
 - [ ] C-004: Rate limiting on `/api/login`
 - [ ] H-001: CSP headers set; httpOnly cookie migration planned
 - [ ] H-002: TLS termination in Docker Compose
-- [ ] H-003: `datetime.utcnow()` replaced
+- [x] H-003: `datetime.utcnow()` — already using `datetime.now(UTC)` (resolved, audit ref was stale)
 - [ ] `.env` contains non-default values for all security settings
 - [ ] Audit logging implemented
 - [ ] CI includes `pip-audit` and `bandit`
