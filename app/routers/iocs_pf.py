@@ -17,6 +17,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.responses import PlainTextResponse, Response
 
+from app.core.config import settings
+
 
 # ---------------- Security guard ----------------
 def require_api_key(x_api_key: str | None = Header(default=None)):
@@ -181,7 +183,7 @@ def export_ufw_txt() -> Response:
 
     privacy = os.environ.get("PRIVACY_MODE", "").lower() in ("1", "on", "true")
     if privacy:
-        salt = os.environ.get("FEED_SALT", "change-me")
+        salt = settings.FEED_SALT
 
         def _anon(i: str) -> str:
             return "ip-" + hashlib.sha256((salt + "::" + i).encode()).hexdigest()[:12]
@@ -210,7 +212,7 @@ def export_pf_conf() -> Response:
     # --- Privacy Mode (hashing) ---
     privacy = os.environ.get("PRIVACY_MODE", "").lower() in ("1", "on", "true")
     if privacy:
-        salt = os.environ.get("FEED_SALT", "change-me")
+        salt = settings.FEED_SALT
 
         def _anon(i: str) -> str:
             return "ip-" + hashlib.sha256((salt + "::" + i).encode()).hexdigest()[:12]
