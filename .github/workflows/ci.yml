@@ -26,6 +26,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install black ruff pytest pytest-cov pytest-env fastapi httpx pydantic-settings
+          pip install pip-audit bandit
 
       - name: Lint
         run: |
@@ -35,3 +36,13 @@ jobs:
       - name: Tests
         run: |
           pytest -q
+
+      # TODO: remove continue-on-error after initial baseline triage
+      - name: Security — dependency audit
+        run: pip-audit
+        continue-on-error: true
+
+      # TODO: remove continue-on-error after initial baseline triage
+      - name: Security — static analysis
+        run: bandit -r app/ -ll
+        continue-on-error: true
