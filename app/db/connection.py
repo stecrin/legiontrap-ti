@@ -13,10 +13,12 @@ from contextlib import contextmanager
 
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.core.config import settings
 
 _engine: Engine | None = None
+_SessionLocal: sessionmaker | None = None
 
 
 def _apply_pragmas(dbapi_conn, _connection_record) -> None:
@@ -32,35 +34,36 @@ def get_engine() -> Engine:
     """Return the module-level singleton Engine, creating it on first call."""
     global _engine
     if _engine is None:
-        connect_args = {}
         if settings.DB_PATH == ":memory:":
-            # Allow the same in-memory DB to be shared across connections in tests.
-            connect_args["check_same_thread"] = False
-
-        _engine = create_engine(
-            f"sqlite:///{settings.DB_PATH}",
-            connect_args={"check_same_thread": False},
-        )
+            # StaticPool forces all connections to share the same in-memory DB.
+            # Without it, each new connection gets an empty database.
+            _engine = create_engine(
+                "sqlite:///:memory:",
+                connect_args={"check_same_thread": False},
+                poolclass=StaticPool,
+            )
+        else:
+            _engine = create_engine(
+                f"sqlite:///{settings.DB_PATH}",
+                connect_args={"check_same_thread": False},
+            )
         event.listen(_engine, "connect", _apply_pragmas)
-
     return _engine
 
 
 def reset_engine() -> None:
-    """Dispose the current engine and clear the singleton. Used in tests only."""
-    global _engine
+    """Dispose the current engine and clear both singletons. Used in tests only."""
+    global _engine, _SessionLocal
     if _engine is not None:
         _engine.dispose()
         _engine = None
-
-
-_SessionLocal: sessionmaker | None = None
+    _SessionLocal = None
 
 
 def _get_session_factory() -> sessionmaker:
     global _SessionLocal
     if _SessionLocal is None:
-        _SessionLocal = sessionmaker(bind=get_engine(), autocommit=False, autoflush=False)
+        _SessionLocal = sessionmaker(get_engine(), autocommit=False, autoflush=False)
     return _SessionLocal
 
 
