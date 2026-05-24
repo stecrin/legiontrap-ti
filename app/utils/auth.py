@@ -27,8 +27,8 @@ JWT_ALGO = "HS256"
 
 
 def verify_user(username: str, password: str) -> bool:
-    """Check login credentials against .env values."""
-    return username == DASH_USER and password == DASH_PASS
+    """Check login credentials — username exact match, password verified against bcrypt hash."""
+    return username == DASH_USER and pwd_context.verify(password, DASH_PASS)
 
 
 def create_access_token(data: dict) -> str:
