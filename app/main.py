@@ -13,6 +13,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.core.config import settings
+
 # --- Import routers ----------------------------------------------------------
 # Routers handle modular API sections of the app.
 # Keeping them separated ensures clarity and scalability.
@@ -31,10 +33,10 @@ app = FastAPI(
 )
 
 # --- Global Middleware -------------------------------------------------------
-# Enables browser access from any domain (useful during development)
+_cors_origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
