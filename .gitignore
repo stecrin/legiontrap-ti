@@ -26,3 +26,6 @@ artifacts/
 
 # Local backups
 *.bak.*
+
+# Local AI workflow instructions (internal-only, not for public repo)
+CLAUDE.md
