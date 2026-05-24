@@ -16,8 +16,12 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Load credentials from env
 DASH_USER = os.getenv("DASH_USER", "admin")
-DASH_PASS = os.getenv("DASH_PASS", "change-me-please")
-JWT_SECRET = os.getenv("JWT_SECRET", "devsecret")
+DASH_PASS = os.getenv("DASH_PASS")
+if not DASH_PASS:
+    raise ValueError("DASH_PASS must be set in environment — see .env.example")
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    raise ValueError("JWT_SECRET must be set in environment — see .env.example")
 JWT_EXPIRE_SECONDS = int(os.getenv("JWT_EXPIRE_SECONDS", "3600"))
 JWT_ALGO = "HS256"
 
