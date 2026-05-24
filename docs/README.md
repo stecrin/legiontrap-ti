@@ -51,9 +51,14 @@ Documents are organized into three layers. Higher layers inform lower layers; lo
 
 ```
 Layer 1: Strategic Foundation
-  VISION.md          — Mission, philosophy, long-term direction
-  POSITIONING.md     — Market positioning, competitive analysis, target user
-  MARKET_ANALYSIS.md — Detailed market landscape and opportunity sizing
+  VISION.md                  — Mission, philosophy, long-term direction
+  POSITIONING.md             — Market positioning, competitive analysis, target user
+  MARKET_ANALYSIS.md         — Detailed market landscape and opportunity sizing
+  FOUNDING_PRINCIPLES.md     — Operating philosophy: what the project is, refuses to become, and values
+  BUSINESS_MODEL.md          — Open-core strategy, monetization philosophy, revenue timeline
+  OPEN_SOURCE_STRATEGY.md    — AGPL rationale, community governance, contribution rules, privacy guarantees
+  GO_TO_MARKET.md            — Community growth, distribution channels, early adopter strategy
+  COMPETITIVE_POSITIONING.md — Detailed comparison against SIEM, XDR, SOAR, and specific platforms
 
 Layer 2: Technical Architecture
   ARCHITECTURE.md    — Component map, data flows, storage evolution plan
@@ -71,9 +76,26 @@ Layer 3: Operational and Conceptual Reference
   BEHAVIORAL_INTELLIGENCE.md — Core concept: behavioral fingerprinting and campaign memory
   SECURITY_AUDIT.md          — Known vulnerabilities, severity ratings, remediation plan
   AUTONOMOUS_OPERATIONS.md   — Rules for autonomous agent behavior in this repository
+
+Layer 4: Strategy Intelligence Layer  (docs/strategy/)
+  strategy/README.md              — Governance: doctrine lifecycle, four-stage promotion model, contribution rules
+  strategy/BUSINESS_MODEL.md      — Revenue scenario analysis and sustainability hypotheses
+  strategy/MONETIZATION_STRATEGY.md — Pricing hypotheses, experiment design, validation signals
+  strategy/MARKET_POSITIONING.md  — Positioning hypotheses and confidence assessment
+  strategy/COMPETITOR_ANALYSIS.md — Living competitive intelligence tracker and threat register
+  strategy/GO_TO_MARKET.md        — Stage-gated GTM experiments and success metrics
+  strategy/AI_THREAT_FORECASTS.md — AI attack era forecasts with reasoning and retrospective tracking
+  strategy/FEDERATION_ECONOMICS.md — Network effects, bootstrap strategy, federation economics
+  strategy/INVESTOR_NARRATIVE.md  — Contingency investor narrative (not active direction)
+  strategy/FOUNDER_NOTES.md       — Personal reasoning, early hypotheses, unvalidated observations
+  strategy/STRATEGIC_DECISIONS.md — Append-only permanent record of major strategic decisions
+  strategy/REJECTED_IDEAS.md      — Append-only preserved rejected concepts with rationale
+  strategy/STRATEGY_CHANGELOG.md  — Append-only chronological strategic evolution log
 ```
 
 When a lower-layer document appears to contradict a higher-layer document, the higher-layer document governs. The lower-layer document should be updated to resolve the conflict.
+
+**Layer 4 governance:** The strategy layer contains working hypotheses and living analysis. Claims in Layer 4 carry explicit confidence tags (`[hypothesis]`, `[validated]`, `[rejected]`, `[promoted]`). Claims without tags are a documentation error. Layer 4 documents are updated more frequently than Layers 1–3 and are maintained by founders and maintainers, not by autonomous agents (except under explicit instruction).
 
 ---
 
@@ -88,6 +110,11 @@ These documents define intent and direction. They change when the project's stra
 | `VISION.md` | Strategic | Mission, philosophy, 3–10 year vision, sovereign cyber intelligence concept |
 | `POSITIONING.md` | Strategic | Exact positioning statement, target users, competitive differentiation, strategic moat |
 | `MARKET_ANALYSIS.md` | Strategic | SIEM/XDR/SOAR/TIP/honeypot/AI security market analysis; regulatory tailwinds; underserved segments |
+| `FOUNDING_PRINCIPLES.md` | Strategic | Operating philosophy: why the project exists, what it refuses to become, trust/privacy/AI/sovereignty principles |
+| `BUSINESS_MODEL.md` | Strategic | Open-core strategy, hosted vs. self-hosted, enterprise strategy, monetization philosophy, revenue timeline |
+| `OPEN_SOURCE_STRATEGY.md` | Strategic | AGPL-3.0 rationale, community trust model, contribution rules, governance philosophy, privacy guarantees |
+| `GO_TO_MARKET.md` | Strategic | Community growth, GitHub/YouTube/X/LinkedIn strategy, homelab/MSP/SOC analyst channels, trust-first growth |
+| `COMPETITIVE_POSITIONING.md` | Strategic | Detailed comparison vs. Splunk, Sentinel, CrowdStrike, Wazuh, Elastic, Security Onion, XDR, SOAR, honeypot dashboards |
 
 ### Technical Documents
 
@@ -120,7 +147,15 @@ These documents define constraints, concepts, and rules that must be understood 
 
 ### "I want to understand what this project is trying to achieve."
 
-Start: `VISION.md` → `POSITIONING.md` → `BEHAVIORAL_INTELLIGENCE.md`
+Start: `VISION.md` → `FOUNDING_PRINCIPLES.md` → `POSITIONING.md` → `BEHAVIORAL_INTELLIGENCE.md`
+
+### "I want to understand the business model and open-source strategy."
+
+Start: `FOUNDING_PRINCIPLES.md` → `BUSINESS_MODEL.md` → `OPEN_SOURCE_STRATEGY.md`
+
+### "I want to understand how LegionTrap compares to existing tools."
+
+Start: `COMPETITIVE_POSITIONING.md` → `MARKET_ANALYSIS.md` → `POSITIONING.md`
 
 ### "I want to know what the current code does and why it's structured this way."
 
