@@ -32,6 +32,19 @@ def test_login_missing_fields_returns_422():
     assert r.status_code == 422
 
 
+def test_login_rate_limited_after_threshold():
+    """After the configured limit (5/minute), further attempts return 429.
+
+    The autouse reset_rate_limiter fixture in conftest.py guarantees a clean
+    per-test bucket, so this test runs in isolation without depleting the
+    shared 'testclient' bucket used by other login tests.
+    """
+    for _ in range(5):
+        client.post("/api/login", data={"username": "x", "password": "x"})
+    r = client.post("/api/login", data={"username": "x", "password": "x"})
+    assert r.status_code == 429
+
+
 def test_login_token_is_valid_jwt():
     """Token returned from login must be a decodable HS256 JWT with correct subject.
 
