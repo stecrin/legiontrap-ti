@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 from fastapi import APIRouter, Header, HTTPException, status
@@ -10,7 +11,7 @@ router = APIRouter()
 def get_stats(x_api_key: str | None = Header(default=None, alias="x-api-key")):
     """Return live stats from storage/events.jsonl."""
 
-    api_key = "dev-123"
+    api_key = os.environ.get("API_KEY")
     if x_api_key != api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
