@@ -27,3 +27,24 @@ def test_stats_with_key():
     assert r.status_code == 200
     body = r.json()
     assert "counts" in body and "total" in body["counts"]
+
+
+def test_events_requires_auth():
+    r = client.get("/api/events")
+    assert r.status_code == 401
+
+
+def test_events_with_valid_key():
+    r = client.get("/api/events", headers={"x-api-key": "dev-123"})
+    assert r.status_code == 200
+    assert "items" in r.json()
+
+
+def test_cors_allows_configured_origin():
+    r = client.get("/api/health", headers={"Origin": "http://localhost:5173"})
+    assert r.headers.get("access-control-allow-origin") == "http://localhost:5173"
+
+
+def test_cors_blocks_unknown_origin():
+    r = client.get("/api/health", headers={"Origin": "http://evil.example.com"})
+    assert r.headers.get("access-control-allow-origin") is None

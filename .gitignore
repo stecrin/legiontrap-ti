@@ -7,6 +7,7 @@ __pycache__/
 .venv/
 .env
 .env.*
+!.env.example
 
 # Node / frontend
 node_modules/
@@ -29,3 +30,7 @@ artifacts/
 
 # Local AI workflow instructions (internal-only, not for public repo)
 CLAUDE.md
+
+# Runtime-generated event and database files (must not be committed)
+*.jsonl
+*.db

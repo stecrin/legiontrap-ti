@@ -12,6 +12,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
+from app.core.config import settings
+from app.limiter import limiter
 
 # --- Import routers ----------------------------------------------------------
 # Routers handle modular API sections of the app.
@@ -29,12 +34,14 @@ app = FastAPI(
     version="0.2.2",
     description="Honeypot threat intelligence dashboard backend",
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # --- Global Middleware -------------------------------------------------------
-# Enables browser access from any domain (useful during development)
+_cors_origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
