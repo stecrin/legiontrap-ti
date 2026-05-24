@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.2.3](https://github.com/stecrin/legiontrap-ti/compare/v0.2.2...v0.2.3) (2026-05-24)
+
+### Bug Fixes
+
+* add login rate limiting ([96c7311](https://github.com/stecrin/legiontrap-ti/commit/96c73119771af066253ad90863be6f67a2bdeb21))
+* harden CORS origin configuration ([3466eaf](https://github.com/stecrin/legiontrap-ti/commit/3466eaf3e7f238d3ffe4ebdc8f668c68a554a549))
+* pin bcrypt for passlib compatibility ([70ff141](https://github.com/stecrin/legiontrap-ti/commit/70ff14100a9b93397053ba3bccc34c9445e028bf))
+* protect events route with API key ([9612369](https://github.com/stecrin/legiontrap-ti/commit/9612369054959d818174050a28382d73bd17beeb))
+* remove FEED_SALT fallback from IOC exports ([d38e241](https://github.com/stecrin/legiontrap-ti/commit/d38e2410569eea5274c860ed07f49cddcccff676))
+* require explicit security secrets at startup ([266ee18](https://github.com/stecrin/legiontrap-ti/commit/266ee18645ea24cd2aedf907013c85c53f7aa809))
+* verify dashboard password with bcrypt ([6dca149](https://github.com/stecrin/legiontrap-ti/commit/6dca1496654f95b7fbbebe5b06e3ddeccd7fccca))
+
 ## [0.2.2](https://github.com/stecrin/legiontrap-ti/compare/v0.2.1...v0.2.2) (2025-11-10)
 
 ### Bug Fixes
