@@ -40,6 +40,7 @@ from app.schemas.models import (
 )
 from app.utils.event_utils import extract_src_ip, normalize_event_type, parse_timestamp
 from app.utils.geoip import enrich_ip
+from app.utils.scoring import compute_reputation_score, compute_tags
 
 router = APIRouter()
 
@@ -112,8 +113,12 @@ def ingest_events(
             event_type = normalize_event_type(raw.type, raw.source)
             src_ip = extract_src_ip(raw.model_dump())
 
-            # Stage 3.5: GeoIP enrichment (best-effort; never blocks ingest)
-            geo = enrich_ip(src_ip) if src_ip else None
+            # Stage 3.5: GeoIP enrichment (cache-first; never blocks ingest)
+            geo: dict | None = None
+            if src_ip:
+                geo = repo.get_source_ip_geo(src_ip)  # cache hit → skip file read
+                if geo is None:
+                    geo = enrich_ip(src_ip)  # cache miss → local mmdb lookup
 
             # Construct canonical event object
             if geo is not None:
@@ -159,6 +164,20 @@ def ingest_events(
                 sp.rollback()
                 duplicate += 1
                 continue
+
+            # Stage 5.5: intelligence scoring (best-effort; isolated via SAVEPOINT)
+            # Failure here must never block ingest — the event is already committed.
+            if src_ip:
+                score_sp = session.begin_nested()
+                try:
+                    intel = repo.get_source_ip_intelligence(src_ip)
+                    if intel is not None:
+                        new_tags = compute_tags(intel["tags"], event_type)
+                        new_score = compute_reputation_score(new_tags, intel["event_count"])
+                        repo.update_source_ip_intelligence(src_ip, new_tags, new_score)
+                    score_sp.commit()
+                except Exception:
+                    score_sp.rollback()
 
             # Stage 6: JSONL replica (best-effort; only after DB commit)
             # TODO: remove _append_jsonl() once all consumers migrate to the SQLite API.

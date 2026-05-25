@@ -17,6 +17,7 @@ No FastAPI, router, or application imports belong in this module.
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -317,3 +318,79 @@ class EventRepository:
             {"cutoff": cutoff.isoformat()},
         )
         return deleted
+
+    # ------------------------------------------------------------------
+    # Phase 2 — intelligence enrichment cache and scoring
+    # ------------------------------------------------------------------
+
+    def get_source_ip_geo(self, ip: str) -> dict | None:
+        """
+        Return cached geo fields for ip if source_ips row exists and
+        country_code is populated. Returns None on cache miss (unknown IP
+        or NULL country_code). Keys: country_code, country_name, asn, asn_org.
+        Used by Stage 3.5 of ingest to skip the GeoIP file read for known IPs.
+        """
+        row = self._session.execute(
+            text("""
+                SELECT country_code, country_name, asn, asn_org
+                FROM source_ips
+                WHERE ip = :ip AND country_code IS NOT NULL
+                """),
+            {"ip": ip},
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "country_code": row[0],
+            "country_name": row[1],
+            "asn": row[2],
+            "asn_org": row[3],
+        }
+
+    def get_source_ip_event_types(self, ip: str) -> list[str]:
+        """Return distinct normalized event_type values seen from ip."""
+        rows = self._session.execute(
+            text("SELECT DISTINCT event_type FROM events WHERE src_ip = :ip"),
+            {"ip": ip},
+        ).fetchall()
+        return [row[0] for row in rows]
+
+    def get_source_ip_intelligence(self, ip: str) -> dict | None:
+        """
+        Return {tags: list[str], event_count: int} for ip from source_ips.
+        Used as scoring input after upsert_source_ip. Returns None if ip not found.
+        Malformed tags JSON is treated as an empty list.
+        """
+        row = self._session.execute(
+            text("SELECT event_count, tags FROM source_ips WHERE ip = :ip"),
+            {"ip": ip},
+        ).fetchone()
+        if row is None:
+            return None
+        event_count, tags_json = row
+        try:
+            tags: list[str] = json.loads(tags_json) if tags_json else []
+        except (ValueError, TypeError):
+            tags = []
+        return {"event_count": event_count, "tags": tags}
+
+    def update_source_ip_intelligence(
+        self,
+        ip: str,
+        tags: list[str],
+        reputation_score: float,
+    ) -> None:
+        """Update tags and reputation_score on an existing source_ips row.
+
+        tags is serialized as a sorted JSON array. No-op if ip is not in
+        source_ips (should not occur in normal operation — always called
+        after upsert_source_ip).
+        """
+        self._session.execute(
+            text("""
+                UPDATE source_ips
+                SET tags = :tags, reputation_score = :score
+                WHERE ip = :ip
+                """),
+            {"ip": ip, "tags": json.dumps(tags), "score": reputation_score},
+        )
