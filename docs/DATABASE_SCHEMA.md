@@ -2,8 +2,8 @@
 
 **Document type:** Implementation blueprint — canonical SQL schema reference
 **Audience:** Engineers, autonomous agents, Alembic migration authors
-**Last reviewed:** 2026-05-23
-**Status:** Implemented. All Phase 1 tables and indexes are live. Run `alembic upgrade head` for new deployments.
+**Last reviewed:** 2026-05-25
+**Status:** Implemented. Phase 1 tables and indexes are live. Phase 2E intelligence indexes are live. Run `alembic upgrade head` for new deployments.
 
 ---
 
@@ -365,11 +365,11 @@ Alembic manages all schema changes. The migration version table is created by Al
 
 ```
 app/db/migrations/versions/
-  0001_initial_schema.py        -- creates all Phase 1 tables
-  0002_add_geoip_fields.py      -- Phase 3: adds country/ASN fields to events
-  0003_ai_analysis_table.py     -- Phase 5: adds ai_analyses
-  0004_behavioral_tables.py     -- Phase 6: adds fingerprints, campaigns, campaign_id FK
-  0005_federation_table.py      -- Phase 7: adds federation_fingerprints
+  0001_initial_schema.py                 -- creates all Phase 1 tables (live)
+  0002_phase2_intelligence_indexes.py    -- Phase 2E: intelligence query indexes (live)
+  0003_ai_analysis_table.py             -- Phase 5: adds ai_analyses (future)
+  0004_behavioral_tables.py             -- Phase 6: adds fingerprints, campaigns, campaign_id FK (future)
+  0005_federation_table.py              -- Phase 7: adds federation_fingerprints (future)
 ```
 
 **Rule:** Never manually ALTER a table that Alembic manages. All schema changes go through a new migration file.
@@ -390,6 +390,63 @@ app/db/migrations/versions/
 | `ai_analyses` | Phase 5 | Separate (90d default) | Yes |
 | `federation_fingerprints` | Phase 7 | Separate configurable | Yes |
 | `audit_log` | Phase 1 | Separate (90d default) | Yes |
+
+---
+
+---
+
+## Phase 2E Index Readiness Audit
+
+**Audit date:** 2026-05-25
+**Auditor:** Phase 2 close-out PR (schema readiness step)
+**Status:** Complete. Migration `0002_phase2_intelligence_indexes.py` created and merged.
+
+### Methodology
+
+Each Phase 2D/2E query pattern was mapped against existing indexes from `0001_initial_schema.py`.
+Gaps were defined as: query shapes for which SQLite would perform a full table scan or an index scan
+followed by a separate sort pass at 100k+ row scale.
+
+### Query patterns audited
+
+| Query | Repository method | Existing index | Gap? |
+|---|---|---|---|
+| `SELECT … FROM source_ips ORDER BY reputation_score DESC, event_count DESC LIMIT :n` | `list_source_ips` | `idx_source_ips_count` (event_count only) | **Yes** — no index on reputation_score |
+| `SELECT DISTINCT event_type FROM events WHERE src_ip = :ip` | `get_source_ip_event_types` | `idx_events_src_ip` (single-column) | **Yes** — composite covering index needed |
+| `SELECT country_code, … FROM source_ips WHERE country_code IS NOT NULL GROUP BY country_code ORDER BY event_count DESC` | `get_top_countries` | `idx_source_ips_country` | No — filter + group on country_code is served |
+| `SELECT asn, … FROM source_ips WHERE asn IS NOT NULL GROUP BY asn ORDER BY event_count DESC` | `get_top_asns` | `idx_source_ips_asn` | No — filter + group on asn is served |
+| `SELECT … FROM source_ips WHERE ip = :ip` | `get_source_ip` | PRIMARY KEY on `ip` | No |
+| `SELECT … FROM source_ips WHERE country_code IS NOT NULL AND event_count IS NOT NULL` | cache read (`get_source_ip_geo`) | `idx_source_ips_country` | No |
+
+### Gaps addressed in migration 0002
+
+**`idx_source_ips_reputation` on `source_ips(reputation_score DESC)`**
+
+`list_source_ips` orders by `reputation_score DESC, event_count DESC`. Without this index,
+SQLite performs a full table scan plus an in-memory sort on every call to `GET /api/intelligence/ips`.
+At 100k unique IPs this is a measurable overhead. The index eliminates the sort pass for the
+primary ordering key.
+
+**`idx_events_src_ip_type` on `events(src_ip, event_type)`**
+
+`get_source_ip_event_types` runs `SELECT DISTINCT event_type FROM events WHERE src_ip = :ip`.
+The single-column `idx_events_src_ip` already handles the `WHERE` filter, but SQLite must
+then load each matching row to extract `event_type`. A composite covering index lets SQLite
+satisfy the entire query from the index without touching the table.
+
+### Deferred items
+
+| Index | Reason deferred |
+|---|---|
+| `source_ips(tags)` JSON partial index using `json_each` | SQLite expression indexes on JSON require careful quoting syntax; benefit is limited until tag-filtered queries are confirmed in production. Revisit in Phase 4 when tag-filtered IOC exports are implemented. |
+
+### Validator update
+
+`scripts/validate_migration.py` was updated in the same PR:
+- `EXPECTED_INDEXES` extended with `idx_source_ips_reputation` and `idx_events_src_ip_type`
+- `EXPECTED_ALEMBIC_REVISION` bumped from `"0001"` to `"0002"`
+
+`make db-validate` passes against a database at revision 0002.
 
 ---
 

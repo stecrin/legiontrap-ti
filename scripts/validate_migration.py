@@ -31,10 +31,11 @@ EXPECTED_TABLES: list[str] = [
     "audit_log",
 ]
 
-# All indexes created by 0001_initial_schema.py.
+# All indexes created by Alembic migrations up to the current head.
 # create_all_tables() does NOT create these — their absence indicates the DB
 # was not set up via 'alembic upgrade head'.
 EXPECTED_INDEXES: list[str] = [
+    # 0001_initial_schema
     "idx_raw_events_ts",
     "idx_raw_events_source",
     "idx_raw_events_ingested",
@@ -53,9 +54,12 @@ EXPECTED_INDEXES: list[str] = [
     "idx_audit_ts",
     "idx_audit_event_type",
     "idx_audit_source_ip",
+    # 0002_phase2_intelligence_indexes
+    "idx_source_ips_reputation",
+    "idx_events_src_ip_type",
 ]
 
-EXPECTED_ALEMBIC_REVISION = "0001"
+EXPECTED_ALEMBIC_REVISION = "0002"
 
 
 @dataclass

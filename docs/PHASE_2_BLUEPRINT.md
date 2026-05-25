@@ -3,7 +3,7 @@
 **Document type:** Implementation blueprint — Phase 2 architectural plan
 **Audience:** Engineers and autonomous agents performing Phase 2 work
 **Last reviewed:** 2026-05-25
-**Status:** Pre-implementation. Phase 2 has not started. Read this before writing any Phase 2 code.
+**Status:** Complete. All Phase 2 sub-phases (2A–2E) are implemented and merged to `main`.
 **Prerequisites:** Phases 0, 1A, and 1B are complete and merged to `main`.
 
 ---

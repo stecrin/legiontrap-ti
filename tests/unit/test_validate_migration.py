@@ -65,6 +65,12 @@ def _add_full_indexes_and_revision(engine) -> None:
         conn.execute(text("CREATE INDEX idx_audit_event_type ON audit_log(event_type)"))
         conn.execute(text("CREATE INDEX idx_audit_source_ip ON audit_log(source_ip)"))
 
+        # 0002_phase2_intelligence_indexes
+        conn.execute(
+            text("CREATE INDEX idx_source_ips_reputation ON source_ips(reputation_score DESC)")
+        )
+        conn.execute(text("CREATE INDEX idx_events_src_ip_type ON events(src_ip, event_type)"))
+
         # Alembic version table (mirrors what Alembic creates)
         conn.execute(
             text(
@@ -188,6 +194,11 @@ def test_validate_missing_alembic_version_is_invalid(tmp_path):
         conn.execute(text("CREATE INDEX idx_audit_ts ON audit_log(ts)"))
         conn.execute(text("CREATE INDEX idx_audit_event_type ON audit_log(event_type)"))
         conn.execute(text("CREATE INDEX idx_audit_source_ip ON audit_log(source_ip)"))
+        # 0002_phase2_intelligence_indexes
+        conn.execute(
+            text("CREATE INDEX idx_source_ips_reputation ON source_ips(reputation_score DESC)")
+        )
+        conn.execute(text("CREATE INDEX idx_events_src_ip_type ON events(src_ip, event_type)"))
         conn.commit()
 
     result = validate_database(engine)
