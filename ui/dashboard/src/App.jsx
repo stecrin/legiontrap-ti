@@ -2,9 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { getStats, getPfConf } from './lib/api';
 import RecentEvents from "./components/RecentEvents";
 import EventTrends from "./components/EventTrends";
-import IntelligenceIPs from "./components/IntelligenceIPs";
-import TopCountries from "./components/TopCountries";
-import TopASNs from "./components/TopASNs";
 
 
 // keep <body> background in sync with dashboard theme
@@ -205,22 +202,6 @@ export default function App() {
         {/* 🧾 Recent Events table */}
         <div style={{ marginTop: 28 }}>
           <RecentEvents dark={dark} />
-        </div>
-
-        {/* 🔍 Intelligence: Top Source IPs */}
-        <div style={{ marginTop: 36 }}>
-          <IntelligenceIPs dark={dark} />
-        </div>
-
-        {/* 🌍 Top Countries + Top ASNs side by side */}
-        <div style={{
-          marginTop: 28,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-          gap: 20,
-        }}>
-          <TopCountries dark={dark} />
-          <TopASNs dark={dark} />
         </div>
       </div>
     </div>
