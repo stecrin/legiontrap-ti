@@ -44,3 +44,25 @@ def get_intelligence_ip(
             detail=f"IP {ip!r} not found",
         )
     return item
+
+
+@router.get("/top-countries")
+def get_top_countries(
+    limit: int = Query(default=10, ge=1, le=100),
+    _: dict = Depends(require_jwt_or_api_key),
+):
+    """Return top countries by total event_count aggregated from source_ips."""
+    with get_session() as session:
+        items = EventRepository(session).get_top_countries(limit=limit)
+    return {"items": items, "count": len(items)}
+
+
+@router.get("/top-asns")
+def get_top_asns(
+    limit: int = Query(default=10, ge=1, le=100),
+    _: dict = Depends(require_jwt_or_api_key),
+):
+    """Return top ASNs by total event_count aggregated from source_ips."""
+    with get_session() as session:
+        items = EventRepository(session).get_top_asns(limit=limit)
+    return {"items": items, "count": len(items)}
