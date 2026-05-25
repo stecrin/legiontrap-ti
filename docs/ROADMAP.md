@@ -2,7 +2,7 @@
 
 **Document type:** Phased development plan and architectural evolution order
 **Audience:** Engineers, autonomous agents, contributors
-**Last reviewed:** 2026-05-22
+**Last reviewed:** 2026-05-25
 
 ---
 
@@ -14,22 +14,23 @@ The order of this roadmap is not arbitrary. Each phase is a prerequisite for the
 
 ---
 
-## Current State (Baseline)
+## Current State (as of Phase 1B)
 
 | Capability | Status | Notes |
 |---|---|---|
-| Event storage | JSONL flat file | Functional; not scalable |
-| Event ingestion | File write only | No HTTP ingestion API |
-| Stats API | Working | Full file scan per request |
-| IOC export (pf.conf, UFW) | Working | Privacy masking implemented |
-| JWT + API key auth | Working | Password comparison not using bcrypt |
+| Event storage | SQLite (WAL mode) | `storage/legiontrap.db`; JSONL as best-effort replica |
+| Event ingestion | `POST /api/ingest` | Batch ingest, Pydantic validation, deduplication |
+| Stats API | Working | SQL queries via `EventRepository` |
+| IOC export (pf.conf, UFW) | Working | SQL-backed; privacy masking via HMAC or octet mask |
+| JWT + API key auth | Working | bcrypt password verification; hardcoded defaults removed |
+| Audit logging | Working | `audit_log` table; one row per ingest batch |
+| Data retention | Working | `delete_events_before()` + `make db-prune` |
 | React dashboard | Working | KPI cards, event chart, recent events |
-| CI/CD | Working | Lint, test, semantic release |
+| CI/CD | Working | Lint, test, semantic release; Black 26.5.1 pinned |
 | Docker Compose | Working | Edge deployment profile |
-| GeoIP library | Installed | Not used in any route |
-| AI integration | None | Not yet implemented |
-| Event schema | None | Untyped dicts |
-| Behavioral memory | None | No pattern storage |
+| GeoIP library | Installed | Not wired into ingest route; Phase 3 work |
+| AI integration | None | Planned Phase 5 |
+| Behavioral memory | None | Planned Phase 6 |
 
 ---
 
@@ -45,9 +46,8 @@ These are the failure modes of premature feature expansion. Each item below, if 
 
 ---
 
-## Phase 0 — Security and Infrastructure Hygiene (Immediate)
+## Phase 0 — Security and Infrastructure Hygiene — **Complete**
 
-**Duration:** 1–2 weeks
 **Goal:** Remove disqualifying issues that prevent adoption by serious operators.
 
 These are not features. They are preconditions. No serious operator will deploy a system with plaintext password comparison, wildcard CORS, and hardcoded default secrets.
@@ -67,9 +67,8 @@ These are not features. They are preconditions. No serious operator will deploy 
 
 ---
 
-## Phase 1 — Storage Foundation (Critical Path)
+## Phase 1 — Storage Foundation — **Complete**
 
-**Duration:** 2–4 weeks
 **Goal:** Replace flat-file storage with a queryable database. Every downstream feature depends on this.
 
 This is the single most important architectural decision in the project's history. The choice made here determines the ceiling for every future feature.
@@ -91,9 +90,8 @@ This is the single most important architectural decision in the project's histor
 
 ---
 
-## Phase 2 — Ingestion API
+## Phase 2 — Ingestion API — **Complete**
 
-**Duration:** 1–2 weeks
 **Goal:** The system must accept events over HTTP, not only via file write.
 
 Without this, LegionTrap cannot receive events from remote sensors, cloud functions, or distributed deployments. The system remains a file reader.
