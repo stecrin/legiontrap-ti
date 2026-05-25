@@ -183,3 +183,73 @@ class IntelligenceRepository(RepositoryBase):
             }
             for row in rows
         ]
+
+    def get_attack_technique_counts(self) -> list[dict[str, Any]]:
+        """
+        Return aggregated event counts per ATT&CK technique, joining events
+        against the event_types lookup table.
+
+        Only techniques with a non-NULL attack_technique are included.
+        Sorted by event_count DESC for deterministic output.
+        Used by GET /api/exports/attack-navigator.
+        """
+        rows = self._session.execute(text("""
+                SELECT et.attack_tactic,
+                       et.attack_technique,
+                       et.label,
+                       COUNT(e.id) AS event_count
+                FROM events e
+                JOIN event_types et ON e.event_type = et.id
+                WHERE et.attack_technique IS NOT NULL
+                GROUP BY et.attack_technique, et.attack_tactic, et.label
+                ORDER BY event_count DESC
+                """)).fetchall()
+        return [
+            {
+                "attack_tactic": row[0],
+                "attack_technique": row[1],
+                "label": row[2],
+                "event_count": row[3],
+            }
+            for row in rows
+        ]
+
+    def get_stix_indicator_ips(
+        self, limit: int = 100, min_event_count: int = 1
+    ) -> list[dict[str, Any]]:
+        """
+        Return source IP records eligible for STIX Indicator export.
+
+        Filtered by minimum event count. Sorted by reputation_score DESC
+        (NULLs last), then event_count DESC.
+        Used by GET /api/exports/stix.
+        """
+        rows = self._session.execute(
+            text("""
+                SELECT ip, first_seen, last_seen, event_count,
+                       reputation_score, tags
+                FROM source_ips
+                WHERE event_count >= :min_event_count
+                ORDER BY reputation_score DESC, event_count DESC
+                LIMIT :limit
+                """),
+            {"min_event_count": min_event_count, "limit": limit},
+        ).fetchall()
+        result = []
+        for row in rows:
+            ip, first_seen, last_seen, event_count, reputation_score, tags_json = row
+            try:
+                tags: list[str] = json.loads(tags_json) if tags_json else []
+            except (ValueError, TypeError):
+                tags = []
+            result.append(
+                {
+                    "ip": ip,
+                    "first_seen": first_seen,
+                    "last_seen": last_seen,
+                    "event_count": event_count,
+                    "reputation_score": reputation_score,
+                    "tags": tags,
+                }
+            )
+        return result
