@@ -38,6 +38,7 @@ from app.schemas.models import (
     IngestReceipt,
     IngestRequest,
 )
+from app.utils.asn import enrich_asn
 from app.utils.event_utils import extract_src_ip, normalize_event_type, parse_timestamp
 from app.utils.geoip import enrich_ip
 from app.utils.scoring import compute_reputation_score, compute_tags
@@ -113,12 +114,14 @@ def ingest_events(
             event_type = normalize_event_type(raw.type, raw.source)
             src_ip = extract_src_ip(raw.model_dump())
 
-            # Stage 3.5: GeoIP enrichment (cache-first; never blocks ingest)
+            # Stage 3.5: GeoIP + ASN enrichment (cache-first; never blocks ingest)
             geo: dict | None = None
             if src_ip:
-                geo = repo.get_source_ip_geo(src_ip)  # cache hit → skip file read
+                geo = repo.get_source_ip_geo(src_ip)  # cache hit → skip mmdb reads
                 if geo is None:
-                    geo = enrich_ip(src_ip)  # cache miss → local mmdb lookup
+                    city_geo = enrich_ip(src_ip)  # {country_code, country_name, city}
+                    asn_geo = enrich_asn(src_ip)  # {asn, asn_org}
+                    geo = {**city_geo, **asn_geo}
 
             # Construct canonical event object
             if geo is not None:
@@ -157,6 +160,8 @@ def ingest_events(
                         ts,
                         country_code=geo["country_code"] if geo else None,
                         country_name=geo["country_name"] if geo else None,
+                        asn=geo.get("asn") if geo else None,
+                        asn_org=geo.get("asn_org") if geo else None,
                     )
                 sp.commit()
             except IntegrityError:
