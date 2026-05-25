@@ -1,14 +1,14 @@
 # LegionTrap TI — Autonomous Operations
 
 **Document type:** Operational philosophy and AI-assisted engineering guide
-**Audience:** Engineers, autonomous agents, contributors, Claude Code
+**Audience:** Engineers, autonomous agents, contributors
 **Last reviewed:** 2026-05-22
 
 ---
 
 ## Purpose
 
-This document defines how autonomous AI agents — including Claude Code — should interact with this repository. It is not a policy document for human contributors (see `CLAUDE.md` for that). It is a reference for AI-assisted operations: what autonomous agents may do, what they must not do, what they should verify before acting, and how the repository is designed to be safe for automated work.
+This document defines how autonomous AI agents should interact with this repository. It is not a policy document for human contributors (see `CLAUDE.md` for that). It is a reference for AI-assisted operations: what autonomous agents may do, what they must not do, what they should verify before acting, and how the repository is designed to be safe for automated work.
 
 ---
 
@@ -195,7 +195,7 @@ The primary data store is `storage/events.jsonl`. Autonomous agents interacting 
 
 Autonomous agents operating in this repository use a persistent memory system at:
 
-`~/.claude/projects/-Users-stecrin-Projects-gitrepo-legiontrap-ti/memory/`
+`<agent-specific memory path>`
 
 This memory captures:
 - User preferences and working style

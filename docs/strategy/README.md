@@ -117,7 +117,7 @@ The founder's observations and intuitions are inputs to strategy, not outputs. T
 
 ### The strategy layer is maintained by maintainers, not by autonomous agents
 
-Autonomous agents (including Claude Code) may read this layer for context and may propose additions or modifications through the standard PR process. They may not directly update `STRATEGIC_DECISIONS.md`, `REJECTED_IDEAS.md`, or `STRATEGY_CHANGELOG.md` without explicit maintainer instruction. These are the project's strategic memory; they require human judgment for updates.
+Autonomous agents may read this layer for context and may propose additions or modifications through the standard PR process. They may not directly update `STRATEGIC_DECISIONS.md`, `REJECTED_IDEAS.md`, or `STRATEGY_CHANGELOG.md` without explicit maintainer instruction. These are the project's strategic memory; they require human judgment for updates.
 
 Autonomous agents may update working documents (`COMPETITOR_ANALYSIS.md`, `AI_THREAT_FORECASTS.md`) with clearly tagged `[hypothesis]` additions when instructed to research and document strategic questions.
 
