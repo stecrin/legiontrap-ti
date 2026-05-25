@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.4.0](https://github.com/stecrin/legiontrap-ti/compare/v0.3.0...v0.4.0) (2026-05-25)
+
+### Features
+
+* Phase 2 PR 1 — GeoIP city/country enrichment at ingest ([0cacb04](https://github.com/stecrin/legiontrap-ti/commit/0cacb042dd03db4fa6c91abfa52a89dfba6d440c))
+
 ## [0.3.0](https://github.com/stecrin/legiontrap-ti/compare/v0.2.3...v0.3.0) (2026-05-25)
 
 ### Features
