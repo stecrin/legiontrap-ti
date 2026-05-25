@@ -74,6 +74,9 @@ def create_all_tables(engine: Engine) -> None:
 
     Production deployments must use `alembic upgrade head` instead. This
     function must never be called from application startup code.
+
+    Note: does NOT create indexes. Run `alembic upgrade head` to add indexes
+    and register the Alembic revision; use `make db-validate` to check state.
     """
     with engine.connect() as conn:
         conn.execute(
