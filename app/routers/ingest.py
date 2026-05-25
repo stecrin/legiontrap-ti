@@ -32,12 +32,14 @@ from app.db.connection import get_session
 from app.db.repository import EventRepository
 from app.limiter import limiter
 from app.schemas.models import (
+    EnrichedEvent,
     HoneypotEvent,
     IngestError,
     IngestReceipt,
     IngestRequest,
 )
 from app.utils.event_utils import extract_src_ip, normalize_event_type, parse_timestamp
+from app.utils.geoip import enrich_ip
 
 router = APIRouter()
 
@@ -110,6 +112,30 @@ def ingest_events(
             event_type = normalize_event_type(raw.type, raw.source)
             src_ip = extract_src_ip(raw.model_dump())
 
+            # Stage 3.5: GeoIP enrichment (best-effort; never blocks ingest)
+            geo = enrich_ip(src_ip) if src_ip else None
+
+            # Construct canonical event object
+            if geo is not None:
+                event: HoneypotEvent = EnrichedEvent(
+                    id=raw.id,
+                    ts=ts,
+                    ingested_at=ingested_at,
+                    source=raw.source,
+                    event_type=event_type,
+                    src_ip=src_ip,
+                    **geo,
+                )
+            else:
+                event = HoneypotEvent(
+                    id=raw.id,
+                    ts=ts,
+                    ingested_at=ingested_at,
+                    source=raw.source,
+                    event_type=event_type,
+                    src_ip=src_ip,
+                )
+
             # Stage 4: deduplication (optimistic check; SAVEPOINT handles races)
             if repo.event_exists(raw.id):
                 duplicate += 1
@@ -119,17 +145,14 @@ def ingest_events(
             sp = session.begin_nested()
             try:
                 repo.insert_raw_event(raw)
-                honeypot = HoneypotEvent(
-                    id=raw.id,
-                    ts=ts,
-                    ingested_at=ingested_at,
-                    source=raw.source,
-                    event_type=event_type,
-                    src_ip=src_ip,
-                )
-                repo.insert_event(honeypot)
+                repo.insert_event(event)
                 if src_ip:
-                    repo.upsert_source_ip(src_ip, ts)
+                    repo.upsert_source_ip(
+                        src_ip,
+                        ts,
+                        country_code=geo["country_code"] if geo else None,
+                        country_name=geo["country_name"] if geo else None,
+                    )
                 sp.commit()
             except IntegrityError:
                 # Race: another process inserted this ID between the check and write.
@@ -139,7 +162,7 @@ def ingest_events(
 
             # Stage 6: JSONL replica (best-effort; only after DB commit)
             # TODO: remove _append_jsonl() once all consumers migrate to the SQLite API.
-            _append_jsonl(honeypot)
+            _append_jsonl(event)
             accepted += 1
 
     # Stage 7: Audit log — best-effort, isolated session (never fails ingest).
