@@ -17,6 +17,7 @@ No FastAPI, router, or application imports belong in this module.
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime
 from typing import Any
 
@@ -287,3 +288,50 @@ class EventRepository:
             )
         ).fetchall()
         return [row[0] for row in rows]
+
+    def insert_audit_log(
+        self,
+        event_type: str,
+        source_ip: str | None = None,
+        detail: str | None = None,
+    ) -> None:
+        """
+        Insert a row into audit_log. Called best-effort after successful ingest batch.
+        The caller is responsible for committing the session.
+        """
+        self._session.execute(
+            text(
+                """
+                INSERT INTO audit_log (id, ts, event_type, source_ip, detail)
+                VALUES (:id, :ts, :event_type, :source_ip, :detail)
+                """
+            ),
+            {
+                "id": str(uuid.uuid4()),
+                "ts": datetime.now(UTC).isoformat(),
+                "event_type": event_type,
+                "source_ip": source_ip,
+                "detail": detail,
+            },
+        )
+
+    def delete_events_before(self, cutoff: datetime) -> int:
+        """
+        Delete events and orphaned raw_events older than cutoff.
+
+        Deletes from events (FK child) first, then removes raw_events rows that
+        no longer have a matching events row. Returns the count of events rows
+        deleted.
+        """
+        result = self._session.execute(
+            text("DELETE FROM events WHERE ts < :cutoff"),
+            {"cutoff": cutoff.isoformat()},
+        )
+        deleted = result.rowcount
+        self._session.execute(
+            text(
+                "DELETE FROM raw_events " "WHERE ts < :cutoff AND id NOT IN (SELECT id FROM events)"
+            ),
+            {"cutoff": cutoff.isoformat()},
+        )
+        return deleted

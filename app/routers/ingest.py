@@ -19,6 +19,7 @@ No FastAPI dependency on JWT flow. No async database code.
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -137,8 +138,26 @@ def ingest_events(
                 continue
 
             # Stage 6: JSONL replica (best-effort; only after DB commit)
+            # TODO: remove _append_jsonl() once all consumers migrate to the SQLite API.
             _append_jsonl(honeypot)
             accepted += 1
+
+    # Stage 7: Audit log — best-effort, isolated session (never fails ingest).
+    try:
+        with get_session() as audit_session:
+            EventRepository(audit_session).insert_audit_log(
+                event_type="ingest",
+                detail=json.dumps(
+                    {
+                        "batch_id": batch_id,
+                        "accepted": accepted,
+                        "rejected": rejected,
+                        "duplicate": duplicate,
+                    }
+                ),
+            )
+    except Exception:
+        pass
 
     return IngestReceipt(
         batch_id=batch_id,
