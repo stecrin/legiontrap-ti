@@ -394,3 +394,80 @@ class EventRepository:
                 """),
             {"ip": ip, "tags": json.dumps(tags), "score": reputation_score},
         )
+
+    # ------------------------------------------------------------------
+    # Phase 2D — intelligence query endpoints
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _source_ip_to_dict(row: Any) -> dict[str, Any]:
+        """Convert a source_ips SELECT row to the intelligence response dict.
+
+        city is always None — source_ips does not store city; it exists only
+        in the events table. The field is present in the response for forward
+        compatibility with a future schema update.
+        """
+        (
+            ip,
+            first_seen,
+            last_seen,
+            event_count,
+            country_code,
+            country_name,
+            asn,
+            asn_org,
+            reputation_score,
+            tags_json,
+        ) = row
+        try:
+            tags: list[str] = json.loads(tags_json) if tags_json else []
+        except (ValueError, TypeError):
+            tags = []
+        return {
+            "ip": ip,
+            "first_seen": first_seen,
+            "last_seen": last_seen,
+            "event_count": event_count,
+            "country_code": country_code,
+            "country_name": country_name,
+            "city": None,
+            "asn": asn,
+            "asn_org": asn_org,
+            "reputation_score": reputation_score,
+            "tags": tags,
+        }
+
+    def list_source_ips(self, limit: int = 100) -> list[dict[str, Any]]:
+        """
+        Return source IP intelligence records sorted by reputation_score DESC,
+        then event_count DESC. NULLs sort last (SQLite NULL < any non-NULL).
+        Used by GET /api/intelligence/ips.
+        """
+        rows = self._session.execute(
+            text("""
+                SELECT ip, first_seen, last_seen, event_count,
+                       country_code, country_name, asn, asn_org,
+                       reputation_score, tags
+                FROM source_ips
+                ORDER BY reputation_score DESC, event_count DESC
+                LIMIT :limit
+                """),
+            {"limit": limit},
+        ).fetchall()
+        return [self._source_ip_to_dict(row) for row in rows]
+
+    def get_source_ip(self, ip: str) -> dict[str, Any] | None:
+        """Return the intelligence profile for a single IP, or None if unknown."""
+        row = self._session.execute(
+            text("""
+                SELECT ip, first_seen, last_seen, event_count,
+                       country_code, country_name, asn, asn_org,
+                       reputation_score, tags
+                FROM source_ips
+                WHERE ip = :ip
+                """),
+            {"ip": ip},
+        ).fetchone()
+        if row is None:
+            return None
+        return self._source_ip_to_dict(row)
