@@ -64,7 +64,7 @@ Every small defense matters in securing humanity's future.*
 
 ## 🏗️ Architecture Overview
 
-Events arrive via `POST /api/ingest`, are validated and normalized, and are stored in SQLite. All dashboard and IOC queries run SQL via `EventRepository`. A JSONL file is maintained as a best-effort append-only replica.
+Events arrive via `POST /api/ingest`, are validated and normalized, and are stored in SQLite. All dashboard and IOC queries run SQL via `EventRepository`. A JSONL file is maintained as a legacy best-effort append-only replica pending retirement (see [docs/JSONL_RETIREMENT.md](docs/JSONL_RETIREMENT.md)).
 
 ```
 Honeypot sensors (Cowrie, Dionaea, ...)
@@ -78,7 +78,7 @@ Honeypot sensors (Cowrie, Dionaea, ...)
          │  INSERT raw_events + events + UPSERT source_ips
          │  INSERT audit_log
          │
-         │  best-effort replica
+         │  best-effort replica (legacy — pending retirement)
          ▼
     storage/events.jsonl
 

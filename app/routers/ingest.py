@@ -184,8 +184,8 @@ def ingest_events(
                 except Exception:
                     score_sp.rollback()
 
-            # Stage 6: JSONL replica (best-effort; only after DB commit)
-            # TODO: remove _append_jsonl() once all consumers migrate to the SQLite API.
+            # Stage 6: JSONL replica (legacy; best-effort; only after DB commit)
+            # TODO: remove in Phase 3 PR 4 — see docs/JSONL_RETIREMENT.md
             _append_jsonl(event)
             accepted += 1
 
