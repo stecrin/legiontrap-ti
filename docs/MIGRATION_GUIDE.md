@@ -2,8 +2,13 @@
 
 **Document type:** Implementation blueprint — JSONL-to-SQLite migration procedure
 **Audience:** Engineers, operators, autonomous agents performing Phase 1 work
-**Last reviewed:** 2026-05-23
+**Last reviewed:** 2026-05-25
 **Status:** Complete. Phase 1 migration is done. Run `alembic upgrade head` to apply the schema to a new deployment.
+
+> **Note:** The JSONL append-only replica described in this document is a legacy artifact pending
+> retirement. The recovery guarantee ("re-import JSONL to reconstruct the DB") has been superseded
+> by SQLite DB snapshots. See [JSONL_RETIREMENT.md](JSONL_RETIREMENT.md) for the full retirement
+> plan and the replacement recovery strategy.
 
 ---
 
@@ -39,13 +44,19 @@ Before running any migration step, verify:
 
 **The JSONL file is never deleted.**
 
-After migration it transitions from the primary data store to two ongoing roles:
+After migration it transitions from the primary data store to two legacy roles. Both roles are
+**pending retirement** (see [JSONL_RETIREMENT.md](JSONL_RETIREMENT.md)):
 
-1. **Append-only replica:** After every successful ingest via `POST /api/ingest`, the normalized event is also appended to `storage/events.jsonl`. The file remains a consistent recovery point. If the SQLite database is lost or corrupted, it can be fully reconstructed by re-importing the JSONL file.
+1. **Append-only replica (legacy):** After every successful ingest via `POST /api/ingest`, the
+   normalized event is appended to `storage/events.jsonl` by `_append_jsonl()`. This write is
+   best-effort and non-atomic with the DB commit. The file does not include GeoIP enrichment,
+   ASN data, computed tags, or reputation scores. It is not a complete recovery point.
+   The recovery role has been superseded by SQLite DB snapshots. `_append_jsonl()` is scheduled
+   for removal in Phase 3 PR 4.
 
-2. **Import/export format:** External tools (Cowrie, Dionaea, other sensors) that write directly to the JSONL file continue to work during the transition. A background JSONL watcher (Phase 2+) will pick up new lines and ingest them into SQLite.
-
-The file is the safety net. It must never be removed.
+2. **Historical import format:** `scripts/import_jsonl.py` was used to migrate legacy JSONL
+   data into SQLite during Phase 1. External sensors that wrote directly to JSONL have been
+   migrated to use `POST /api/ingest`. The import script is scheduled for deletion in Phase 3 PR 4.
 
 ---
 
@@ -243,7 +254,10 @@ mv storage/legiontrap.db storage/legiontrap.db.bak
 
 The JSONL file was never modified during migration. It is the complete event history. Full rollback takes under 30 seconds.
 
-**The JSONL replica ensures the rollback path is always available.** As long as the replica write is working, no event that reached the SQLite database is unavailable in the JSONL file.
+**The JSONL replica is not a guaranteed rollback path.** The `_append_jsonl()` write is
+non-atomic with the SQLite commit — events committed to the DB during a crash between the two
+writes will be missing from JSONL. The replacement recovery strategy is a SQLite DB snapshot.
+See [JSONL_RETIREMENT.md](JSONL_RETIREMENT.md) for backup and restore procedures.
 
 ---
 

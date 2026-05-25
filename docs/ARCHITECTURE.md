@@ -8,7 +8,7 @@
 
 ## Current Architecture Overview
 
-LegionTrap TI is a Python FastAPI backend paired with a React frontend. Events are ingested via `POST /api/ingest`, stored in SQLite, and served from SQL queries. A JSONL file is maintained as a best-effort append-only replica after each successful ingest. The frontend polls the backend every 10 seconds via authenticated HTTP requests.
+LegionTrap TI is a Python FastAPI backend paired with a React frontend. Events are ingested via `POST /api/ingest`, stored in SQLite, and served from SQL queries. A JSONL file is maintained as a legacy best-effort append-only replica after each successful ingest — this write is pending retirement; see [JSONL_RETIREMENT.md](JSONL_RETIREMENT.md). The frontend polls the backend every 10 seconds via authenticated HTTP requests.
 
 ### Component Map
 
@@ -49,7 +49,7 @@ FastAPI Backend (app/)
 Storage
   └── storage/
         ├── legiontrap.db        SQLite database (primary data store)
-        ├── events.jsonl         Append-only replica written after each successful ingest
+        ├── events.jsonl         Legacy append-only replica (pending retirement — see JSONL_RETIREMENT.md)
         └── GeoLite2-City.mmdb   IP geolocation database (installed; used in Phase 3)
 
 Deployment
@@ -89,9 +89,9 @@ storage/legiontrap.db (SQLite, primary store)
     │  INSERT raw_events + events + UPSERT source_ips
     │  INSERT audit_log (separate session)
     │
-    │  best-effort replica append
+    │  best-effort replica append (legacy — pending retirement)
     ▼
-storage/events.jsonl
+storage/events.jsonl  ← legacy; see JSONL_RETIREMENT.md
     │
     │  indexed SQL queries
     ▼
@@ -162,7 +162,7 @@ The frontend is a single-page application with no routing library. Auth state is
 storage/events.jsonl  →  storage/legiontrap.db (SQLite, primary store)
 ```
 
-SQLite is in production. The schema is PostgreSQL-compatible by design. `storage/events.jsonl` remains as a best-effort append-only replica written after each successful ingest.
+SQLite is in production. The schema is PostgreSQL-compatible by design. `storage/events.jsonl` is a legacy append-only replica written after each successful ingest; it is pending retirement in Phase 3 PR 4 and replaced by SQLite DB snapshots as the recovery strategy. See [JSONL_RETIREMENT.md](JSONL_RETIREMENT.md).
 
 
 ### Stage 2: PostgreSQL (when required)
