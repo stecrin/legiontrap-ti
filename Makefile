@@ -34,6 +34,10 @@ db-pending:
 import-jsonl:
 	PYTHONPATH=. python scripts/import_jsonl.py $(JSONL_FILES)
 
+# Validate that DB_PATH was migrated correctly (tables, indexes, Alembic revision).
+db-validate:
+	PYTHONPATH=. python scripts/validate_migration.py
+
 smoke:
 	@echo "[health]"; curl -s http://127.0.0.1:$(PORT)/api/health | python3 -m json.tool
 	@echo "[ingest]"; curl -s -H "$(H)" -H 'Content-Type: application/json' \
