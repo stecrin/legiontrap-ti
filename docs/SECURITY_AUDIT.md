@@ -164,15 +164,10 @@ These defaults are in the public source code. Any deployment that does not expli
 
 ## Medium Severity Issues
 
-### M-001: Unvalidated Event Data
+### M-001: Unvalidated Event Data — RESOLVED (Phase 2)
 
-**File:** `app/routers/iocs_pf.py:iter_events()`
 **Severity:** Medium
-**Description:** Events are ingested directly from the JSONL file with no schema validation. The `_extract_all_ips()` function recursively searches for IPv4 strings in arbitrary JSON structures. There is no limit on nesting depth, no validation of field types, and no sanitization of string content.
-
-**Risk:** A malformed or adversarially crafted event can cause unexpected behavior. When the ingestion API is added, this becomes a more significant attack surface.
-
-**Remediation:** Define a Pydantic schema for `HoneypotEvent`. Validate all ingested events against this schema. Reject events that fail validation with logged errors.
+**Status:** Resolved. `POST /api/ingest` validates all incoming events against the `RawEvent` Pydantic schema before any processing. The JSONL-scanning helpers (`iter_events`, `_extract_all_ips`) were removed when IOC routes migrated to `EventRepository.get_unique_public_ips()` in Phase 1B. Invalid events are rejected with structured errors returned in the ingest receipt.
 
 ---
 
@@ -180,9 +175,9 @@ These defaults are in the public source code. Any deployment that does not expli
 
 **File:** `app/routers/events.py:list_events()`
 **Severity:** Medium
-**Description:** The `limit` parameter is validated by FastAPI (ge=1, le=1000) but no other input validation exists. When the database layer is added, SQL injection prevention must be explicitly verified.
+**Description:** The `limit` parameter is validated by FastAPI (ge=1, le=1000) but no other input validation exists.
 
-**Remediation:** Use parameterized queries exclusively when SQLite is adopted. Never construct SQL strings from user input. Document the SQL injection prevention strategy.
+**Status (partial):** SQLite is adopted. All database access goes through `app/db/repository.py` using SQLAlchemy `text()` with named parameters — no SQL is constructed from user input. Injection surface is eliminated at the database layer. FastAPI parameter validation remains as the only boundary check on query inputs.
 
 ---
 
@@ -196,16 +191,10 @@ These defaults are in the public source code. Any deployment that does not expli
 
 ---
 
-### M-004: No Audit Logging
+### M-004: No Audit Logging — RESOLVED (Phase 1B)
 
 **Severity:** Medium
-**Description:** There is no audit log of authentication events (successful logins, failed logins, API key usage), AI API calls, or data export operations. For any deployment handling real security telemetry, audit logs are a basic operational requirement.
-
-**Remediation:** Add structured logging for:
-- Authentication events (success/failure, method, timestamp, source IP)
-- IOC export operations (which feed, timestamp, event count)
-- AI API calls (when implemented: timestamp, data volume, not data content)
-- Administrative actions
+**Status:** Resolved. The `audit_log` table is implemented and populated. Every `POST /api/ingest` batch writes one row to `audit_log` with `event_type='ingest'`, `batch_id`, accepted/rejected/duplicate counts, and a UTC timestamp. The write is isolated in a separate session after the batch commits — a failure does not fail the ingest. Authentication event logging (login success/failure) is deferred to a later phase.
 
 ---
 
@@ -252,7 +241,7 @@ The following must be true before any internet-facing deployment:
 - [ ] H-002: TLS termination in Docker Compose — **deferred, infrastructure concern**
 - [x] H-003: `datetime.utcnow()` — already using `datetime.now(UTC)` (resolved, audit ref was stale)
 - [ ] `.env` populated with non-default secrets — **operator deployment responsibility, not a code requirement**
-- [ ] Audit logging implemented — **deferred to Phase 1 (table designed in DATABASE_SCHEMA.md)**
+- [x] Audit logging implemented — `audit_log` table live; ingest batches write one row per batch (Phase 1B)
 - [x] CI includes `pip-audit` and `bandit` (baseline; `continue-on-error` pending triage)
 
 ---

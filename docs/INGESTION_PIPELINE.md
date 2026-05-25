@@ -1,9 +1,9 @@
 # LegionTrap TI — Event Ingestion Pipeline
 
 **Document type:** Implementation blueprint — ingestion API and normalization pipeline
-**Audience:** Engineers, autonomous agents performing Phase 2 work
-**Last reviewed:** 2026-05-23
-**Status:** Design-complete. Describes the system that Phases 2 and 3 implement.
+**Audience:** Engineers, autonomous agents, contributors
+**Last reviewed:** 2026-05-25
+**Status:** Phase 2 implemented. `POST /api/ingest` is live in `app/routers/ingest.py`. Stage 5 (GeoIP enrichment) is deferred to Phase 3.
 
 ---
 
@@ -19,7 +19,7 @@ The ingestion pipeline is the boundary between the outside world and the LegionT
 6. Persist to SQLite and append to the JSONL replica
 7. Return a structured receipt
 
-This pipeline will be implemented in `app/routers/ingest.py` and `app/utils/`. It depends on the SQLite schema from [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) being in place (Phase 1).
+This pipeline is implemented in `app/routers/ingest.py` and `app/utils/`. It depends on the SQLite schema from [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) being in place (Phase 1 — complete).
 
 ---
 
@@ -142,6 +142,8 @@ POST /api/ingest
 │   INSERT INTO events                    │
 │   UPSERT INTO source_ips               │
 │   APPEND TO storage/events.jsonl        │
+│   (best-effort replica; failure does    │
+│    not fail the ingest)                 │
 └─────────────────┬───────────────────────┘
                   │
                   ▼
@@ -289,7 +291,7 @@ class IngestReceipt(BaseModel):
 
 ## Repository Interface
 
-`app/db/repository.py` will expose the storage methods the ingestion pipeline calls. No SQL appears outside this file.
+`app/db/repository.py` exposes the storage methods the ingestion pipeline calls. No SQL appears outside this file.
 
 ```python
 class EventRepository:
