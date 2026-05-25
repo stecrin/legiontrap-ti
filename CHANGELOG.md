@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.6.0](https://github.com/stecrin/legiontrap-ti/compare/v0.5.0...v0.6.0) (2026-05-25)
+
+### Features
+
+* Phase 2 PR 3 — intelligence query endpoints ([be2aac5](https://github.com/stecrin/legiontrap-ti/commit/be2aac5fabc84af7398f1ff782a8b1088b37580d))
+
 ## [0.5.0](https://github.com/stecrin/legiontrap-ti/compare/v0.4.0...v0.5.0) (2026-05-25)
 
 ### Features
