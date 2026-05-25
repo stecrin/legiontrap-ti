@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.3.0](https://github.com/stecrin/legiontrap-ti/compare/v0.2.3...v0.3.0) (2026-05-25)
+
+### Features
+
+* add Alembic scaffold and initial schema migration ([9dad922](https://github.com/stecrin/legiontrap-ti/commit/9dad922cd0ac52a5b59052ec6ac5a35a42cd8563))
+* add canonical event Pydantic schemas ([5adde3a](https://github.com/stecrin/legiontrap-ti/commit/5adde3afacf8384349eb5918a0431df13ea4b193))
+* add database migration validation tool ([dcb0807](https://github.com/stecrin/legiontrap-ti/commit/dcb08072f7cf7c30a8c5bf34255ec7214328b1de))
+* add event normalization utilities ([2d79076](https://github.com/stecrin/legiontrap-ti/commit/2d79076b566264e24a45cda341e92bec59d769b1))
+* add EventRepository and fix reset_engine singleton leak ([64d6519](https://github.com/stecrin/legiontrap-ti/commit/64d6519a40c62fed616757cf6533c11f1cdebfee))
+* add guarded retention cleanup tooling ([9a6bd48](https://github.com/stecrin/legiontrap-ti/commit/9a6bd48aa6bd8a36a7724740cde229f677837132))
+* add ingest audit logging and retention utilities ([b843a6a](https://github.com/stecrin/legiontrap-ti/commit/b843a6addf4a59a0c3091f36e9352152de5ec90e))
+* add JSONL import tool for SQLite migration ([a3bb3a3](https://github.com/stecrin/legiontrap-ti/commit/a3bb3a3c3ca37e1c92a39cce0259c1a1ec552c69))
+* add SQLite connection factory with WAL mode ([980df42](https://github.com/stecrin/legiontrap-ti/commit/980df4233a7a7a79adf9c759500f86ba9962033f))
+* **db:** add create_all_tables helper and DB lifecycle Makefile targets ([b1b4053](https://github.com/stecrin/legiontrap-ti/commit/b1b405368615cc8eb07c0a88dc778d9f3142addb))
+* **ingest:** add POST /api/ingest router with full 7-stage pipeline ([b27273e](https://github.com/stecrin/legiontrap-ti/commit/b27273e1b50aac6dcc63d114e45ca0a4eb72b99a))
+* migrate IOC exports from JSONL to SQLite ([7527534](https://github.com/stecrin/legiontrap-ti/commit/75275348081d6d798660cf48b2f771a9f56e3774))
+
+### Bug Fixes
+
+* require API_KEY in docker-compose via mandatory substitution ([4bc3438](https://github.com/stecrin/legiontrap-ti/commit/4bc34382a1ea07fc24b14d93705458f54cf0c57b))
+
 ## [0.2.3](https://github.com/stecrin/legiontrap-ti/compare/v0.2.2...v0.2.3) (2026-05-24)
 
 ### Bug Fixes
