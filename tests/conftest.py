@@ -11,6 +11,13 @@ def pytest_sessionstart(session):
     events_path = storage / "test-events.jsonl"
     os.environ["EVENTS_PATH"] = str(events_path)
 
+    # Bootstrap the in-memory SQLite schema so migrated route handlers
+    # (stats, events, ingest) have valid tables. DB_PATH=:memory: is set in
+    # pytest.ini; alembic upgrade head cannot run against :memory:.
+    from app.db.connection import create_all_tables, get_engine
+
+    create_all_tables(get_engine())
+
 
 @pytest.fixture(autouse=True)
 def reset_rate_limiter():
