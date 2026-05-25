@@ -1,7 +1,7 @@
 # LegionTrap TI — Phase 4 Architecture Blueprint
 
 **Document type:** Pre-implementation architecture blueprint
-**Status:** Under review — do not begin implementation until this document is approved
+**Status:** Approved — implementation-risk corrections applied; PR 1 is cleared to begin
 **Audience:** Engineers, contributors
 **Date:** 2026-05-25
 
@@ -376,6 +376,13 @@ CREATE TABLE behavioral_fingerprints (
 - `confidence` reflects data completeness: a fingerprint computed from 5 events has lower confidence than one computed from 500 events
 - One row per IP: when a fingerprint is recomputed, the row is updated in place; historical fingerprints are not retained at this table (change history can be derived from `campaign_observations`)
 
+**Phase 4 simplification — one fingerprint per source IP:**
+The `UNIQUE(source_ip)` constraint encodes a deliberate Phase 4 simplification: one behavioral fingerprint per IP, updated in place. This is correct for the majority of observed traffic, where an IP represents a single actor's tool across a campaign window.
+
+The limitation: an IP reused by different actors at different times (VPN exit nodes, cloud NAT gateways, Tor exit relays) will produce a fingerprint that is a blend of both actors' behavior. In Phase 4, this is an acceptable approximation — such IPs typically produce incoherent fingerprints that fail to cluster into any campaign, which is the correct outcome (uncertain data should not produce confident intelligence).
+
+**Anticipated future migration:** Phase 6 or later will introduce temporal segmentation by adding `valid_from` and `valid_until` timestamp columns and relaxing the UNIQUE constraint to `UNIQUE(source_ip, valid_from)`. This allows multiple sequential fingerprints per IP, each covering a distinct observation window. The UNIQUE constraint on `source_ip` should not be enforced at the application level in ways that would make this migration harder — the constraint should live only at the database level where it can be altered cleanly.
+
 ### 7.2 `campaigns`
 
 Stores one record per identified campaign. Campaign identity persists across IP rotation, dormancy, and reactivation.
@@ -393,7 +400,6 @@ CREATE TABLE campaigns (
     member_ip_count     INTEGER NOT NULL DEFAULT 0,  -- denormalized; updated on member changes
     attack_tactic_dist  TEXT,             -- JSON: distribution of ATT&CK tactic counts across campaign events
     top_target_ports    TEXT,             -- JSON: top 10 targeted ports by event count
-    tags                TEXT,             -- JSON array of string tags
     notes               TEXT,             -- operator-editable free text
     created_at          TEXT NOT NULL,
     updated_at          TEXT NOT NULL
@@ -405,6 +411,7 @@ CREATE TABLE campaigns (
 - `status` is derived from `last_seen` but stored explicitly for efficient filtering; updated by a maintenance routine, not in real time
 - `attack_tactic_dist` and `top_target_ports` are denormalized aggregates for fast dashboard rendering; recomputed on observation addition
 - `notes` is the only operator-editable field at this stage; future phases can expand to full annotation
+- **No `tags` column on this table.** Tags are stored exclusively in the `campaign_tags` table (Section 7.5). Maintaining a JSON tags column here alongside a normalized tags table would create two authoritative sources for the same data, producing dual-write divergence over time. `campaign_tags` is the single authoritative source; query it directly.
 
 ### 7.3 `campaign_members`
 
@@ -438,7 +445,6 @@ CREATE TABLE campaign_observations (
     event_count         INTEGER NOT NULL,
     is_reactivation     INTEGER NOT NULL DEFAULT 0,  -- boolean (0/1)
     dormancy_gap_days   REAL,                        -- non-null on reactivation rows
-    fingerprint_delta   TEXT,                        -- JSON: what behavioral dimensions changed vs. previous observation
     notes               TEXT
 );
 
@@ -446,12 +452,12 @@ CREATE INDEX idx_campaign_observations_campaign ON campaign_observations(campaig
 ```
 
 **Design notes:**
-- `fingerprint_delta` captures behavioral evolution. Tracking how fingerprints change over time reveals attacker adaptation — tooling upgrades, operational security improvements, response to detection. This delta is computed at observation time and stored; it is not recomputed.
 - `dormancy_gap_days` is recorded at reactivation time. This field is the primary input for dormancy pattern analysis.
+- **`fingerprint_delta` is intentionally absent.** Behavioral delta between observations is a valuable concept but requires a precisely defined computation algorithm before it can be stored reliably. "JSON representing what changed" is not an implementable spec — delta between nested JSON structures has multiple valid representations, and two implementations will produce incompatible results. Once there is a concrete operational use case and a deterministic algorithm, this field should be added in a future PR with a versioned definition. Do not add it speculatively.
 
 ### 7.5 `campaign_tags`
 
-Structured tags with provenance tracking. Separate from the `tags` JSON column on `campaigns` to support filtering by source (manual vs. automated).
+The single authoritative source for campaign tags. Structured with provenance tracking to support filtering by source (manual vs. automated). The `campaigns` table does not have a `tags` column — all tag reads and writes go through this table exclusively.
 
 ```sql
 CREATE TABLE campaign_tags (
@@ -705,7 +711,121 @@ Fingerprint computation and campaign clustering happen asynchronously or in a sc
 
 ---
 
-## 12. Roadmap Update Recommendation
+## 12. Implementation Risk Controls
+
+These controls emerge from a pre-implementation risk review conducted after the blueprint was approved. They do not change what Phase 4 builds — they define how it must be built to remain stable, trustworthy, and migratable.
+
+### 12.1 Fingerprint JSON structure is a versioned API
+
+The JSON schemas for `timing_features`, `sequence_features`, `protocol_features`, `credential_features`, `target_features`, and `tool_signals` must be specified and frozen before PR 3 is merged. The Appendix (Fingerprint Feature Encoding Reference) defines the encoding for each field; that definition is the spec, not a suggestion.
+
+Once fingerprints are stored in production, any change to field names, nesting structure, or data types is a breaking change and requires:
+1. Bumping `fingerprint_version`
+2. A migration plan defining whether old fingerprints are recomputed lazily, batch-recomputed, or supported in parallel
+3. Updates to the similarity function that reads those fields
+
+Treat the fingerprint JSON structure as a public API. Changes are migrations, not refactors.
+
+### 12.2 Thresholds and weights are launch defaults requiring empirical calibration
+
+The similarity weights (20%/35%/25%/10%/10%) and confidence thresholds (0.80/0.60/0.40) have no empirical basis at launch. They are informed starting points that will produce wrong results for some deployment profiles. This is expected and acceptable as long as:
+
+- All thresholds and weights are named constants in `app/core/config.py` or a dedicated constants module — never hardcoded inline
+- The system logs enough data per clustering decision that post-hoc threshold calibration is possible from logs alone
+- Documentation at deployment time explicitly states these are launch defaults and should be reviewed after the first 30 days of campaign data
+
+**Do not change thresholds or weights after production campaigns are established without re-clustering.** Changing weights retroactively makes new fingerprints incommensurable with historical campaign profiles — existing campaigns were built under different weight distributions. A threshold change must either be accompanied by full re-clustering from raw fingerprints or scoped to future-only associations.
+
+### 12.3 Temporal recency is a required component of campaign clustering
+
+Behavioral similarity alone is not sufficient to associate a new fingerprint with an existing campaign. Two actors separated by years who happened to use similar tooling should not cluster into the same campaign.
+
+The clustering algorithm must include a temporal recency component:
+
+- Fingerprints more than 12 months older than the candidate fingerprint require similarity ≥ 0.90 to trigger automatic association (configurable)
+- Fingerprints 6–12 months older require similarity ≥ 0.85 (configurable)
+- Fingerprints within 6 months use the standard thresholds from Section 8.2
+
+This temporal decay is applied as a pre-filter or as a threshold modifier — not as a separate similarity dimension. The similarity score measures behavioral match; the temporal component adjusts the association threshold based on how much time has passed.
+
+**Campaign continuity is probabilistic, not absolute.** A reactivation event after a long dormancy gap is a hypothesis with a confidence score, not a certainty. The system must present it as such in the API response and dashboard.
+
+### 12.4 Infrastructure features are informational context, not primary similarity signals
+
+ASN and geographic distribution features in the fingerprint are useful for understanding an actor's infrastructure profile but are poor similarity signals for campaign clustering. Reasons:
+
+- Common cloud providers (AWS, DigitalOcean, OVH) and VPN services mean many unrelated actors share identical ASN profiles
+- Geographic features at country level are too coarse to discriminate actors
+- Sophisticated actors deliberately diversify infrastructure to evade exactly this signal
+
+**Infrastructure features must be assigned weight < 5% in the clustering similarity function, or excluded entirely.** They should appear in campaign profiles as informational annotations ("this campaign predominantly uses AWS us-east-1 infrastructure") but must not drive association decisions.
+
+This is a correction to Section 3.1's "Infrastructure features" category: those fields belong in the fingerprint as metadata but must be excluded from the weighted similarity computation. The Section 3.2 weight table should be read with this constraint applied — infrastructure features are omitted from the similarity sum entirely.
+
+### 12.5 Fingerprint computation must be asynchronous and deduplicated
+
+Two invariants must be enforced in the BackgroundTask implementation:
+
+**Asynchronous:** Fingerprint computation must never execute in the synchronous request/response cycle of `POST /api/ingest`. The ingest endpoint returns its response immediately after database writes; fingerprint computation runs afterward in a background context.
+
+**Deduplicated:** If a fingerprint computation task for IP `X` is already pending or in progress, a second ingest batch containing IP `X` must not enqueue a second task. The deduplication check must cover both "pending in queue" and "currently executing" states. Without this, concurrent writes from two tasks for the same IP will race for the `behavioral_fingerprints` row, producing a result that reflects whichever task wrote last — which may be the task with fewer events.
+
+The minimum event count gate (see Section 12.6) and the deduplication gate are both mandatory. Implement both before PR 3 is merged.
+
+### 12.6 Sparse fingerprints must not enter campaign clustering
+
+A fingerprint computed from fewer than a minimum event count is statistically unreliable. Sparse fingerprints compared against rich historical campaign fingerprints produce low similarity scores (because null dimensions contribute zero) and get incorrectly classified as new campaigns — even when they represent early activity from a known actor.
+
+**Minimum event count before a fingerprint is submitted to campaign clustering: 10 events (configurable).** Below this threshold:
+- The fingerprint is computed and stored (to preserve data)
+- The `confidence` field is set to reflect the sparse data
+- The fingerprint is flagged as `insufficient_for_clustering` (a boolean field or a confidence threshold check)
+- It is excluded from the similarity scan in PR 4's clustering routine
+
+This threshold may need deployment-specific tuning. Start at 10. If actors in your environment typically probe with 3–5 events before moving on, raise it. If actors probe with hundreds of events, lower it.
+
+### 12.7 Explainability doctrine
+
+Every campaign association decision produced by the Phase 4 clustering algorithm must be accompanied by a dimensional explanation. This is not optional for high-confidence matches — it applies to all associations.
+
+The explanation must answer: "Why was IP `X` attributed to Campaign `Y`?"
+
+The response format must include per-dimension similarity scores:
+
+```
+timing_similarity: 0.83
+sequence_similarity: 0.91
+protocol_similarity: 0.79
+credential_similarity: 0.87
+target_similarity: 0.72
+weighted_total: 0.85
+threshold_applied: 0.80
+decision: automatic_association
+```
+
+This explanation is stored alongside the `campaign_members` record or in the `campaign_observations` row for the association event. It is surfaced in the campaign detail API response.
+
+**Deterministic heuristics are preferred over opaque ML decisions in Phase 4.** A deterministic similarity function produces the same output for the same inputs every time and the reasoning is fully inspectable. An ML classifier produces a confidence score with no inspectable reasoning path. Phase 4 uses deterministic functions exclusively. Phase 5 may introduce ML-assisted similarity, but only if the explainability requirement is preserved.
+
+### 12.8 PostgreSQL portability
+
+All Alembic migrations written in Phase 4 must be compatible with PostgreSQL. LegionTrap's SQLite-to-PostgreSQL migration path was anticipated from Phase 1; Phase 4 schema decisions must not create new obstacles to that migration.
+
+Specific patterns to avoid:
+
+| SQLite-only pattern | PostgreSQL-compatible replacement |
+|---------------------|----------------------------------|
+| `INSERT OR REPLACE INTO` | `INSERT INTO ... ON CONFLICT DO UPDATE SET` |
+| `INSERT OR IGNORE INTO` | `INSERT INTO ... ON CONFLICT DO NOTHING` |
+| `json_extract(col, '$.field')` in hot-path queries | Extract in application layer; avoid in SQL WHERE clauses |
+| `AUTOINCREMENT` keyword | Use `SERIAL` / `BIGSERIAL` in Postgres; use `WITHOUT ROWID` alternative in SQLite if needed |
+| `datetime('now')` as column default | Use application-layer timestamp insertion; or accept that defaults differ |
+
+The migration files are the primary concern. Application-layer SQL queries using SQLAlchemy Core will be portable if they avoid dialect-specific constructs. Review each new migration in PR 1 against this table before merging.
+
+---
+
+## 13. Roadmap Update Recommendation
 
 After this blueprint is reviewed and approved, `docs/ROADMAP.md` should be updated as follows:
 
