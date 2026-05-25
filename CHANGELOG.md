@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.8.0](https://github.com/stecrin/legiontrap-ti/compare/v0.7.0...v0.8.0) (2026-05-25)
+
+### Features
+
+* **enrichment:** add ASN enrichment via GeoLite2-ASN.mmdb ([75a1ece](https://github.com/stecrin/legiontrap-ti/commit/75a1ecea20be48d11ce64d392d1d5b16bcec2568))
+
 ## [0.7.0](https://github.com/stecrin/legiontrap-ti/compare/v0.6.0...v0.7.0) (2026-05-25)
 
 ### Features
