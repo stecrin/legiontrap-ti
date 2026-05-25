@@ -2,135 +2,126 @@
 
 ## Table of Contents
 - [Vision](#-vision)
-- [Roadmap](#-roadmap--future-features)
+- [Roadmap](#-roadmap)
 - [Tech Stack](#-tech-stack)
 - [Architecture Overview](#-architecture-overview)
 - [Quick Start](#quick-start-local)
 - [API Endpoints](#api-endpoints)
+- [Database Operations](#database-operations)
 - [Environment Configuration](#environment-configuration)
 - [Privacy & Anonymization](#privacy--anonymization)
-- [Tests & CI](#tests-ioc-exports)
-- [Troubleshooting (Local & CI)](#troubleshooting-local--ci)
+- [Tests & CI](#tests--ci)
+- [Troubleshooting](#troubleshooting)
 - [Release Automation](#-release-automation)
 - [Contributing](#contributing)
 - [License](#license)
 
 
-## 🚀 Roadmap & Future Features
+## 🚀 Roadmap
 
-LegionTrap TI is evolving into a **complete Threat Intelligence and Honeynet platform**, built for security professionals, researchers, and educators.
+| Phase | Focus Area | Status |
+|-------|-------------|--------|
+| **Phase 0** | Security & Infrastructure Hygiene | ✅ Complete |
+| **Phase 1** | SQLite Storage Foundation | ✅ Complete |
+| **Phase 2** | HTTP Ingestion API | ✅ Complete |
+| **Phase 3** | GeoIP Enrichment | ⏳ Next |
+| **Phase 4** | ATT&CK Mapping & Standard Exports | ⏳ Planned |
+| **Phase 5** | AI Integration | ⏳ Planned |
+| **Phase 6** | Behavioral Memory & Campaign Tracking | ⏳ Planned |
+| **Phase 7** | Privacy-Preserving Federation | ⏳ Planned |
 
-| Phase | Focus Area | Key Deliverables | Status |
-|-------|-------------|------------------|--------|
-| **Phase 1** | 🧩 Core API + IOC Exports | FastAPI backend, privacy masking, IOC generation, local seed data | ✅ Completed |
-| **Phase 2** | ⚙️ CI/CD Automation | Semantic Release, GitHub Actions, changelog automation, version badges | ✅ Completed |
-| **Phase 3** | 📊 Dashboard UI | Interactive React-based dashboard (FastAPI + Tailwind + Plotly) | 🔄 In progress |
-| **Phase 4** | 🧠 Threat Intelligence Engine | Automatic enrichment (GeoIP, ASN, MITRE ATT&CK mapping) | ⏳ Planned |
-| **Phase 5** | ☁️ Cloud & Edge Profiles | Cloud federation + distributed event collectors | ⏳ Planned |
-| **Phase 6** | 🔔 Alerting & Integrations | Telegram & SIEM integration, webhooks, email alerts | ⏳ Planned |
-
-
-Each phase builds upon the previous one — modular, reproducible, and secure by design.
-
----
-
-**Educational-grade honeynet system** that teaches, detects, and defends.
+Each phase builds on the previous. See [docs/ROADMAP.md](docs/ROADMAP.md) for full detail.
 
 ---
 
 ## 💡 Vision
 
 LegionTrap TI was born from a simple idea: to turn raw hacker noise into real, understandable insight.
-It’s not just another honeypot... it’s a living system that listens, learns, and reacts.
+It's not just another honeypot... it's a living system that listens, learns, and reacts.
 Every IP that touches your network leaves a trace, and LegionTrap TI captures it, cleans it, and turns it into something you can actually use.
 
 The goal is independence.
-You don’t need a massive enterprise setup or cloud subscription to understand who’s targeting you; you can host your own private threat-intelligence environment, built with open tools and transparent logic.
-Step by step, LegionTrap TI is evolving into a smart, self-sustaining platform that detects, analyzes, and reports attacks in real time, helping you stay one step ahead without relying on anyone else’s system.
+You don't need a massive enterprise setup or cloud subscription to understand who's targeting you; you can host your own private threat-intelligence environment, built with open tools and transparent logic.
+Step by step, LegionTrap TI is evolving into a smart, self-sustaining platform that detects, analyzes, and reports attacks in real time, helping you stay one step ahead without relying on anyone else's system.
 
-*Pleased to stand among those securing humanity’s future in the digital age.
-Every small defense matters in securing humanity’s future.*
+*Pleased to stand among those securing humanity's future in the digital age.
+Every small defense matters in securing humanity's future.*
 
 **— Stefan Cringusi**
 
 
 ## 🧠 Tech Stack
 
-Built with modern, modular, and production-grade technologies:
-
-![Python](https://img.shields.io/badge/Python-3.13-blue?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-Framework-009688?logo=fastapi&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-WAL%20Mode-003B57?logo=sqlite&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-2088FF?logo=githubactions&logoColor=white)
 ![Semantic Release](https://img.shields.io/badge/Semantic%20Release-Automated%20Versioning-blueviolet?logo=semanticrelease&logoColor=white)
 ![MIT License](https://img.shields.io/badge/License-MIT-green.svg)
 
-The system is designed to be **secure, reproducible, and easy to extend**,
-using containerized environments, reproducible builds, and automated release pipelines.
-
----
-
-Modular, edge-ready honeynet with privacy-by-design, ATT&CK/Sigma exports, and a clean UI.
-
 ---
 
 ## 🏗️ Architecture Overview
 
-🧠 **LegionTrap TI** is built around a modular, containerized architecture designed for clarity, privacy, and flexibility.
+Events arrive via `POST /api/ingest`, are validated and normalized, and are stored in SQLite. All dashboard and IOC queries run SQL via `EventRepository`. A JSONL file is maintained as a best-effort append-only replica.
 
-    ┌──────────────────────────────┐
-    │          Frontend UI         │
-    │   (Future dashboard / React) │
-    └─────────────┬────────────────┘
-                  │ REST API
-    ┌─────────────┴────────────────┐
-    │         FastAPI Backend      │
-    │  - Event ingestion & parsing │
-    │  - IOC export generation     │
-    │  - Privacy masking & config  │
-    └─────────────┬────────────────┘
-                  │ JSONL Storage
-    ┌─────────────┴────────────────┐
-    │       Storage & Logging      │
-    │  - Persistent JSONL events   │
-    │  - Rotating logs / retention │
-    └─────────────┬────────────────┘
-                  │
-    ┌─────────────┴────────────────┐
-    │        Docker Compose        │
-    │  - Edge deployment profile   │
-    │  - Cloud profile (planned)   │
-    └──────────────────────────────┘
+```
+Honeypot sensors (Cowrie, Dionaea, ...)
+         │
+         │  POST /api/ingest  (x-api-key)
+         ▼
+    FastAPI Backend (app/)
+         │  Pydantic validation → normalization → deduplication
+         ▼
+    storage/legiontrap.db  (SQLite, primary store)
+         │  INSERT raw_events + events + UPSERT source_ips
+         │  INSERT audit_log
+         │
+         │  best-effort replica
+         ▼
+    storage/events.jsonl
 
+    Read path: SQL queries via EventRepository
+         │
+         ▼
+    GET /api/stats, /api/events, /api/iocs/pf.conf, /api/iocs/ufw.txt
+         │
+         ▼
+    Browser dashboard / firewall scripts
+```
 
-🧩 **Key principles:**
-- Minimal dependencies for reliability
-- Reproducible, portable container setup
-- Configurable privacy and export modes
-- Modular paths for integration with honeypots and TI feeds
-- Built for both **edge** and **cloud** environments
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full component map.
 
 ---
 
-## Status
-
-Initializing repository skeleton (Step 1).
-
----
-
-## Quick start (local)
+## Quick Start (local)
 
 ```bash
-# build & start (Docker compose + API)
-make up
+# 1. Copy and populate required environment variables
+cp .env.example .env
+# Edit .env: set API_KEY, FEED_SALT, DASH_USER, DASH_PASS (bcrypt hash)
 
-# health (open route, no auth)
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Apply database migrations
+make db-migrate
+
+# 4. Start the API
+make run
+
+# 5. Health check
 curl -s http://127.0.0.1:8088/api/health | python -m json.tool
 
-# protected routes (require x-api-key)
-H='x-api-key: dev-123'
-curl -s -H "$H" http://127.0.0.1:8088/api/config | python -m json.tool
-curl -s -H "$H" http://127.0.0.1:8088/api/stats  | python -m json.tool
+# 6. Ingest a test event
+H='x-api-key: <your-API_KEY>'
+curl -s -H "$H" -H 'Content-Type: application/json' \
+  -d '{"events":[{"ts":"2025-10-28T18:31:08+00:00","source":"cowrie","type":"cowrie.login.failed","data":{"ip":"1.2.3.4","username":"root","password":"bad"}}]}' \
+  http://127.0.0.1:8088/api/ingest | python -m json.tool
+
+# 7. Stats and IOC exports
+curl -s -H "$H" http://127.0.0.1:8088/api/stats | python -m json.tool
 curl -s -H "$H" http://127.0.0.1:8088/api/iocs/ufw.txt
 curl -s -H "$H" http://127.0.0.1:8088/api/iocs/pf.conf
 ```
@@ -141,172 +132,119 @@ curl -s -H "$H" http://127.0.0.1:8088/api/iocs/pf.conf
 
 | Method | Path                    | Auth | Description                           |
 |-------:|-------------------------|:----:|---------------------------------------|
-| GET    | `/api/health`           |  No  | Liveness check                         |
-| GET    | `/api/config`           | Yes  | Current runtime config                 |
-| GET    | `/api/stats`            | Yes  | Simple stats from ingested events      |
-| GET    | `/api/iocs/ufw.txt`     | Yes  | UFW deny list (privacy-aware)          |
-| GET    | `/api/iocs/pf.conf`     | Yes  | PF table config (privacy-aware)        |
+| GET    | `/api/health`           |  No  | Liveness check                        |
+| POST   | `/api/login`            |  No  | Dashboard login → JWT token           |
+| POST   | `/api/ingest`           | API key | Batch event ingest (up to 500)     |
+| GET    | `/api/stats`            | Yes  | Total events, unique IPs, last-24h    |
+| GET    | `/api/events`           | Yes  | Recent events (newest first)          |
+| GET    | `/api/iocs/ufw.txt`     | Yes  | UFW deny list (privacy-aware)         |
+| GET    | `/api/iocs/pf.conf`     | Yes  | PF table config (privacy-aware)       |
 
-**Auth header:** `x-api-key: <API_KEY>`
-
----
-
-## Tests: IOC Exports
-
-```bash
-# Run isolated tests for IOC export logic
-make test-iocs
-```
-
-This verifies that the IOC export endpoints function as expected:
-
-* **/api/iocs/pf.conf** correctly reads attacker IPs from the configured `EVENTS_FILE`
-* IPs are output in valid `pf.conf` syntax (`table <blocked_ips>` etc.)
-* API key protection works via the environment variable `API_KEY=dev-123`
-* Test suite writes a temporary JSONL file and ensures IOC generation works end-to-end
-
-The IOC test target can be executed independently:
-
-```bash
-make test-iocs
-```
-
-If the app is running in a clean environment, this will automatically:
-
-1. Set `PYTHONPATH` and `API_KEY`
-2. Run `pytest -v tests/test_iocs.py`
-3. Display pass/fail results in detailed mode
+**Auth options:**
+- API key header: `x-api-key: <API_KEY>`
+- JWT bearer (dashboard): `Authorization: Bearer <token>`
 
 ---
 
-## Smoke test (IOC export)
-
-This quick check proves the `/api/iocs/pf.conf` endpoint reads attacker IPs from your events file and enforces API key auth.
+## Database Operations
 
 ```bash
-# 1) Create a tiny sample events file
-printf '%s\n' '{"src_ip":"8.8.8.8"}' '{"data":{"src_ip":"1.1.1.1"}}' > /tmp/events.jsonl
+# Apply all pending migrations (run once after first deploy and after each new migration)
+make db-migrate
 
-# 2) Run the UI backend against that file
-EVENTS_FILE=/tmp/events.jsonl API_KEY=dev-123 PRIVACY_MODE=off \
-uvicorn ui.backend.app.main:app --port 8088 --no-server-header --no-access-log & pid=$!
+# Check current migration revision
+make db-status
 
-# 3) Fetch pf.conf (authorized)
-sleep 1
-curl -s -H 'x-api-key: dev-123' http://127.0.0.1:8088/api/iocs/pf.conf
-# -> table <blocked_ips> persist { 1.1.1.1, 8.8.8.8 }
-#    block in quick from <blocked_ips> to any
+# Show migration history
+make db-pending
 
-# 4) Negative-key test (should be 401)
-curl -i -s -H 'x-api-key: WRONG' http://127.0.0.1:8088/api/iocs/pf.conf | head -5
+# Roll back one migration step (use with caution)
+make db-rollback
 
-# 5) Clean up the server
-kill "$pid" >/dev/null 2>&1 || true
-```
+# Prune events older than a cutoff date
+make db-prune PRUNE_BEFORE=2025-01-01T00:00:00+00:00
 
-### Privacy mode (masking)
+# Import existing JSONL data
+make import-jsonl JSONL_FILES="storage/events.jsonl"
 
-If you need to distribute IOCs without exposing full IPs, set `PRIVACY_MODE=on`. The last octet is masked:
-
-```bash
-EVENTS_FILE=/tmp/events.jsonl API_KEY=dev-123 PRIVACY_MODE=on \
-uvicorn ui.backend.app.main:app --port 8088 --no-server-header --no-access-log & pid=$!
-sleep 1
-curl -s -H 'x-api-key: dev-123' http://127.0.0.1:8088/api/iocs/pf.conf
-# -> table <blocked_ips> persist { 1.1.1.x, 8.8.8.x }
-kill "$pid" >/dev/null 2>&1 || true
+# Verify migration correctness (tables, indexes, revision)
+make db-validate
 ```
 
 ---
 
-## Authentication
+## Environment Configuration
 
-All non-health endpoints require the `x-api-key` header.
-In local compose we set `API_KEY=dev-123` (see `docker/docker-compose.edge.yml`). Change it for your environment.
+| Variable           | Required | Description                                                      |
+| ------------------ | :------: | ---------------------------------------------------------------- |
+| `API_KEY`          | Yes      | Required header for protected endpoints (`x-api-key`).          |
+| `FEED_SALT`        | Yes      | HMAC salt for privacy-mode IP hashing.                           |
+| `DASH_USER`        | Yes      | Dashboard login username.                                        |
+| `DASH_PASS`        | Yes      | Dashboard password as a bcrypt hash.                             |
+| `PRIVACY_MODE`     | No       | Set `on` to enable privacy masking on IOC exports (default off). |
+| `CORS_ORIGINS`     | No       | Comma-separated allowed origins (default: localhost variants).   |
+| `DB_PATH`          | No       | SQLite file path (default: `storage/legiontrap.db`).             |
+| `LOGIN_RATE_LIMIT` | No       | Rate limit for `/api/login` (default: `5/minute`).               |
+| `EVENTS_FILE`      | No       | JSONL replica path (default: `storage/events.jsonl`). Deprecated; kept for recovery use. |
 
-**Negative test (bad key → 401)**
-
-```bash
-curl -i -H 'x-api-key: wrong-key' http://127.0.0.1:8088/api/stats
-# Expect: HTTP/1.1 401 Unauthorized
-```
-
----
-
-## Privacy mode
-
-Set `PRIVACY_MODE=on` to redact/limit personally identifying fields during normalization & exports (e.g., mask last IPv4 octet).
-
-Check current runtime config:
-
-```bash
-H='x-api-key: dev-123'
-curl -s -H "$H" http://127.0.0.1:8088/api/config | python -m json.tool
-```
-
-Example effect on IOC exports:
-
-* `PRIVACY_MODE=off` → `8.8.8.8`
-* `PRIVACY_MODE=on`  → `8.8.8.x`
-
----
-
-## Environment configuration
-
-| Variable           | Default              | Description                                                                 |
-| ------------------ | -------------------- | --------------------------------------------------------------------------- |
-| `API_KEY`          | `dev-123`            | Required header for protected endpoints (`x-api-key`).                      |
-| `PRIVACY_MODE`     | `on`                 | If `on`, masks last IPv4 octet in IOC outputs & redacts PII where relevant. |
-| `EVENTS_FILE`      | —                    | **Preferred.** Absolute path to events JSONL (overrides `EVENTS_PATH`).     |
-| `EVENTS_PATH`      | `/data/events.jsonl` | Secondary path used if `EVENTS_FILE` is not set.                            |
-| `ROTATE_MAX_BYTES` | `1000000`            | Max size in bytes before log rotation of `events.jsonl`.                    |
-| `RETENTION_DAYS`   | `14`                 | Days to keep rotated event files.                                           |
-
-**Precedence:**
-The API resolves the events file as:
-`EVENTS_FILE → EVENTS_PATH → storage/events.jsonl`.
+Copy `.env.example` for a template with all required variables.
 
 ---
 
 ## Privacy & Anonymization
 
-LegionTrap TI supports two privacy strategies for exported IOCs:
+IOC exports support two privacy strategies controlled by `PRIVACY_MODE` and `FEED_SALT`:
 
-1. **Masked last octet** (default with `PRIVACY_MODE=on` and no salt):
-   - `8.8.8.8` → `8.8.8.x`
-2. **Hashed tokens** (enable with both `PRIVACY_MODE=on` and `FEED_SALT`):
-   - `8.8.8.8` → `ip-<hashprefix>` (deterministic per salt)
+**`PRIVACY_MODE=off`** (default): Full IPs exported as-is.
+```
+8.8.8.8
+```
 
-**Examples**
-```bash
-# Masking
-PRIVACY_MODE=on API_KEY=dev-123 \
-curl -s -H 'x-api-key: dev-123' http://127.0.0.1:8088/api/iocs/pf.conf
-# -> table <blocked_ips> persist { 1.1.1.x, 8.8.8.x }
+**`PRIVACY_MODE=on`, no `FEED_SALT`**: Last octet masked.
+```
+8.8.8.x
+```
 
-# Hashing
-PRIVACY_MODE=on FEED_SALT=my-secret-salt API_KEY=dev-123 \
-curl -s -H 'x-api-key: dev-123' http://127.0.0.1:8088/api/iocs/pf.conf
-# -> table <blocked_ips> persist { ip-12ab34cd56ef, ip-... }
+**`PRIVACY_MODE=on`, `FEED_SALT` set**: Deterministic HMAC token (same IP + salt = same token).
+```
+ip-a3b4c5d6e7f8
+```
 
-# Notes
-Hashing is deterministic for the same FEED_SALT + IP.
-Private/loopback/link-local/reserved IPs are filtered out.
+Private, loopback, link-local, and reserved IPs are always filtered from exports regardless of privacy mode.
 
 ---
 
-## Seed demo data
-
-Populate the API with a few example failed-logins so you can test charts/exports:
+## Tests & CI
 
 ```bash
-make seed
+# Full test suite
+pytest -q
 
-# verify:
-curl -s -H 'x-api-key: dev-123' http://127.0.0.1:8088/api/stats | python -m json.tool
-curl -s -H 'x-api-key: dev-123' http://127.0.0.1:8088/api/iocs/ufw.txt
-curl -s -H 'x-api-key: dev-123' http://127.0.0.1:8088/api/iocs/pf.conf
+# With coverage
+pytest -q --cov=app
+
+# Lint checks (must pass before commit)
+black --check .
+ruff check .
 ```
+
+CI runs on every push and PR: lint → tests → `pip-audit` → `bandit`. See `.github/workflows/ci.yml`.
+
+---
+
+## Troubleshooting
+
+**`401 Unauthorized`**
+Set the `x-api-key` header matching `API_KEY` in your `.env`.
+
+**Empty IOC output**
+Ingest at least one event with a routable public IP via `POST /api/ingest`. Private IPs (`RFC1918`, loopback, link-local) are stored as `src_ip=NULL` and never appear in exports.
+
+**Database not found / no tables**
+Run `make db-migrate` to create the schema. The application does not auto-migrate on startup.
+
+**Port already in use**
+Free port 8088 or set `PORT=<other>` when calling `make run`.
 
 ---
 
@@ -314,141 +252,40 @@ curl -s -H 'x-api-key: dev-123' http://127.0.0.1:8088/api/iocs/pf.conf
 
 This repository uses **semantic-release** to automatically handle versioning, tagging, and changelog updates.
 
-### How it works
-
 Each time a commit is pushed to `main`:
 
 1. GitHub Actions runs the **Auto Version & Release** workflow.
-2. The workflow installs all semantic-release dependencies.
-3. Based on your commit messages, it determines the correct semantic version bump.
-4. It generates or updates the `CHANGELOG.md`.
-5. It creates and publishes a new GitHub Release with tag and changelog notes.
+2. Based on commit messages, it determines the correct semantic version bump.
+3. It generates or updates `CHANGELOG.md`.
+4. It creates and publishes a new GitHub Release.
 
 ### Conventional Commit Examples
 
 | Commit type | Example                             | Effect                    |
 | ----------- | ----------------------------------- | ------------------------- |
-| **fix:**    | `fix: resolve missing IOC export`   | 🩹 Patch release (x.x.+1) |
-| **feat:**   | `feat: add new dashboard API route` | 🚀 Minor release (x.+1.0) |
-| **perf!:**  | `perf!: refactor ingestion engine`  | ⚡ Major release (+1.0.0)  |
-
-### Manual Trigger
-
-You can manually trigger a semantic release without changes:
-
-```bash
-git commit --allow-empty -m "chore(release): trigger semantic-release"
-git push origin main
-```
-
-A new version will be created if the last commit didn’t already match the changelog.
-
----
-
-## Helpful make targets
-
-```text
-make up       # build & start API
-make smoke    # run end-to-end test
-make seed     # populate demo data
-make logs     # follow API logs
-make down     # stop containers
-```
-
----
-
-## Troubleshooting
-
-* **Accidentally pasted README text into your shell** — only paste command sections.
-* **401 Unauthorized** — ensure `x-api-key` matches your configured `API_KEY`.
-* **Port already in use** — free 8088 or change port in compose.
-* **No IOC output** — ensure valid events and correct `EVENTS_FILE`.
-* **Events path confusion** — `EVENTS_FILE` overrides `EVENTS_PATH`, otherwise `storage/events.jsonl` is used.
-
-**No IOC output / empty `pf.conf`:**
-- Ensure **events file exists and contains at least one public IPv4**.
-- Precedence is `EVENTS_FILE → EVENTS_PATH → storage/events.jsonl`.
-- On CI, the tests create a temp events file. If you run the app in CI yourself, also ensure the `storage/` directory exists or set `EVENTS_FILE` explicitly.
-
-**401 Unauthorized:**
-- Your header must be `x-api-key: <API_KEY>`, and `<API_KEY>` must match the environment.
-
-**Port in use / server not starting:**
-- Free port `8088` or change it in your run command/compose profile.
+| **fix:**    | `fix: resolve missing IOC export`   | Patch release (x.x.+1)   |
+| **feat:**   | `feat: add new dashboard API route` | Minor release (x.+1.0)   |
+| **perf!:**  | `perf!: refactor ingestion engine`  | Major release (+1.0.0)   |
 
 ---
 
 ## Contributing
 
-PRs welcome. Please run linters and tests locally before pushing:
+PRs welcome. Run linters and tests locally before pushing:
 
 ```bash
 ruff check --fix .
 black .
-isort .
 pytest -q
-```
-
-### Git workflow
-
-```bash
-git add app/routers/iocs_pf.py Makefile README.md
-git commit -m "Docs: enhance README; add IOC examples; clarify EVENTS_FILE precedence; expand API reference"
 ```
 
 ---
 
 ## 🧾 Changelog & Release History
 
-All versions are automatically generated and documented through **semantic-release**.
-
-🔖 **Latest stable release:**
 [![GitHub release](https://img.shields.io/github/v/release/stecrin/legiontrap-ti?label=Current%20Version&color=blue)](https://github.com/stecrin/legiontrap-ti/releases/latest)
 
-📜 **Full Changelog:**
 [View CHANGELOG.md →](https://github.com/stecrin/legiontrap-ti/blob/main/CHANGELOG.md)
-
-Each new version is automatically published via GitHub Actions whenever commits follow the
-**Conventional Commits** format (e.g., `feat:`, `fix:`, `docs:`).
-
-Example workflow:
-1. Push a properly formatted commit (e.g., `fix: improve IOC export masking`).
-2. CI detects it and triggers `semantic-release`.
-3. A new version tag (like `v0.1.4`) is created automatically.
-4. The changelog and GitHub Release notes are generated and updated for you.
-
----
-
-## 🧩 Recent Technical Milestone – Router Prefix & Privacy Refactor (Nov 2025)
-
-**Goal:**
-Refactor the routing structure, harden environment variable parsing, and ensure full CI coverage for the `legiontrap-ti` backend.
-
-**Key Achievements:**
-- **Unified API structure** by moving `/api/iocs` prefix to `main.py`
-- **Simplified routes** for `ufw.txt` and `pf.conf` exports
-- **Improved `PRIVACY_MODE` handling** – tolerant to missing or invalid values
-- **Enhanced test environment** using `pytest-env` with deterministic variables
-- **CI pipeline modernized:**
-  - Added Python 3.11 on `ubuntu-24.04`
-  - Added dependencies: `fastapi`, `httpx`, `pytest`, `pydantic-settings`
-  - 100 % test pass rate confirmed on GitHub Actions
-- **Conflict-free rebase & merge:**
-  - Clean interactive rebase across 10 + commits
-  - Squash-merged into `main` with consistent formatting
-
-**Result:**
-A stable, production-ready backend foundation with consistent test, lint, and CI configuration.
-Closed successfully on **3 Nov 2025** with **zero failing tests** and **100 % CI success**.
-
----
-
-### 📘 Next Focus Area
-
-The next active development cycle will target:
-- **Dashboard integration** (Streamlit or Dash UI)
-- **Threat-intelligence enrichment** (GeoIP, ASN, ATT&CK mapping)
-- **Deployment packaging** (Docker Compose profiles, release tagging)
 
 ---
 
@@ -458,7 +295,3 @@ Licensed under the **MIT License** © 2025 **Stefan Cringusi**.
 See the full text in [`LICENSE`](LICENSE).
 
 **SPDX-License-Identifier:** MIT
-
-> If this project includes third-party libraries or assets, their licenses are documented in `THIRD_PARTY_NOTICES.md`.
-
-# force rebuild
