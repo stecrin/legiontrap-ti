@@ -63,12 +63,10 @@ class EventRepository:
         not extracted during normalisation. This is the immutable provenance record.
         """
         self._session.execute(
-            text(
-                """
+            text("""
                 INSERT INTO raw_events (id, ts, ingested_at, source, raw_json)
                 VALUES (:id, :ts, :ingested_at, :source, :raw_json)
-                """
-            ),
+                """),
             {
                 "id": raw.id,
                 "ts": raw.ts,
@@ -110,8 +108,7 @@ class EventRepository:
             asn_org = event.asn_org
 
         self._session.execute(
-            text(
-                """
+            text("""
                 INSERT INTO events (
                     id, ts, src_ip, dst_port, protocol, event_type,
                     service, country_code, country_name, city, asn, asn_org,
@@ -121,8 +118,7 @@ class EventRepository:
                     :service, :country_code, :country_name, :city, :asn, :asn_org,
                     :campaign_id, :schema_version
                 )
-                """
-            ),
+                """),
             {
                 "id": event.id,
                 "ts": event.ts.isoformat(),
@@ -161,8 +157,7 @@ class EventRepository:
         identically by SQLite (3.24+) and PostgreSQL. No dialect-specific imports.
         """
         self._session.execute(
-            text(
-                """
+            text("""
                 INSERT INTO source_ips (
                     ip, first_seen, last_seen, event_count,
                     country_code, country_name, asn, asn_org
@@ -171,8 +166,7 @@ class EventRepository:
                 ON CONFLICT(ip) DO UPDATE SET
                     last_seen   = excluded.last_seen,
                     event_count = event_count + 1
-                """
-            ),
+                """),
             {
                 "ip": ip,
                 "ts": ts.isoformat(),
@@ -213,9 +207,7 @@ class EventRepository:
         function. Valid because all ts values are stored as UTC isoformat
         strings, which sort lexicographically in chronological order.
         """
-        row = self._session.execute(
-            text(
-                """
+        row = self._session.execute(text("""
                 SELECT
                     COUNT(*)                 AS total_events,
                     COUNT(DISTINCT src_ip)   AS unique_ips,
@@ -224,9 +216,7 @@ class EventRepository:
                         THEN 1 ELSE 0 END
                     )                        AS last_24h
                 FROM events
-                """
-            )
-        ).fetchone()
+                """)).fetchone()
         if row is None:
             return {"total_events": 0, "unique_ips": 0, "last_24h": 0}
         return {
@@ -241,16 +231,14 @@ class EventRepository:
         Column set matches the events table schema exactly.
         """
         rows = self._session.execute(
-            text(
-                """
+            text("""
                 SELECT id, ts, src_ip, dst_port, protocol, event_type,
                        service, country_code, country_name, city, asn, asn_org,
                        campaign_id, schema_version
                 FROM events
                 ORDER BY ts DESC
                 LIMIT :limit OFFSET :offset
-                """
-            ),
+                """),
             {"limit": limit, "offset": offset},
         ).fetchall()
         keys = [
@@ -277,16 +265,12 @@ class EventRepository:
         NULL src_ip rows are excluded — events without an extractable IP
         are accepted during ingest but must not appear in IOC feeds.
         """
-        rows = self._session.execute(
-            text(
-                """
+        rows = self._session.execute(text("""
                 SELECT DISTINCT src_ip
                 FROM events
                 WHERE src_ip IS NOT NULL
                 ORDER BY src_ip
-                """
-            )
-        ).fetchall()
+                """)).fetchall()
         return [row[0] for row in rows]
 
     def insert_audit_log(
@@ -300,12 +284,10 @@ class EventRepository:
         The caller is responsible for committing the session.
         """
         self._session.execute(
-            text(
-                """
+            text("""
                 INSERT INTO audit_log (id, ts, event_type, source_ip, detail)
                 VALUES (:id, :ts, :event_type, :source_ip, :detail)
-                """
-            ),
+                """),
             {
                 "id": str(uuid.uuid4()),
                 "ts": datetime.now(UTC).isoformat(),
