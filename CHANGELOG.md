@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.7.0](https://github.com/stecrin/legiontrap-ti/compare/v0.6.0...v0.7.0) (2026-05-25)
+
+### Features
+
+* Phase 2 PR 4 — intelligence aggregation endpoints ([ca6340d](https://github.com/stecrin/legiontrap-ti/commit/ca6340dceafd2e7c2b6fa54e1d5bf1e7d5c62a09))
+
 ## [0.6.0](https://github.com/stecrin/legiontrap-ti/compare/v0.5.0...v0.6.0) (2026-05-25)
 
 ### Features
