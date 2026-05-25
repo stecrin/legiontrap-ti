@@ -16,15 +16,19 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Load credentials from env
 DASH_USER = os.getenv("DASH_USER", "admin")
-DASH_PASS = os.getenv("DASH_PASS", "change-me-please")
-JWT_SECRET = os.getenv("JWT_SECRET", "devsecret")
+DASH_PASS = os.getenv("DASH_PASS")
+if not DASH_PASS:
+    raise ValueError("DASH_PASS must be set in environment — see .env.example")
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    raise ValueError("JWT_SECRET must be set in environment — see .env.example")
 JWT_EXPIRE_SECONDS = int(os.getenv("JWT_EXPIRE_SECONDS", "3600"))
 JWT_ALGO = "HS256"
 
 
 def verify_user(username: str, password: str) -> bool:
-    """Check login credentials against .env values."""
-    return username == DASH_USER and password == DASH_PASS
+    """Check login credentials — username exact match, password verified against bcrypt hash."""
+    return username == DASH_USER and pwd_context.verify(password, DASH_PASS)
 
 
 def create_access_token(data: dict) -> str:

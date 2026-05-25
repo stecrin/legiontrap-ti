@@ -3,7 +3,7 @@
 **Document type:** Implementation blueprint — JSONL-to-SQLite migration procedure
 **Audience:** Engineers, operators, autonomous agents performing Phase 1 work
 **Last reviewed:** 2026-05-23
-**Status:** Design-complete. Describes the migration that Phase 1 implements.
+**Status:** Complete. Phase 1 migration is done. Run `alembic upgrade head` to apply the schema to a new deployment.
 
 ---
 
@@ -18,7 +18,7 @@ LegionTrap currently stores events in a JSONL flat file (`storage/events.jsonl`)
 - How to roll back if something goes wrong
 - What operators upgrading from a JSONL deployment need to do
 
-This migration is a **prerequisite** for all AI features, behavioral memory, campaign detection, and federation. It must be completed before Phase 2 (ingestion API) begins.
+This migration was a **prerequisite** for all AI features, behavioral memory, campaign detection, and federation. Phase 2 (ingestion API via `POST /api/ingest`) is also complete.
 
 ---
 

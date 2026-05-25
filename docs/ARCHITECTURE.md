@@ -2,13 +2,13 @@
 
 **Document type:** Technical architecture reference
 **Audience:** Engineers, autonomous agents, contributors
-**Last reviewed:** 2026-05-22
+**Last reviewed:** 2026-05-25
 
 ---
 
 ## Current Architecture Overview
 
-LegionTrap TI is a Python FastAPI backend paired with a React frontend. Events are stored in a JSONL flat file. The backend reads that file on each request to compute statistics and generate IOC exports. The frontend polls the backend every 10 seconds via authenticated HTTP requests.
+LegionTrap TI is a Python FastAPI backend paired with a React frontend. Events are ingested via `POST /api/ingest`, stored in SQLite, and served from SQL queries. A JSONL file is maintained as a best-effort append-only replica after each successful ingest. The frontend polls the backend every 10 seconds via authenticated HTTP requests.
 
 ### Component Map
 
@@ -31,19 +31,26 @@ FastAPI Backend (app/)
   ├── app/main.py               FastAPI instance, CORS, router registration
   ├── app/routers/
   │     ├── auth_router.py      POST /api/login → JWT
+  │     ├── ingest.py           POST /api/ingest (batch ingest, audit log)
   │     ├── stats.py            GET /api/stats
   │     ├── events.py           GET /api/events
   │     └── iocs_pf.py          GET /api/iocs/pf.conf, /api/iocs/ufw.txt
+  ├── app/db/
+  │     ├── connection.py       SQLAlchemy engine, session factory, create_all_tables()
+  │     └── repository.py       EventRepository — all SQL lives here
+  ├── app/schemas/
+  │     └── ingest.py           RawEvent, HoneypotEvent, IngestRequest, IngestReceipt
   ├── app/utils/
-  │     └── auth.py             JWT helpers, require_jwt_or_api_key dependency
+  │     ├── auth.py             JWT helpers, require_jwt_or_api_key dependency
+  │     └── event_utils.py      extract_src_ip(), normalize_event_type(), parse_timestamp()
   └── app/core/
         └── config.py           Pydantic Settings (env var loading)
 
 Storage
   └── storage/
-        ├── events.jsonl         Append-only event log (primary data store)
-        ├── GeoLite2-City.mmdb   IP geolocation database (installed, unused in routes)
-        └── test-events.jsonl    Test fixture (pointed to by conftest.py)
+        ├── legiontrap.db        SQLite database (primary data store)
+        ├── events.jsonl         Append-only replica written after each successful ingest
+        └── GeoLite2-City.mmdb   IP geolocation database (installed; used in Phase 3)
 
 Deployment
   └── docker/
@@ -64,7 +71,7 @@ The system implements a dual-credential strategy appropriate for its use case:
 
 The `require_jwt_or_api_key` FastAPI dependency is the single shared authorization gate used by `stats.py`, `events.py`, and `iocs_pf.py` (`pf.conf` route). The `ufw.txt` route uses the legacy `require_api_key` dependency (API key only).
 
-**Known weakness:** `verify_user()` compares the password against a plaintext `.env` value rather than a bcrypt hash. See [SECURITY_AUDIT.md](SECURITY_AUDIT.md).
+**Note:** `verify_user()` uses `pwd_context.verify()` against a bcrypt hash stored in `.env`. `DASH_PASS` must be set as a bcrypt hash; startup raises `ValueError` if unset.
 
 ---
 
@@ -73,20 +80,28 @@ The `require_jwt_or_api_key` FastAPI dependency is the single shared authorizati
 ```
 External honeypot (Cowrie, Dionaea, etc.)
     │
-    │  appends JSON line
+    │  POST /api/ingest  (x-api-key)
+    ▼
+FastAPI ingest.py
+    │  Pydantic validation → normalization → deduplication
+    ▼
+storage/legiontrap.db (SQLite, primary store)
+    │  INSERT raw_events + events + UPSERT source_ips
+    │  INSERT audit_log (separate session)
+    │
+    │  best-effort replica append
     ▼
 storage/events.jsonl
     │
-    │  full file read on every API request
+    │  indexed SQL queries
     ▼
 FastAPI (stats.py / events.py / iocs_pf.py)
     │
-    │  in-memory aggregation
     ▼
 API response → Browser / Script / Firewall
 ```
 
-**Current constraint:** The entire file is read and parsed on every API call. There is no indexing, no caching, and no persistent aggregation state. This is acceptable at low event volumes and becomes a performance problem above approximately 50,000–100,000 events.
+**Read path:** All dashboard and IOC queries run SQL against `legiontrap.db` via `EventRepository`. No file scans.
 
 ---
 
@@ -100,7 +115,7 @@ The privacy system operates at the IOC export layer, not at the storage layer. E
 
 **PRIVACY_MODE=on, FEED_SALT set:** IP replaced with deterministic HMAC token (`8.8.8.8 → ip-a3b4c5d6e7f8`). Same IP always produces the same token for the same salt, enabling correlation without revealing the IP.
 
-The privacy transformation is implemented in `iocs_pf.py:_unique_public_ips_from_events()`.
+The privacy transformation is applied in `iocs_pf.py` after calling `EventRepository.get_unique_public_ips()` to retrieve IPs from SQLite.
 
 ---
 
@@ -133,8 +148,6 @@ The frontend is a single-page application with no routing library. Auth state is
 
 **Dual app path confusion:** `ui/backend/` contains a `Dockerfile` and `requirements.txt` but no Python application code. It is a deployment stub. The actual application code lives in `app/` at the project root. These two paths should not be confused.
 
-**Stale entry point in Makefile:** `make run` uses `ui.backend.app.main:app`, which does not exist. The correct entry point is `app.main:app`. Use `make ui` or invoke uvicorn directly.
-
 **Both `App.jsx` and `App.tsx` exist:** `App.jsx` is active. `App.tsx` is a stale file from a TypeScript migration attempt. It should be removed.
 
 **Empty scaffold directory:** `ui/dashboard/app/routers/` is an empty directory — a stale scaffold from an earlier structure. It should be removed.
@@ -143,22 +156,14 @@ The frontend is a single-page application with no routing library. Auth state is
 
 ## Storage Evolution Plan
 
-The JSONL flat file must be replaced with a queryable database. The planned migration path:
-
-### Stage 1: SQLite (current → near-term)
+### Stage 1: SQLite — Complete
 
 ```
-storage/events.jsonl  →  storage/legiontrap.db (SQLite)
+storage/events.jsonl  →  storage/legiontrap.db (SQLite, primary store)
 ```
 
-SQLite provides:
-- Full SQL query capability (aggregation, filtering, indexing)
-- Zero additional infrastructure
-- Single-file backup
-- Concurrent read support (WAL mode)
-- PostgreSQL-compatible query syntax (with minor exceptions)
+SQLite is in production. The schema is PostgreSQL-compatible by design. `storage/events.jsonl` remains as a best-effort append-only replica written after each successful ingest.
 
-Schema design must be PostgreSQL-compatible from day one to enable smooth migration.
 
 ### Stage 2: PostgreSQL (when required)
 
@@ -208,8 +213,8 @@ These are directional, not commitments. They represent the infrastructure that w
 
 | Component | Required for | Notes |
 |---|---|---|
-| SQLite | Phase 1 onward | Zero infra, immediate |
-| Alembic migrations | Phase 1 | Required before schema evolves |
+| SQLite | Phase 1 | In use — WAL mode, FK enforcement, indexed |
+| Alembic migrations | Phase 1 | In use — `alembic upgrade head` manages schema |
 | Background task worker | Phase 5 (AI) | FastAPI BackgroundTasks initially |
 | Redis (optional) | Phase 7 (Federation) | Session store, rate limiting, pub/sub |
 | PostgreSQL | High-volume scale-out | When SQLite limits are reached |
