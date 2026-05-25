@@ -8,6 +8,39 @@
 
 ---
 
+## Planning Structure: Macro Layers and Implementation Units
+
+Phase 2 is organized at two levels: a **conceptual planning layer** and a **granular implementation layer**. These must not be confused.
+
+### Conceptual Macro Layers (planning vocabulary only)
+
+Three capability layers structure the overall direction:
+
+| Layer | Label | Active in Phase 2? | PR scope |
+|---|---|---|---|
+| **Layer 1** | **Intelligence Foundation** — enrich raw events with geo/ASN context; build per-IP scoring and tagging | Yes | PRs 1–3 |
+| **Layer 2** | **Intelligence Visibility** — expose enriched data as explicit API endpoints with defined response contracts and aggregated analytics | Yes | PRs 4–5 |
+| **Layer 3** | **AI Reasoning** — retrieval pipelines, structured context builders, AI orchestration, reasoning workflows, narrative analysis | **No — future work** | — |
+
+**Layer 3 (AI Reasoning) is not part of active Phase 2 implementation.** It corresponds to Phase 5 in the existing `ROADMAP.md`. It has external dependencies (Claude API or Ollama), different data prerequisites (sufficient enriched event history for meaningful analysis), and a higher risk profile. A separate blueprint will govern that phase when Layers 1 and 2 are stable.
+
+**Layer 2 (Intelligence Visibility) means explicit API endpoints with defined response contracts**, tested independently of any frontend. "Dashboard-facing backend structures" is not a valid Phase 2 deliverable description — every deliverable must be expressed as a named endpoint, a response schema, or a named repository method. Speculative frontend coupling has no place in this blueprint.
+
+### Implementation Units (PR-sized sub-phases)
+
+Macro layers are the planning vocabulary. The actual implementation must remain split into small, independently-mergeable PRs. Each PR must:
+
+- touch a limited, defined file set
+- have isolated tests with named pass/fail criteria
+- have an unambiguous, verifiable exit criterion
+- be mergeable and deployable independently of later PRs
+
+Large phases produce large blast radii. An autonomous agent implementing a macro-layer in a single session has no clean recovery point if something goes wrong mid-way. Small PRs are the blast-radius control mechanism.
+
+See [Section 21](#21-implementation-execution-order) for the recommended PR sequence.
+
+---
+
 ## 1. Phase 2 Mission
 
 Phase 2 transforms raw events into enriched intelligence records. Every event that arrives with a routable public IP should leave the ingest pipeline with geographic context (country, city) and organizational context (ASN). IP addresses that appear repeatedly should accumulate a computed threat classification and confidence score based purely on observed behavior.
@@ -287,6 +320,18 @@ Phase 2 does not implement campaign detection. The boundary is:
 Phase 2E exists to ensure the data model is ready for Phase 5/6, not to build any correlation logic. The deliverable for 2E is a documented set of candidate queries and an index review, not new code.
 
 No `campaign_id` values will be written in Phase 2. The `events.campaign_id` column remains NULL.
+
+### On "basic correlation logic"
+
+This term has appeared in Phase 2 planning discussions and is **explicitly excluded from Phase 2 scope**.
+
+Any task described as "basic correlation logic" is disqualified unless it can be restated as one of the following concrete, single-IP-scoped operations already defined in this document:
+
+- per-IP event type aggregation (used by the tagging engine — Section 11)
+- per-IP event count accumulation (used by scoring — Section 10)
+- per-IP geo/ASN lookup and caching (used by enrichment — Sections 5–7)
+
+Cross-IP pattern matching, behavioral clustering, temporal analysis, IP grouping by shared behavior, and campaign assignment are Phase 6 work. If a proposed Phase 2 task uses the word "correlation" without a precise, single-IP-scoped implementation definition that maps to an existing section of this document, it does not belong in Phase 2.
 
 ---
 
@@ -575,6 +620,25 @@ These constraints apply to all Phase 2 implementation:
 - `make db-validate` passes after migration
 
 **Exit criteria:** All known Phase 5/6 query patterns have supporting indexes. No performance surprises expected from the current schema at 1M event scale.
+
+---
+
+## 21. Implementation Execution Order (Recommended PR Sequence)
+
+Each PR is a distinct, independently-mergeable unit. Complete and merge each before starting the next.
+
+| PR | Title | Key files touched | Exit criterion |
+|---|---|---|---|
+| **PR 1** | GeoIP enrichment at ingest | `app/utils/geoip.py` (new), `app/routers/ingest.py`, `tests/unit/test_geoip.py` (new), `tests/integration/test_enrichment.py` (new) | `pytest -q` passes; ingest with routable IP produces non-NULL `country_code` in events row; missing mmdb produces NULL geo fields without test failure |
+| **PR 2** | source_ips caching lifecycle | `app/db/repository.py` (`get_source_ip_geo`), `app/routers/ingest.py` | Second event from known IP skips GeoIP file read; confirmed by named test assertion |
+| **PR 3** | Scoring and tagging engine | `app/utils/scoring.py` (new), `app/db/repository.py` (`get_source_ip_event_types`, `update_source_ip_intelligence`), `app/routers/ingest.py` | IP with 100+ `auth_failed` events has `tags='["brute-force"]'` and `reputation_score >= 0.4` in `source_ips` |
+| **PR 4** | Intelligence query endpoints | `app/routers/intelligence.py` (new), `app/db/repository.py` (`list_source_ips`, `get_source_ip`), `app/main.py` | `GET /api/intelligence/ips` and `GET /api/intelligence/ips/{ip}` return correct enriched responses; 401 without auth |
+| **PR 5** | Analytics aggregation endpoints | `app/routers/intelligence.py` (top-asns, top-countries routes), `app/db/repository.py` (`get_top_asns`, `get_top_countries`) | `GET /api/intelligence/top-asns` and `GET /api/intelligence/top-countries` return results sorted by event count |
+| **PR 6** | Schema audit and operational cleanup | `docs/PHASE_2_BLUEPRINT.md` (update status), `docs/DATABASE_SCHEMA.md` (index audit), `alembic/versions/0002_phase2_intelligence_indexes.py` (if index gaps found) | `make db-validate` passes; Phase 5/6 query patterns documented with supporting indexes confirmed |
+
+**Ordering rule:** PRs 1 → 2 → 3 must be merged in sequence; each depends on the previous. PRs 4 and 5 may be developed in sequence after PR 3 merges. PR 6 closes the phase and must not be started until PRs 1–5 are merged.
+
+**No PR from this sequence may be opened until the preceding PR is merged to the feature branch.** An in-progress PR is not a merge point.
 
 ---
 
