@@ -3,7 +3,7 @@
 **Document type:** Implementation blueprint — canonical SQL schema reference
 **Audience:** Engineers, autonomous agents, Alembic migration authors
 **Last reviewed:** 2026-05-23
-**Status:** Design-complete. Not yet implemented. This document is the source of truth for Phase 1 implementation.
+**Status:** Implemented. All Phase 1 tables and indexes are live. Run `alembic upgrade head` for new deployments.
 
 ---
 
@@ -24,7 +24,7 @@ storage/legiontrap.db       # production database
 storage/legiontrap-test.db  # test database (created by conftest.py, gitignored)
 ```
 
-Both paths will be controlled by the `DB_PATH` environment variable (added to `app/core/config.py` in Phase 1). The `storage/` directory is gitignored for `*.db` files. The database file itself is the complete state of the system; backup = copy this file.
+Both paths are controlled by the `DB_PATH` environment variable in `app/core/config.py`. The `storage/` directory is gitignored for `*.db` files. The database file itself is the complete state of the system; backup = copy this file.
 
 Enable WAL mode immediately on connection:
 
