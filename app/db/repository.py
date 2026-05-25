@@ -471,3 +471,71 @@ class EventRepository:
         if row is None:
             return None
         return self._source_ip_to_dict(row)
+
+    def get_top_countries(self, limit: int = 10) -> list[dict[str, Any]]:
+        """
+        Return top countries by total event_count, aggregated across source_ips.
+        Rows with NULL country_code are excluded. Sorted by event_count DESC,
+        country_code ASC for deterministic output on ties.
+        Used by GET /api/intelligence/top-countries.
+        """
+        rows = self._session.execute(
+            text("""
+                SELECT country_code, country_name,
+                       SUM(event_count) AS event_count,
+                       COUNT(ip)        AS unique_ips,
+                       MIN(first_seen)  AS first_seen,
+                       MAX(last_seen)   AS last_seen
+                FROM source_ips
+                WHERE country_code IS NOT NULL
+                GROUP BY country_code, country_name
+                ORDER BY event_count DESC, country_code ASC
+                LIMIT :limit
+                """),
+            {"limit": limit},
+        ).fetchall()
+        return [
+            {
+                "country_code": row[0],
+                "country_name": row[1],
+                "event_count": row[2],
+                "unique_ips": row[3],
+                "first_seen": row[4],
+                "last_seen": row[5],
+            }
+            for row in rows
+        ]
+
+    def get_top_asns(self, limit: int = 10) -> list[dict[str, Any]]:
+        """
+        Return top ASNs by total event_count, aggregated across source_ips.
+        Rows with NULL asn are excluded. Sorted by event_count DESC, asn ASC
+        for deterministic output on ties.
+        Used by GET /api/intelligence/top-asns.
+        """
+        rows = self._session.execute(
+            text("""
+                SELECT asn, asn_org,
+                       SUM(event_count) AS event_count,
+                       COUNT(ip)        AS unique_ips,
+                       MIN(first_seen)  AS first_seen,
+                       MAX(last_seen)   AS last_seen
+                FROM source_ips
+                WHERE asn IS NOT NULL
+                GROUP BY asn, asn_org
+                ORDER BY event_count DESC, asn ASC
+                LIMIT :limit
+                """),
+            {"limit": limit},
+        ).fetchall()
+        return [
+            {
+                "asn": row[0],
+                "asn_org": row[1],
+                "event_count": row[2],
+                "unique_ips": row[3],
+                "first_seen": row[4],
+                "last_seen": row[5],
+            }
+            for row in rows
+        ]
