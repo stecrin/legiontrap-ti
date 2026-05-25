@@ -29,6 +29,11 @@ db-rollback:
 db-pending:
 	alembic history --indicate-current
 
+# Import one or more JSONL files into the DB.
+# Usage: make import-jsonl JSONL_FILES="storage/events-*.jsonl"
+import-jsonl:
+	PYTHONPATH=. python scripts/import_jsonl.py $(JSONL_FILES)
+
 smoke:
 	@echo "[health]"; curl -s http://127.0.0.1:$(PORT)/api/health | python3 -m json.tool
 	@echo "[ingest]"; curl -s -H "$(H)" -H 'Content-Type: application/json' \
