@@ -7,8 +7,7 @@ Pipeline stages per INGESTION_PIPELINE.md:
   3. Normalization   — extract_src_ip, normalize_event_type, parse_timestamp
   4. Deduplication   — event_exists() check before every write
   5. Persistence     — insert_raw_event + insert_event + upsert_source_ip (atomic)
-  6. JSONL replica   — best-effort append; never fails ingest on error
-  7. Receipt         — IngestReceipt response
+  6. Receipt         — IngestReceipt response
 
 Transaction model: one SQLAlchemy session per batch. Each event is wrapped
 in a SAVEPOINT so a duplicate PK (race condition after the dedup check) rolls
@@ -22,7 +21,6 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import UTC, datetime
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
@@ -55,23 +53,6 @@ def _require_api_key(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing API key",
         )
-
-
-def _append_jsonl(event: HoneypotEvent) -> None:
-    """
-    Append the normalised event to the JSONL replica file.
-
-    Best-effort: any I/O error is silently swallowed. The database write is the
-    authoritative action; the JSONL file is a backwards-compatible replica.
-    Per INGESTION_PIPELINE.md: only append AFTER a successful DB commit.
-    """
-    try:
-        path = Path(settings.EVENTS_FILE)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as fh:
-            fh.write(event.model_dump_json() + "\n")
-    except Exception:
-        pass
 
 
 @router.post("/api/ingest", response_model=IngestReceipt)
@@ -184,12 +165,9 @@ def ingest_events(
                 except Exception:
                     score_sp.rollback()
 
-            # Stage 6: JSONL replica (legacy; best-effort; only after DB commit)
-            # TODO: remove in Phase 3 PR 4 — see docs/JSONL_RETIREMENT.md
-            _append_jsonl(event)
             accepted += 1
 
-    # Stage 7: Audit log — best-effort, isolated session (never fails ingest).
+    # Stage 6: Audit log — best-effort, isolated session (never fails ingest).
     try:
         with get_session() as audit_session:
             EventRepository(audit_session).insert_audit_log(

@@ -5,8 +5,6 @@
 # works as intended when PRIVACY_MODE is enabled.
 # ----------------------------------------------------------------------
 
-import json
-import os
 from importlib import reload
 
 from fastapi.testclient import TestClient
@@ -33,28 +31,26 @@ def test_api_key_required(monkeypatch):
 
 
 def test_privacy_mode_hashes_outputs(monkeypatch):
-    """Ensure privacy mode anonymizes IPs in exported lists."""
+    """Privacy mode must hash IPs in IOC exports.
+
+    SQLite is empty so the endpoint uses the built-in "1.2.3.4" fallback;
+    privacy mode must hash even the fallback IP.
+    """
     monkeypatch.setenv("API_KEY", "secret")
     monkeypatch.setenv("PRIVACY_MODE", "true")
     monkeypatch.setenv("FEED_SALT", "unit-test-salt")
 
-    # Create a temporary events file with one IP
-    os.makedirs("storage", exist_ok=True)
-    path = "storage/events.jsonl"
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(json.dumps({"ip": "8.8.8.8"}) + "\n")
-
     reload(main)
     client = TestClient(main.app)
 
-    # Request UFW export
+    # UFW export — fallback IP must be hashed, not exposed
     r = client.get("/api/iocs/ufw.txt", headers={"x-api-key": "secret"})
     assert r.status_code == 200
     body = r.text.strip()
-    assert "8.8.8.8" not in body  # IP should be hashed
-    assert "deny from ip-" in body  # Hashed prefix present
+    assert "8.8.8.8" not in body
+    assert "deny from ip-" in body
 
-    # Request PF export
+    # PF export — same expectation
     r = client.get("/api/iocs/pf.conf", headers={"x-api-key": "secret"})
     assert r.status_code == 200
     body = r.text.strip()

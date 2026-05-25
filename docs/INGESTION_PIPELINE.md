@@ -16,7 +16,7 @@ The ingestion pipeline is the boundary between the outside world and the LegionT
 3. Normalize heterogeneous sensor formats into a canonical schema
 4. Enrich with GeoIP and ASN context
 5. Deduplicate against existing records
-6. Persist to SQLite and append to the JSONL replica (legacy — pending retirement)
+6. Persist to SQLite
 7. Return a structured receipt
 
 This pipeline is implemented in `app/routers/ingest.py` and `app/utils/`. It depends on the SQLite schema from [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) being in place (Phase 1 — complete).
@@ -137,13 +137,10 @@ POST /api/ingest
                   │
                   ▼
 ┌─────────────────────────────────────────┐
-│ Stage 6: Persistence                    │
+│ Stage 5: Persistence                    │
 │   INSERT INTO raw_events                │
 │   INSERT INTO events                    │
 │   UPSERT INTO source_ips               │
-│   APPEND TO storage/events.jsonl        │
-│   (legacy replica — pending retirement; │
-│    failure does not fail the ingest)    │
 └─────────────────┬───────────────────────┘
                   │
                   ▼
@@ -432,19 +429,14 @@ Attacker-controlled strings in event data (usernames, passwords, User-Agent stri
 
 ---
 
-## JSONL Append Replica (Legacy — Pending Retirement)
+## JSONL Replica — Removed
 
-After every successful SQLite write, the normalized event is appended to `storage/events.jsonl`
-by `_append_jsonl()` in `app/routers/ingest.py`. This append is best-effort: any I/O error is
-silently swallowed and does not cause the ingest to fail.
+The JSONL append replica (`_append_jsonl()`) was removed in Phase 3 PR 4. The ingest pipeline
+no longer writes to `storage/events.jsonl`. Recovery is via SQLite DB snapshots; see
+[JSONL_RETIREMENT.md](JSONL_RETIREMENT.md) for backup, restore, and validation procedures.
 
-**This write is a legacy artifact.** It does not include GeoIP enrichment, ASN data, computed
-tags, or reputation scores. It is not atomic with the DB commit. It is not a reliable recovery
-mechanism.
-
-The replacement recovery strategy is a SQLite DB snapshot (`sqlite3 legiontrap.db ".backup ..."`).
-The JSONL write is scheduled for removal in Phase 3 PR 4 alongside `scripts/import_jsonl.py`.
-See [JSONL_RETIREMENT.md](JSONL_RETIREMENT.md) for the full retirement plan.
+`scripts/import_jsonl.py` remains available as an operator tool for replaying pre-existing JSONL
+files into SQLite.
 
 ---
 

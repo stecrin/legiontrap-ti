@@ -64,7 +64,7 @@ Every small defense matters in securing humanity's future.*
 
 ## 🏗️ Architecture Overview
 
-Events arrive via `POST /api/ingest`, are validated and normalized, and are stored in SQLite. All dashboard and IOC queries run SQL via `EventRepository`. A JSONL file is maintained as a legacy best-effort append-only replica pending retirement (see [docs/JSONL_RETIREMENT.md](docs/JSONL_RETIREMENT.md)).
+Events arrive via `POST /api/ingest`, are validated and normalized, and are stored in SQLite. All dashboard and IOC queries run SQL via `EventRepository`.
 
 ```
 Honeypot sensors (Cowrie, Dionaea, ...)
@@ -78,10 +78,6 @@ Honeypot sensors (Cowrie, Dionaea, ...)
          │  INSERT raw_events + events + UPSERT source_ips
          │  INSERT audit_log
          │
-         │  best-effort replica (legacy — pending retirement)
-         ▼
-    storage/events.jsonl
-
     Read path: SQL queries via EventRepository
          │
          ▼
@@ -185,7 +181,6 @@ make db-validate
 | `CORS_ORIGINS`     | No       | Comma-separated allowed origins (default: localhost variants).   |
 | `DB_PATH`          | No       | SQLite file path (default: `storage/legiontrap.db`).             |
 | `LOGIN_RATE_LIMIT` | No       | Rate limit for `/api/login` (default: `5/minute`).               |
-| `EVENTS_FILE`      | No       | JSONL replica path (default: `storage/events.jsonl`). Deprecated; kept for recovery use. |
 
 Copy `.env.example` for a template with all required variables.
 
