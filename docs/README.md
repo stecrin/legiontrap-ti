@@ -18,7 +18,7 @@ New contributors and autonomous agents must read the relevant documents in this 
 
 ## How Autonomous Agents Should Use These Documents
 
-Autonomous agents operating in this repository (including Claude Code) should follow this reading protocol:
+Autonomous agents operating in this repository should follow this reading protocol:
 
 ### Before any task
 
