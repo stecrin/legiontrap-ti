@@ -38,6 +38,9 @@ _REQUIRED_FIELDS = {
     "reputation_score",
 }
 
+# Single-IP profile includes event_type_breakdown; list endpoint does not.
+_PROFILE_FIELDS = _REQUIRED_FIELDS | {"event_type_breakdown"}
+
 _TS = "2025-10-28T18:31:08+00:00"
 
 
@@ -72,6 +75,34 @@ def _insert_source_ip(
                 "cc": country_code,
                 "cn": country_name,
             },
+        )
+        conn.commit()
+
+
+def _insert_event(
+    ip: str,
+    event_type: str = "auth_failed",
+    event_id: str | None = None,
+) -> None:
+    """Insert a raw_events + events row pair for testing event_type_breakdown."""
+    import uuid as _uuid
+
+    eid = event_id or str(_uuid.uuid4())
+    with get_engine().connect() as conn:
+        conn.execute(
+            text("""
+                INSERT OR IGNORE INTO raw_events (id, ts, ingested_at, source, raw_json)
+                VALUES (:id, :ts, :ts, 'test', '{}')
+                """),
+            {"id": eid, "ts": _TS},
+        )
+        conn.execute(
+            text("""
+                INSERT OR IGNORE INTO events
+                    (id, ts, src_ip, event_type, schema_version)
+                VALUES (:id, :ts, :ip, :et, 1)
+                """),
+            {"id": eid, "ts": _TS, "ip": ip, "et": event_type},
         )
         conn.commit()
 
@@ -205,7 +236,7 @@ def test_get_ip_returns_all_required_fields():
     _insert_source_ip("60.0.0.2")
     resp = client.get("/api/intelligence/ips/60.0.0.2", headers=HEADERS)
     assert resp.status_code == 200
-    assert _REQUIRED_FIELDS.issubset(resp.json().keys())
+    assert _PROFILE_FIELDS.issubset(resp.json().keys())
 
 
 def test_get_ip_404_for_unknown():
@@ -250,3 +281,77 @@ def test_get_ip_no_auth_returns_401():
 def test_get_ip_wrong_api_key_returns_401():
     resp = client.get("/api/intelligence/ips/1.2.3.4", headers={"x-api-key": "bad"})
     assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# event_type_breakdown — single-IP profile contract (Phase 3 PR 1)
+# ---------------------------------------------------------------------------
+
+
+def test_get_ip_breakdown_present_in_profile():
+    """event_type_breakdown must be present in single-IP response."""
+    _insert_source_ip("70.0.0.1")
+    resp = client.get("/api/intelligence/ips/70.0.0.1", headers=HEADERS)
+    assert resp.status_code == 200
+    assert "event_type_breakdown" in resp.json()
+
+
+def test_get_ip_breakdown_empty_when_no_events():
+    """breakdown is an empty dict when source_ips exists but events table has no rows."""
+    _insert_source_ip("70.0.0.2")
+    resp = client.get("/api/intelligence/ips/70.0.0.2", headers=HEADERS)
+    assert resp.json()["event_type_breakdown"] == {}
+
+
+def test_get_ip_breakdown_counts_single_type():
+    """Three auth_failed events → breakdown shows auth_failed: 3."""
+    _insert_source_ip("70.0.0.3", event_count=3)
+    _insert_event("70.0.0.3", "auth_failed")
+    _insert_event("70.0.0.3", "auth_failed")
+    _insert_event("70.0.0.3", "auth_failed")
+    resp = client.get("/api/intelligence/ips/70.0.0.3", headers=HEADERS)
+    breakdown = resp.json()["event_type_breakdown"]
+    assert breakdown["auth_failed"] == 3
+    assert len(breakdown) == 1
+
+
+def test_get_ip_breakdown_counts_multiple_types():
+    """Mixed event types — each type counted independently."""
+    _insert_source_ip("70.0.0.4", event_count=3)
+    _insert_event("70.0.0.4", "auth_failed")
+    _insert_event("70.0.0.4", "auth_failed")
+    _insert_event("70.0.0.4", "port_scan")
+    resp = client.get("/api/intelligence/ips/70.0.0.4", headers=HEADERS)
+    breakdown = resp.json()["event_type_breakdown"]
+    assert breakdown["auth_failed"] == 2
+    assert breakdown["port_scan"] == 1
+    assert len(breakdown) == 2
+
+
+def test_get_ip_breakdown_is_dict():
+    """event_type_breakdown must be a JSON object, not a list or string."""
+    _insert_source_ip("70.0.0.5")
+    _insert_event("70.0.0.5", "command_exec")
+    resp = client.get("/api/intelligence/ips/70.0.0.5", headers=HEADERS)
+    assert isinstance(resp.json()["event_type_breakdown"], dict)
+
+
+def test_list_ips_does_not_include_breakdown():
+    """List endpoint must NOT include event_type_breakdown — it's profile-only."""
+    _insert_source_ip("70.0.0.6")
+    resp = client.get("/api/intelligence/ips", headers=HEADERS)
+    assert resp.status_code == 200
+    item = resp.json()["items"][0]
+    assert "event_type_breakdown" not in item
+
+
+def test_get_ip_breakdown_only_counts_own_ip():
+    """Breakdown must count only events from the queried IP, not other IPs."""
+    _insert_source_ip("70.0.0.7")
+    _insert_source_ip("70.0.0.8")
+    _insert_event("70.0.0.7", "auth_failed")
+    _insert_event("70.0.0.8", "port_scan")
+    resp = client.get("/api/intelligence/ips/70.0.0.7", headers=HEADERS)
+    breakdown = resp.json()["event_type_breakdown"]
+    assert breakdown == {"auth_failed": 1}
+    assert "port_scan" not in breakdown
