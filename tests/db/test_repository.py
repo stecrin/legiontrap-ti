@@ -486,3 +486,50 @@ def test_get_unique_public_ips_excludes_null(db_session):
 def test_get_unique_public_ips_empty_db(db_session):
     repo = EventRepository(db_session)
     assert repo.get_unique_public_ips() == []
+
+
+# ---------------------------------------------------------------------------
+# delete_events_before
+# ---------------------------------------------------------------------------
+
+
+def test_delete_events_before_removes_old(db_session):
+    repo = EventRepository(db_session)
+    cutoff = datetime(2025, 6, 1, tzinfo=UTC)
+    _insert_full_event(repo, str(uuid.uuid4()), datetime(2025, 1, 1, tzinfo=UTC), "1.1.1.1")
+    _insert_full_event(repo, str(uuid.uuid4()), datetime(2025, 12, 1, tzinfo=UTC), "2.2.2.2")
+    db_session.flush()
+
+    deleted = repo.delete_events_before(cutoff)
+    db_session.flush()
+
+    assert deleted == 1
+    remaining = db_session.execute(text("SELECT COUNT(*) FROM events")).scalar()
+    assert remaining == 1
+
+
+def test_delete_events_before_preserves_newer(db_session):
+    repo = EventRepository(db_session)
+    cutoff = datetime(2025, 6, 1, tzinfo=UTC)
+    _insert_full_event(repo, str(uuid.uuid4()), datetime(2025, 12, 1, tzinfo=UTC), "1.1.1.1")
+    db_session.flush()
+
+    deleted = repo.delete_events_before(cutoff)
+    db_session.flush()
+
+    assert deleted == 0
+    remaining = db_session.execute(text("SELECT COUNT(*) FROM events")).scalar()
+    assert remaining == 1
+
+
+def test_delete_events_before_cleans_orphaned_raw_events(db_session):
+    repo = EventRepository(db_session)
+    cutoff = datetime(2025, 6, 1, tzinfo=UTC)
+    _insert_full_event(repo, str(uuid.uuid4()), datetime(2025, 1, 1, tzinfo=UTC), "1.1.1.1")
+    db_session.flush()
+
+    repo.delete_events_before(cutoff)
+    db_session.flush()
+
+    raw_count = db_session.execute(text("SELECT COUNT(*) FROM raw_events")).scalar()
+    assert raw_count == 0

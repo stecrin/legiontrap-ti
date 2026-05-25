@@ -38,6 +38,12 @@ import-jsonl:
 db-validate:
 	PYTHONPATH=. python scripts/validate_migration.py
 
+# Delete events older than PRUNE_BEFORE (ISO8601 timestamp). Requires PRUNE_BEFORE to be set.
+# Usage: make db-prune PRUNE_BEFORE=2025-01-01T00:00:00+00:00
+db-prune:
+	@test -n "$(PRUNE_BEFORE)" || { echo "Error: PRUNE_BEFORE is required. Usage: make db-prune PRUNE_BEFORE=2025-01-01T00:00:00+00:00" >&2; exit 1; }
+	PYTHONPATH=. python scripts/db_prune.py --before "$(PRUNE_BEFORE)"
+
 smoke:
 	@echo "[health]"; curl -s http://127.0.0.1:$(PORT)/api/health | python3 -m json.tool
 	@echo "[ingest]"; curl -s -H "$(H)" -H 'Content-Type: application/json' \
