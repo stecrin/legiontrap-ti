@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.5.0](https://github.com/stecrin/legiontrap-ti/compare/v0.4.0...v0.5.0) (2026-05-25)
+
+### Features
+
+* Phase 2 PR 2 — source IP caching lifecycle, scoring, and tagging ([8f9356d](https://github.com/stecrin/legiontrap-ti/commit/8f9356d5e017a237572b75c68d38e68c19225026))
+
 ## [0.4.0](https://github.com/stecrin/legiontrap-ti/compare/v0.3.0...v0.4.0) (2026-05-25)
 
 ### Features
