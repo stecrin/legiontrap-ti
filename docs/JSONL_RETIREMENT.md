@@ -3,7 +3,7 @@
 **Document type:** Operational retirement plan
 **Audience:** Engineers, operators, autonomous agents
 **Last reviewed:** 2026-05-25
-**Status:** Planning — JSONL write active; retirement targeted for Phase 3 PR 4
+**Status:** Complete — JSONL write removed in Phase 3 PR 4; `scripts/import_jsonl.py` retained for operators with pre-existing JSONL data
 
 ---
 
@@ -169,48 +169,37 @@ streaming replication. For near-zero RPO requirements, schedule more frequent ba
 
 ---
 
-## 3. Future Removal PR Scope (Phase 3 PR 4)
+## 3. Phase 3 PR 4 Removal — Completed
 
-Nothing in this section is changed in the current PR. This is the precise scope for the removal PR.
-
-### Files to delete
-
-| File | Reason |
-|---|---|
-| `scripts/import_jsonl.py` | No active consumers once `_append_jsonl()` is removed; JSONL recovery replaced by DB snapshots |
-| `tests/unit/test_import_jsonl.py` | Tests for the deleted script |
-
-### Code changes
+### Code changes completed
 
 | File | Change |
 |---|---|
-| `app/routers/ingest.py` | Remove `_append_jsonl()` function and the Stage 6 call site; remove `from pathlib import Path` if unused after removal |
-| `app/core/config.py` | Remove `EVENTS_FILE` setting |
-| `.env.example` | Remove `EVENTS_FILE` line |
+| `app/routers/ingest.py` | Removed `_append_jsonl()` function, Stage 6 call, and `from pathlib import Path` |
+| `app/core/config.py` | Removed `EVENTS_FILE` setting |
+| `.env.example` | Removed `EVENTS_FILE` line |
 
-### Documentation changes
+### Documentation changes completed
 
 | Document | Change |
 |---|---|
-| `docs/MIGRATION_GUIDE.md` | Remove "Append-only replica" role section; update rollback plan to reference DB snapshot; mark the document as describing a completed historical migration only |
-| `docs/ARCHITECTURE.md` | Remove `events.jsonl` from storage map and event flow; update Storage Evolution Plan |
-| `docs/INGESTION_PIPELINE.md` | Remove Stage 6 JSONL append from flow diagram and section prose; update overview step 6 |
-| `docs/AUTONOMOUS_OPERATIONS.md` | Section "Working With the JSONL Event Store" is already updated (this PR); no further changes needed |
-| `README.md` | Remove `events.jsonl` from architecture diagram; remove `EVENTS_FILE` env var row; remove `make import-jsonl` target reference |
+| `docs/ARCHITECTURE.md` | Removed `events.jsonl` from storage map and event flow; updated Storage Evolution Plan |
+| `docs/INGESTION_PIPELINE.md` | Removed JSONL from Stage 5/6 flow diagram and section prose; updated overview step 6 |
+| `docs/AUTONOMOUS_OPERATIONS.md` | Updated event store section to reflect write removal |
+| `README.md` | Removed `events.jsonl` from architecture diagram; removed `EVENTS_FILE` env var row |
 
-### Test changes required in the removal PR
+### Test changes completed
 
 | File | Change |
 |---|---|
-| `tests/unit/test_import_jsonl.py` | Delete with `scripts/import_jsonl.py` |
-| `tests/test_privacy_and_auth.py` | Line 43 writes `storage/events.jsonl` directly for IOC-export testing (independent of `_append_jsonl()`). Update to use a `tmp_path`-based file to remove the `storage/` path dependency |
+| `tests/test_privacy_and_auth.py` | Removed dead JSONL write; added comment that the test exercises the SQLite-empty fallback path |
 
-### Preconditions before the removal PR merges
+### What was NOT removed
 
-- [x] `docs/JSONL_RETIREMENT.md` merged (this document)
-- [ ] Operator confirms no active external consumers of `events.jsonl` in their deployment
-- [ ] `storage/backups/` backup schedule is in place (cron or equivalent)
-- [ ] Removal PR includes an explicit integration test confirming ingest succeeds without `EVENTS_FILE` set
+`scripts/import_jsonl.py` and `tests/unit/test_import_jsonl.py` are **retained**. Operators who
+have pre-existing `storage/events.jsonl` files from before this PR may still need to replay them
+into SQLite. The import script remains available as an operator tool until operators confirm no
+historical JSONL data remains unimported.
 
 ---
 
@@ -218,9 +207,9 @@ Nothing in this section is changed in the current PR. This is the precise scope 
 
 | Component | Current status |
 |---|---|
-| `_append_jsonl()` write | **Active — pending removal in Phase 3 PR 4** |
-| `scripts/import_jsonl.py` | **Active — pending deletion in Phase 3 PR 4** |
-| `EVENTS_FILE` config setting | **Deprecated — pending removal in Phase 3 PR 4** |
+| `_append_jsonl()` write | **Removed in Phase 3 PR 4** |
+| `scripts/import_jsonl.py` | Retained — operator tool for replaying pre-existing JSONL into SQLite |
+| `EVENTS_FILE` config setting | **Removed in Phase 3 PR 4** |
 | `events.jsonl` as disaster-recovery source of truth | **Superseded** — SQLite DB snapshot is the replacement strategy (this document) |
 | JSONL as primary event store | Retired in Phase 1 |
 

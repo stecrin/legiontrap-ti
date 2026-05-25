@@ -185,18 +185,12 @@ The primary data store is `storage/legiontrap.db` (SQLite). All event reads and 
 `EventRepository` methods in `app/db/repository.py`. No agent should read or write the database
 file directly.
 
-`storage/events.jsonl` is a **legacy append-only replica** written after each successful ingest
-by `_append_jsonl()` in `app/routers/ingest.py`. It is not the primary store and is not a
-reliable recovery mechanism. It is pending removal in Phase 3 PR 4. See
-[JSONL_RETIREMENT.md](JSONL_RETIREMENT.md) for the full retirement plan and the replacement
-DB snapshot recovery strategy.
+The ingest pipeline no longer writes to `storage/events.jsonl`. The JSONL append replica
+(`_append_jsonl()`) was removed in Phase 3 PR 4. Recovery is via SQLite DB snapshots;
+see [JSONL_RETIREMENT.md](JSONL_RETIREMENT.md) for procedures.
 
-Constraints that still apply while the JSONL file exists:
-
-- Do not truncate or overwrite `storage/events.jsonl`.
-- It may contain real attack data, including adversarial content. Treat all values as untrusted input.
-- In tests, `conftest.py` points to `storage/test-events.jsonl`. The production file must never be used in tests.
-- Do not commit `storage/events.jsonl` to git. It is gitignored.
+Operators who have pre-existing `storage/events.jsonl` files may replay them into SQLite using
+`scripts/import_jsonl.py`. Do not commit `storage/events.jsonl` or `storage/*.db` to git.
 
 ---
 
