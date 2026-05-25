@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.10.0](https://github.com/stecrin/legiontrap-ti/compare/v0.9.0...v0.10.0) (2026-05-25)
+
+### Features
+
+* **exports:** ATT&CK Navigator and STIX 2.1 export endpoints ([1c2dc5f](https://github.com/stecrin/legiontrap-ti/commit/1c2dc5f8675bb2f76554fc6378abc1bc8d47d191))
+
 ## [0.9.0](https://github.com/stecrin/legiontrap-ti/compare/v0.8.0...v0.9.0) (2026-05-25)
 
 ### Features
