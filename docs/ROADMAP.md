@@ -14,21 +14,24 @@ The order of this roadmap is not arbitrary. Each phase is a prerequisite for the
 
 ---
 
-## Current State (as of Phase 1B)
+## Current State (as of Phase 3)
 
 | Capability | Status | Notes |
 |---|---|---|
-| Event storage | SQLite (WAL mode) | `storage/legiontrap.db`; JSONL as best-effort replica |
-| Event ingestion | `POST /api/ingest` | Batch ingest, Pydantic validation, deduplication |
+| Event storage | SQLite (WAL mode) | `storage/legiontrap.db`; JSONL replica retired (PR 4) |
+| Event ingestion | `POST /api/ingest` | Batch ingest, Pydantic validation, GeoIP enrichment, deduplication |
+| GeoIP enrichment | Working | `geoip2` + `GeoLite2-City.mmdb`; country, city, ASN on every routable IP |
 | Stats API | Working | SQL queries via `EventRepository` |
+| Intelligence API | Working | Top IPs, top countries, top ASNs, IP detail, reputation scoring |
 | IOC export (pf.conf, UFW) | Working | SQL-backed; privacy masking via HMAC or octet mask |
+| ATT&CK Navigator export | Working | `GET /api/exports/attack-navigator`; technique IDs from `event_types` table |
+| STIX 2.1 export | Working | `GET /api/exports/stix`; blocked when `PRIVACY_MODE=on` |
 | JWT + API key auth | Working | bcrypt password verification; hardcoded defaults removed |
 | Audit logging | Working | `audit_log` table; one row per ingest batch |
 | Data retention | Working | `delete_events_before()` + `make db-prune` |
-| React dashboard | Working | KPI cards, event chart, recent events |
+| React dashboard | Working | KPI cards, event chart, recent events, intelligence panels (IPs, countries, ASNs) |
 | CI/CD | Working | Lint, test, semantic release; Black 26.5.1 pinned |
 | Docker Compose | Working | Edge deployment profile |
-| GeoIP library | Installed | Not wired into ingest route; Phase 3 work |
 | AI integration | None | Planned Phase 5 |
 | Behavioral memory | None | Planned Phase 6 |
 
@@ -108,41 +111,49 @@ Without this, LegionTrap cannot receive events from remote sensors, cloud functi
 
 ---
 
-## Phase 3 — GeoIP Enrichment and Event Context
+## Phase 3 — GeoIP Enrichment and Event Context — **Complete**
 
-**Duration:** 1 week
-**Goal:** Wire in the already-installed GeoIP library. Every event gets country, city, and ASN context at ingestion time.
+**Goal:** Wire in the already-installed GeoIP library. Every event gets country, city, and ASN context at ingestion time. Expose intelligence endpoints and standard exports.
 
-This is low-effort, high-value. The library and database are already present. This is the first step toward behavioral intelligence — geographic and organizational context is the simplest behavioral signal.
+| Task | Status | Notes |
+|---|---|---|
+| Enrich `src_ip` with country, city, ASN on ingestion | ✅ | `geoip2` + `GeoLite2-City.mmdb`; fires on every routable IP |
+| Add enrichment fields to `HoneypotEvent` schema | ✅ | `country_code`, `country_name`, `city`, `asn`, `asn_org` |
+| Add geographic filtering to stats endpoint | ✅ | `GET /api/intelligence/top-countries`, `GET /api/intelligence/top-asns` |
+| Update dashboard to display geographic context | ✅ | IntelligenceIPs, TopCountries, TopASNs panels |
+| Intelligence API — top IPs with reputation scoring | ✅ | `GET /api/intelligence/ips`, `GET /api/intelligence/ips/{ip}` |
+| JSONL replica write removed from ingest path | ✅ | PR 4; `scripts/import_jsonl.py` retained for one-time migrations |
+| ATT&CK Navigator export | ✅ | `GET /api/exports/attack-navigator`; technique weights from event counts |
+| STIX 2.1 Indicator bundle export | ✅ | `GET /api/exports/stix`; deterministic IDs; blocked by `PRIVACY_MODE` |
 
-| Task | Notes |
-|---|---|
-| Enrich `src_ip` with country, city, ASN on ingestion | `geoip2` is already installed; `GeoLite2-City.mmdb` is present |
-| Add enrichment fields to `HoneypotEvent` schema | `country_code`, `country_name`, `city`, `asn`, `asn_org` |
-| Add geographic filtering to stats endpoint | Top countries, top ASNs |
-| Update dashboard to display geographic context | Flag + country in event table |
+**Deferred out of Phase 3:** Sigma rules, MISP event packages, campaign clustering, AI reasoning. See Phase 4 and Phase 5.
 
-**Exit criteria:** Every ingested event with a routable IP has country and ASN attached. The dashboard shows geographic breakdown.
+**Exit criteria met:** Every ingested event with a routable IP has country and ASN attached. The dashboard shows geographic and intelligence breakdowns. Standard TI exports are operational.
 
 ---
 
-## Phase 4 — ATT&CK Mapping and Standard Exports
+## Phase 4 — Campaign Intelligence and Export Maturity
 
-**Duration:** 2–3 weeks
-**Goal:** Map event types to MITRE ATT&CK technique IDs. Export intelligence in standard formats.
+**Duration:** 3–5 weeks
+**Goal:** Move from individual event intelligence to behavioral campaign recognition. Mature the export layer with additional standard formats.
 
-This makes LegionTrap interoperable with the broader security ecosystem and signals to the community that the platform speaks the same language as serious TI tools.
+Phase 3 delivered the foundation: enriched events, a queryable intelligence layer, ATT&CK mapping, and initial STIX/Navigator exports. Phase 4 builds the first layer of memory — grouping events into campaigns and producing richer export artifacts from those clusters.
 
 | Task | Notes |
 |---|---|
-| Define event type taxonomy | `ssh_login_fail`, `port_scan`, `http_probe`, `malware_upload`, etc. |
-| Map event types to ATT&CK technique IDs | T1110 (brute force), T1046 (network scan), etc. |
-| `GET /api/exports/attack-navigator` | ATT&CK Navigator layer JSON |
+| Campaign detection (simple clustering) | Group events by source ASN, port sequence, timing, tool signatures |
+| `source_ips` behavioral tagging improvements | Automated tag assignment from event type patterns |
+| `GET /api/campaigns` | Active and historical campaign clusters |
+| Campaign recurrence detection | Alert when a known fingerprint reappears with new infrastructure |
+| `GET /api/exports/stix` — Relationship objects | Add `relationship` SDOs between IPv4-Addr and Indicator once campaigns exist |
 | `GET /api/exports/sigma` | Sigma rule per observed behavioral pattern |
-| `GET /api/exports/stix` | STIX 2.1 bundle of observed indicators |
 | `GET /api/exports/misp` | MISP-compatible event package |
+| STIX AttackPattern and Campaign objects | Requires campaign data; deferred from Phase 3 deliberately |
+| Webhook alerting | Notify operator when campaign threshold is crossed |
 
-**Exit criteria:** An analyst can import LegionTrap's output directly into MISP, ATT&CK Navigator, or a Sigma-compatible SIEM.
+**Prerequisite note:** STIX Campaign and Relationship objects, Sigma rules, and MISP packages all require campaign-level data. Do not attempt them before campaign clustering is operational.
+
+**Exit criteria:** The system detects that a campaign observed today shares behavioral characteristics with a previously observed campaign. An analyst can export a STIX bundle containing Relationship objects. A Sigma rule can be exported for any observed behavioral pattern.
 
 ---
 
@@ -223,10 +234,10 @@ These items are valid strategic directions but must not be attempted before the 
 Phase 0:  Fix security hygiene (no architecture change)
 Phase 1:  JSONL → SQLite (storage layer replacement)
 Phase 2:  File ingestion → HTTP ingestion API (input layer addition)
-Phase 3:  Raw events → enriched events (processing layer addition)
-Phase 4:  Events → standard intelligence exports (output layer expansion)
+Phase 3:  Raw events → enriched events + intelligence API + standard exports (processing + output layer)
+Phase 4:  Events → campaign clusters + export maturity (memory layer foundation)
 Phase 5:  Data → AI-reasoned intelligence (reasoning layer addition)
-Phase 6:  Events → behavioral memory + campaigns (memory layer addition)
+Phase 6:  Events → behavioral memory + campaigns (memory layer maturation)
 Phase 7:  Local memory → federated collective intelligence (network layer addition)
 ```
 

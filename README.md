@@ -24,8 +24,8 @@
 | **Phase 0** | Security & Infrastructure Hygiene | ✅ Complete |
 | **Phase 1** | SQLite Storage Foundation | ✅ Complete |
 | **Phase 2** | HTTP Ingestion API | ✅ Complete |
-| **Phase 3** | GeoIP Enrichment | ⏳ Next |
-| **Phase 4** | ATT&CK Mapping & Standard Exports | ⏳ Planned |
+| **Phase 3** | GeoIP Enrichment & Intelligence Exports | ✅ Complete |
+| **Phase 4** | Campaign Intelligence & Export Maturity | ⏳ Next |
 | **Phase 5** | AI Integration | ⏳ Planned |
 | **Phase 6** | Behavioral Memory & Campaign Tracking | ⏳ Planned |
 | **Phase 7** | Privacy-Preserving Federation | ⏳ Planned |
@@ -73,6 +73,7 @@ Honeypot sensors (Cowrie, Dionaea, ...)
          ▼
     FastAPI Backend (app/)
          │  Pydantic validation → normalization → deduplication
+         │  GeoIP enrichment (country, city, ASN) via geoip2
          ▼
     storage/legiontrap.db  (SQLite, primary store)
          │  INSERT raw_events + events + UPSERT source_ips
@@ -80,11 +81,10 @@ Honeypot sensors (Cowrie, Dionaea, ...)
          │
     Read path: SQL queries via EventRepository
          │
-         ▼
-    GET /api/stats, /api/events, /api/iocs/pf.conf, /api/iocs/ufw.txt
-         │
-         ▼
-    Browser dashboard / firewall scripts
+         ├── GET /api/stats, /api/events         → Browser dashboard
+         ├── GET /api/iocs/pf.conf, /ufw.txt     → Firewall scripts
+         ├── GET /api/intelligence/*             → Intelligence panels
+         └── GET /api/exports/*                 → External TI tools
 ```
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full component map.
@@ -126,15 +126,21 @@ curl -s -H "$H" http://127.0.0.1:8088/api/iocs/pf.conf
 
 ## API Endpoints
 
-| Method | Path                    | Auth | Description                           |
-|-------:|-------------------------|:----:|---------------------------------------|
-| GET    | `/api/health`           |  No  | Liveness check                        |
-| POST   | `/api/login`            |  No  | Dashboard login → JWT token           |
-| POST   | `/api/ingest`           | API key | Batch event ingest (up to 500)     |
-| GET    | `/api/stats`            | Yes  | Total events, unique IPs, last-24h    |
-| GET    | `/api/events`           | Yes  | Recent events (newest first)          |
-| GET    | `/api/iocs/ufw.txt`     | Yes  | UFW deny list (privacy-aware)         |
-| GET    | `/api/iocs/pf.conf`     | Yes  | PF table config (privacy-aware)       |
+| Method | Path                              | Auth    | Description                              |
+|-------:|-----------------------------------|:-------:|------------------------------------------|
+| GET    | `/api/health`                     | No      | Liveness check                           |
+| POST   | `/api/login`                      | No      | Dashboard login → JWT token              |
+| POST   | `/api/ingest`                     | API key | Batch event ingest (up to 500)           |
+| GET    | `/api/stats`                      | Yes     | Total events, unique IPs, last-24h       |
+| GET    | `/api/events`                     | Yes     | Recent events (newest first)             |
+| GET    | `/api/iocs/ufw.txt`               | Yes     | UFW deny list (privacy-aware)            |
+| GET    | `/api/iocs/pf.conf`               | Yes     | PF table config (privacy-aware)          |
+| GET    | `/api/intelligence/ips`           | Yes     | Top source IPs with reputation scores    |
+| GET    | `/api/intelligence/ips/{ip}`      | Yes     | Detail record for a single IP            |
+| GET    | `/api/intelligence/top-countries` | Yes     | Top countries by event count             |
+| GET    | `/api/intelligence/top-asns`      | Yes     | Top ASNs by event count                  |
+| GET    | `/api/exports/attack-navigator`   | Yes     | ATT&CK Navigator layer JSON              |
+| GET    | `/api/exports/stix`               | Yes     | STIX 2.1 Indicator bundle (blocked when `PRIVACY_MODE=on`) |
 
 **Auth options:**
 - API key header: `x-api-key: <API_KEY>`
@@ -177,7 +183,7 @@ make db-validate
 | `FEED_SALT`        | Yes      | HMAC salt for privacy-mode IP hashing.                           |
 | `DASH_USER`        | Yes      | Dashboard login username.                                        |
 | `DASH_PASS`        | Yes      | Dashboard password as a bcrypt hash.                             |
-| `PRIVACY_MODE`     | No       | Set `on` to enable privacy masking on IOC exports (default off). |
+| `PRIVACY_MODE`     | No       | Set `on` to enable privacy masking on IOC exports and block STIX export (default off). |
 | `CORS_ORIGINS`     | No       | Comma-separated allowed origins (default: localhost variants).   |
 | `DB_PATH`          | No       | SQLite file path (default: `storage/legiontrap.db`).             |
 | `LOGIN_RATE_LIMIT` | No       | Rate limit for `/api/login` (default: `5/minute`).               |

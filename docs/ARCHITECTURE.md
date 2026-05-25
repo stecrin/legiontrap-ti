@@ -19,27 +19,39 @@ Browser (React 19 + Vite)
   │     └── POST /api/login → JWT token stored in localStorage
   │
   ├── Dashboard (authenticated)
-  │     ├── GET /api/stats          → KPI counters
-  │     ├── GET /api/iocs/pf.conf   → Firewall block table preview
-  │     ├── GET /api/events         → Recent events table
-  │     └── GET /api/events         → Event trends chart
+  │     ├── GET /api/stats                      → KPI counters
+  │     ├── GET /api/iocs/pf.conf               → Firewall block table preview
+  │     ├── GET /api/events                     → Recent events table + trends chart
+  │     ├── GET /api/intelligence/ips           → Top Source IPs panel
+  │     ├── GET /api/intelligence/top-countries → Top Countries panel
+  │     └── GET /api/intelligence/top-asns      → Top ASNs panel
   │
-  └── Auto-refresh: 10s interval
+  └── Auto-refresh: 10–30s interval per component
 
 FastAPI Backend (app/)
   │
   ├── app/main.py               FastAPI instance, CORS, router registration
   ├── app/routers/
   │     ├── auth_router.py      POST /api/login → JWT
-  │     ├── ingest.py           POST /api/ingest (batch ingest, audit log)
+  │     ├── ingest.py           POST /api/ingest (batch ingest, GeoIP enrichment, audit log)
   │     ├── stats.py            GET /api/stats
   │     ├── events.py           GET /api/events
-  │     └── iocs_pf.py          GET /api/iocs/pf.conf, /api/iocs/ufw.txt
+  │     ├── iocs_pf.py          GET /api/iocs/pf.conf, /api/iocs/ufw.txt
+  │     ├── intelligence.py     GET /api/intelligence/* (top IPs, countries, ASNs, IP detail)
+  │     └── exports.py          GET /api/exports/attack-navigator, /api/exports/stix
+  ├── app/exports/
+  │     ├── attack_navigator.py  Pure transform: technique counts → Navigator layer dict
+  │     └── stix.py              Pure transform: IP records → STIX 2.1 bundle dict
   ├── app/db/
-  │     ├── connection.py       SQLAlchemy engine, session factory, create_all_tables()
-  │     └── repository.py       EventRepository — all SQL lives here
+  │     ├── connection.py        SQLAlchemy engine, session factory, create_all_tables()
+  │     ├── repository.py        EventRepository public facade (re-exports mixin composition)
+  │     └── repositories/
+  │           ├── _base.py       BaseRepository (session holder)
+  │           ├── read.py        ReadRepository — event and source_ip queries
+  │           ├── write.py       WriteRepository — ingest, audit_log
+  │           └── intelligence.py  IntelligenceRepository — top IPs, countries, ASNs, STIX/ATT&CK queries
   ├── app/schemas/
-  │     └── ingest.py           RawEvent, HoneypotEvent, IngestRequest, IngestReceipt
+  │     └── models.py           RawEvent, HoneypotEvent, IngestRequest, IngestReceipt
   ├── app/utils/
   │     ├── auth.py             JWT helpers, require_jwt_or_api_key dependency
   │     └── event_utils.py      extract_src_ip(), normalize_event_type(), parse_timestamp()
@@ -50,7 +62,7 @@ Storage
   └── storage/
         ├── legiontrap.db        SQLite database (primary data store)
         ├── backups/             DB snapshot backups (see JSONL_RETIREMENT.md for schedule)
-        └── GeoLite2-City.mmdb   IP geolocation database (installed; used in Phase 3)
+        └── GeoLite2-City.mmdb   IP geolocation database (active — used by ingest enrichment)
 
 Deployment
   └── docker/
@@ -84,17 +96,18 @@ External honeypot (Cowrie, Dionaea, etc.)
     ▼
 FastAPI ingest.py
     │  Pydantic validation → normalization → deduplication
+    │  GeoIP enrichment: geoip2.database.Reader → country, city, ASN
     ▼
 storage/legiontrap.db (SQLite, primary store)
-    │  INSERT raw_events + events + UPSERT source_ips
+    │  INSERT raw_events + events + UPSERT source_ips (with geo fields)
     │  INSERT audit_log (separate session)
     │
-    │  indexed SQL queries
-    ▼
-FastAPI (stats.py / events.py / iocs_pf.py)
+    │  indexed SQL queries via EventRepository
     │
-    ▼
-API response → Browser / Script / Firewall
+    ├── stats.py / events.py        → API response → Browser dashboard
+    ├── iocs_pf.py                  → API response → Firewall scripts
+    ├── intelligence.py             → API response → Intelligence panels
+    └── exports.py + app/exports/   → API response → External TI tools
 ```
 
 **Read path:** All dashboard and IOC queries run SQL against `legiontrap.db` via `EventRepository`. No file scans.
@@ -113,6 +126,8 @@ The privacy system operates at the IOC export layer, not at the storage layer. E
 
 The privacy transformation is applied in `iocs_pf.py` after calling `EventRepository.get_unique_public_ips()` to retrieve IPs from SQLite.
 
+**STIX export and PRIVACY_MODE:** The `GET /api/exports/stix` endpoint returns HTTP 422 when `PRIVACY_MODE=on`. STIX Indicator patterns require embedding raw IP addresses (`[ipv4-addr:value = '1.2.3.4']`), which is incompatible with privacy mode's intent. The ATT&CK Navigator export is unaffected because it contains no IP data.
+
 ---
 
 ## Frontend Structure
@@ -126,8 +141,11 @@ ui/dashboard/
     components/
       EventTrends.jsx    Recharts line chart of events over time
       RecentEvents.jsx   Tabular view of most recent events
+      IntelligenceIPs.jsx  Top Source IPs table with expandable IP detail rows
+      TopCountries.jsx   Top Countries panel (country, event count, unique IPs)
+      TopASNs.jsx        Top ASNs panel (ASN, organization, event count, unique IPs)
     lib/
-      api.js             Authenticated fetch helpers (getStats, getPfConf)
+      api.js             Authenticated fetch helpers (stats, events, intelligence, exports)
     utils/
       format.js          Date/time formatting utilities
     index.css            Global styles + dark/light mode variables
