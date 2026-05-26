@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
-import { getCampaigns, getCampaignDetail } from "../lib/api";
+import { getCampaigns, getCampaignDetail, postCampaignSummary } from "../lib/api";
 import { timeAgo } from "../utils/format";
+import CampaignAiPanel from "./CampaignAiPanel";
 
 const REFRESH_MS = 30_000;
 
@@ -188,6 +189,7 @@ export default function Campaigns({ dark }) {
   const [expandedId, setExpandedId] = useState(null);
   const [details, setDetails] = useState({});
   const [detailLoading, setDetailLoading] = useState(null);
+  const [aiSummaries, setAiSummaries] = useState({});
 
   const cardBg = dark ? "#111827" : "#f9fafb";
   const border = dark ? "#374151" : "#d1d5db";
@@ -233,6 +235,46 @@ export default function Campaigns({ dark }) {
     } finally {
       setDetailLoading(null);
     }
+  }
+
+  async function generateSummary(campaignId) {
+    setAiSummaries((prev) => ({
+      ...prev,
+      [campaignId]: { status: "loading", data: null, errorMsg: null },
+    }));
+    try {
+      const { status, data } = await postCampaignSummary(campaignId);
+      if (status === 200) {
+        setAiSummaries((prev) => ({
+          ...prev,
+          [campaignId]: { status: "success", data, errorMsg: null },
+        }));
+      } else {
+        const msg =
+          data?.detail ??
+          (status === 503
+            ? "AI features are currently unavailable."
+            : status === 422
+              ? "AI summary unavailable (configuration conflict)."
+              : "AI summary unavailable.");
+        setAiSummaries((prev) => ({
+          ...prev,
+          [campaignId]: { status: "error", data: null, errorMsg: msg },
+        }));
+      }
+    } catch {
+      setAiSummaries((prev) => ({
+        ...prev,
+        [campaignId]: { status: "error", data: null, errorMsg: "Network error. AI summary unavailable." },
+      }));
+    }
+  }
+
+  function dismissSummary(campaignId) {
+    setAiSummaries((prev) => ({
+      ...prev,
+      [campaignId]: { status: "idle", data: null, errorMsg: null },
+    }));
   }
 
   useEffect(() => {
@@ -327,6 +369,12 @@ export default function Campaigns({ dark }) {
                         ) : (
                           <span style={{ opacity: 0.5, fontSize: 13 }}>Detail unavailable.</span>
                         )}
+                        <CampaignAiPanel
+                          summaryState={aiSummaries[item.id] ?? { status: "idle", data: null, errorMsg: null }}
+                          onGenerate={() => generateSummary(item.id)}
+                          onDismiss={() => dismissSummary(item.id)}
+                          dark={dark}
+                        />
                       </td>
                     </tr>
                   )}

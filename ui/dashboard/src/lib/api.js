@@ -45,3 +45,12 @@ export async function getCampaignDetail(campaignId) {
   if (!r.ok) throw new Error(`campaigns/${campaignId} ${r.status}`);
   return r.json();
 }
+
+export async function postCampaignSummary(campaignId) {
+  const r = await fetch(`/api/campaigns/${encodeURIComponent(campaignId)}/summary`, {
+    method: 'POST',
+    headers: { 'x-api-key': 'dev-123' },
+  });
+  const body = await r.json();
+  return { status: r.status, data: body };
+}
