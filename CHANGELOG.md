@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.11.0](https://github.com/stecrin/legiontrap-ti/compare/v0.10.0...v0.11.0) (2026-05-26)
+
+### Features
+
+* **db:** add Phase 4 behavioral memory and campaign schema ([5e97644](https://github.com/stecrin/legiontrap-ti/commit/5e97644933ecc8ae3bbb27af50db845a946b8bac))
+
 ## [0.10.0](https://github.com/stecrin/legiontrap-ti/compare/v0.9.0...v0.10.0) (2026-05-25)
 
 ### Features
