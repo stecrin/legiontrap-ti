@@ -29,7 +29,9 @@ from app.ai.backend import (
     get_ai_backend,
 )
 from app.ai.prompt_builder import (
+    BRIEF_SYSTEM_PROMPT,
     SYSTEM_PROMPT,
+    build_brief_prompt,
     build_campaign_summary_prompt,
     format_fingerprint_summary,
 )
@@ -57,7 +59,9 @@ __all__ = [
     "get_ai_backend",
     # Prompt builder
     "SYSTEM_PROMPT",
+    "BRIEF_SYSTEM_PROMPT",
     "build_campaign_summary_prompt",
+    "build_brief_prompt",
     "format_fingerprint_summary",
     # Safety
     "REDACTED_FIELD",

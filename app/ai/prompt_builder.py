@@ -303,3 +303,87 @@ def build_campaign_summary_prompt(
         },
         "safety_flags": safety_flags,
     }
+
+
+# ---------------------------------------------------------------------------
+# Multi-campaign brief — system prompt and builder
+# ---------------------------------------------------------------------------
+
+BRIEF_SYSTEM_PROMPT: str = (
+    "You are a threat intelligence analyst assistant. "
+    "The following campaigns were recently active. "
+    "Write a threat brief of 3-6 sentences covering: the most significant campaign, "
+    "any shared behavioral patterns across campaigns, and any notable changes in actor behavior. "
+    "Do not infer beyond the data provided. "
+    "Do not reference threat actor names, APT groups, or external threat intelligence databases. "
+    "If the data is insufficient for a conclusion, say so explicitly. "
+    "Label any uncertain interpretation with 'possible' or 'may indicate'. "
+    "Respond in plain prose. One paragraph maximum. Do not use bullet points."
+)
+
+
+def _format_campaign_block(campaign: dict[str, Any]) -> str:
+    """Format a single campaign dict into a compact text block for the brief prompt.
+
+    Source IPs are never read — only pre-aggregated fields are used.
+    """
+    name = sanitize_field(str(campaign.get("name", "")), _FIELD_MAX_LEN)
+    status = str(campaign.get("status", "unknown"))
+    confidence_pct = round(float(campaign.get("confidence", 0.0)) * 100, 1)
+    last_seen = str(campaign.get("last_seen", "unknown"))
+    member_count = int(campaign.get("member_ip_count", 0))
+    reactivation_count = int(campaign.get("reactivation_count", 0))
+    tactic_text = _format_tactic_dist(campaign.get("attack_tactic_dist"))
+    ports_text = _format_top_ports(campaign.get("top_target_ports"))
+
+    lines = [
+        f"Campaign: {name}",
+        f"Status: {status} | Confidence: {confidence_pct}% | Last seen: {last_seen}",
+        f"Members: {member_count} | Reactivations: {reactivation_count}",
+        f"Tactics: {tactic_text}",
+        f"Ports: {ports_text}",
+    ]
+    return "\n".join(lines)
+
+
+def build_brief_prompt(campaigns: list[dict[str, Any]]) -> dict[str, Any]:
+    """Build a multi-campaign threat brief prompt.
+
+    Each campaign contributes a compact 5-line text block. Source IPs are
+    never included. Field sanitization is applied to all string inputs.
+
+    Returns a dict with keys:
+        system_prompt    — constant analyst instruction
+        user_prompt      — <campaigns> block + brief instruction
+        source_records   — {campaign_ids: [...], campaign_count: N}
+    """
+    campaign_ids = [str(c.get("id", "")) for c in campaigns]
+
+    if not campaigns:
+        return {
+            "system_prompt": BRIEF_SYSTEM_PROMPT,
+            "user_prompt": "<campaigns>\n(No campaign data available.)\n</campaigns>",
+            "source_records": {
+                "campaign_ids": [],
+                "campaign_count": 0,
+            },
+        }
+
+    blocks = [_format_campaign_block(c) for c in campaigns]
+    campaigns_section = "\n\n".join(blocks)
+
+    user_prompt = (
+        f"<campaigns>\n{campaigns_section}\n</campaigns>\n\n"
+        "Write a threat brief of 3-6 sentences covering the most significant campaign, "
+        "shared behavioral patterns, and any notable changes. "
+        "Plain prose only. Do not use bullet points."
+    )
+
+    return {
+        "system_prompt": BRIEF_SYSTEM_PROMPT,
+        "user_prompt": user_prompt,
+        "source_records": {
+            "campaign_ids": campaign_ids,
+            "campaign_count": len(campaigns),
+        },
+    }
