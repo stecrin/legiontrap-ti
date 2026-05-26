@@ -11,6 +11,7 @@ Internal structure (by concern):
     repositories/read.py         — dashboard queries and ingest-side cache reads
     repositories/intelligence.py — intelligence API query methods
     repositories/fingerprint.py  — behavioral fingerprint reads and writes
+    repositories/campaign.py     — campaign CRUD and clustering query methods
 
 The caller owns the session and therefore the transaction boundary.
 
@@ -27,6 +28,7 @@ No FastAPI, router, or application imports belong in the sub-modules.
 
 from __future__ import annotations
 
+from app.db.repositories.campaign import CampaignRepository
 from app.db.repositories.fingerprint import FingerprintRepository
 from app.db.repositories.intelligence import IntelligenceRepository
 from app.db.repositories.read import ReadRepository
@@ -34,13 +36,18 @@ from app.db.repositories.write import WriteRepository
 
 
 class EventRepository(
-    WriteRepository, ReadRepository, IntelligenceRepository, FingerprintRepository
+    WriteRepository,
+    ReadRepository,
+    IntelligenceRepository,
+    FingerprintRepository,
+    CampaignRepository,
 ):
     """
-    Unified repository class. Inherits all SQL methods from the four concern
+    Unified repository class. Inherits all SQL methods from the five concern
     mixins. Callers see a single object with the full method surface; the
     internal split is an organisation detail invisible to callers.
 
     Python MRO: EventRepository → WriteRepository → ReadRepository →
-                IntelligenceRepository → FingerprintRepository → RepositoryBase → object
+                IntelligenceRepository → FingerprintRepository →
+                CampaignRepository → RepositoryBase → object
     """
