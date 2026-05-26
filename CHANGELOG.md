@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.20.0](https://github.com/stecrin/legiontrap-ti/compare/v0.19.0...v0.20.0) (2026-05-26)
+
+### Features
+
+* **ui:** add campaign AI summary dashboard panel ([0c5da88](https://github.com/stecrin/legiontrap-ti/commit/0c5da884115885c6f886082e1f33a9bbef8b4bfd))
+
 ## [0.19.0](https://github.com/stecrin/legiontrap-ti/compare/v0.18.0...v0.19.0) (2026-05-26)
 
 ### Features
