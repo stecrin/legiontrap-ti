@@ -69,8 +69,8 @@ def _get_session_factory() -> sessionmaker:
 
 def create_all_tables(engine: Engine) -> None:
     """
-    Create all Phase 1 tables directly using DDL. Intended for test fixtures
-    and local development bootstrapping only.
+    Create all tables directly using DDL. Intended for test fixtures and local
+    development bootstrapping only.
 
     Production deployments must use `alembic upgrade head` instead. This
     function must never be called from application startup code.
@@ -134,6 +134,86 @@ def create_all_tables(engine: Engine) -> None:
                 "CREATE TABLE IF NOT EXISTS audit_log ("
                 "id TEXT PRIMARY KEY, ts TEXT NOT NULL, event_type TEXT NOT NULL, "
                 "auth_method TEXT, source_ip TEXT, detail TEXT)"
+            )
+        )
+
+        # Phase 4 — behavioral memory and campaign intelligence tables.
+        # Created in FK dependency order: behavioral_fingerprints and campaigns
+        # have no cross-dependency; campaign_members / observations / tags depend
+        # on campaigns (and behavioral_fingerprints depends on source_ips).
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS behavioral_fingerprints ("
+                "id TEXT PRIMARY KEY, "
+                "source_ip TEXT NOT NULL UNIQUE, "
+                "fingerprint_version INTEGER NOT NULL DEFAULT 1, "
+                "computed_at TEXT NOT NULL, "
+                "event_count_at_computation INTEGER NOT NULL, "
+                "timing_features TEXT, "
+                "sequence_features TEXT, "
+                "protocol_features TEXT, "
+                "credential_features TEXT, "
+                "target_features TEXT, "
+                "tool_signals TEXT, "
+                "confidence REAL NOT NULL DEFAULT 0.5, "
+                "FOREIGN KEY (source_ip) REFERENCES source_ips(ip))"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS campaigns ("
+                "id TEXT PRIMARY KEY, "
+                "name TEXT NOT NULL, "
+                "status TEXT NOT NULL DEFAULT 'active', "
+                "confidence REAL NOT NULL DEFAULT 0.5, "
+                "first_seen TEXT NOT NULL, "
+                "last_seen TEXT NOT NULL, "
+                "dormant_since TEXT, "
+                "reactivation_count INTEGER NOT NULL DEFAULT 0, "
+                "member_ip_count INTEGER NOT NULL DEFAULT 0, "
+                "attack_tactic_dist TEXT, "
+                "top_target_ports TEXT, "
+                "notes TEXT, "
+                "created_at TEXT NOT NULL, "
+                "updated_at TEXT NOT NULL)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS campaign_members ("
+                "campaign_id TEXT NOT NULL, "
+                "source_ip TEXT NOT NULL, "
+                "confidence REAL NOT NULL DEFAULT 0.5, "
+                "added_at TEXT NOT NULL, "
+                "last_active TEXT NOT NULL, "
+                "PRIMARY KEY (campaign_id, source_ip), "
+                "FOREIGN KEY (campaign_id) REFERENCES campaigns(id), "
+                "FOREIGN KEY (source_ip) REFERENCES source_ips(ip))"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS campaign_observations ("
+                "id TEXT PRIMARY KEY, "
+                "campaign_id TEXT NOT NULL, "
+                "source_ip TEXT NOT NULL, "
+                "observed_at TEXT NOT NULL, "
+                "event_count INTEGER NOT NULL, "
+                "is_reactivation INTEGER NOT NULL DEFAULT 0, "
+                "dormancy_gap_days REAL, "
+                "notes TEXT, "
+                "FOREIGN KEY (campaign_id) REFERENCES campaigns(id))"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS campaign_tags ("
+                "campaign_id TEXT NOT NULL, "
+                "tag TEXT NOT NULL, "
+                "source TEXT NOT NULL DEFAULT 'auto', "
+                "created_at TEXT NOT NULL, "
+                "PRIMARY KEY (campaign_id, tag), "
+                "FOREIGN KEY (campaign_id) REFERENCES campaigns(id))"
             )
         )
         conn.commit()
