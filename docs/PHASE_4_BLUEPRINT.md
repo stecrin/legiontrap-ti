@@ -1,7 +1,7 @@
 # LegionTrap TI — Phase 4 Architecture Blueprint
 
 **Document type:** Pre-implementation architecture blueprint
-**Status:** Approved — implementation-risk corrections applied; PR 1 is cleared to begin
+**Status:** Implemented — Phase 4 delivered 2026-05-26; see [PHASE_4_CLOSEOUT.md](PHASE_4_CLOSEOUT.md)
 **Audience:** Engineers, contributors
 **Date:** 2026-05-25
 

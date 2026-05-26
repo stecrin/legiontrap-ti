@@ -2,7 +2,7 @@
 
 **Document type:** Technical architecture reference
 **Audience:** Engineers, autonomous agents, contributors
-**Last reviewed:** 2026-05-25
+**Last reviewed:** 2026-05-26
 
 ---
 
@@ -24,7 +24,8 @@ Browser (React 19 + Vite)
   │     ├── GET /api/events                     → Recent events table + trends chart
   │     ├── GET /api/intelligence/ips           → Top Source IPs panel
   │     ├── GET /api/intelligence/top-countries → Top Countries panel
-  │     └── GET /api/intelligence/top-asns      → Top ASNs panel
+  │     ├── GET /api/intelligence/top-asns      → Top ASNs panel
+  │     └── GET /api/campaigns                  → Campaign Intelligence panel
   │
   └── Auto-refresh: 10–30s interval per component
 
@@ -38,18 +39,24 @@ FastAPI Backend (app/)
   │     ├── events.py           GET /api/events
   │     ├── iocs_pf.py          GET /api/iocs/pf.conf, /api/iocs/ufw.txt
   │     ├── intelligence.py     GET /api/intelligence/* (top IPs, countries, ASNs, IP detail)
-  │     └── exports.py          GET /api/exports/attack-navigator, /api/exports/stix
+  │     ├── exports.py          GET /api/exports/attack-navigator, /api/exports/stix
+  │     └── campaigns.py        GET /api/campaigns, /api/campaigns/{id}, /api/campaigns/{id}/observations
+  ├── app/intelligence/
+  │     ├── fingerprint.py       build_behavioral_fingerprint() — 5-dimension feature extraction
+  │     └── clustering.py        assign_or_create_campaign() — similarity clustering, reactivation detection
   ├── app/exports/
   │     ├── attack_navigator.py  Pure transform: technique counts → Navigator layer dict
-  │     └── stix.py              Pure transform: IP records → STIX 2.1 bundle dict
+  │     └── stix.py              Pure transform: IP records + campaigns → STIX 2.1 bundle dict
   ├── app/db/
   │     ├── connection.py        SQLAlchemy engine, session factory, create_all_tables()
   │     ├── repository.py        EventRepository public facade (re-exports mixin composition)
   │     └── repositories/
-  │           ├── _base.py       BaseRepository (session holder)
-  │           ├── read.py        ReadRepository — event and source_ip queries
-  │           ├── write.py       WriteRepository — ingest, audit_log
-  │           └── intelligence.py  IntelligenceRepository — top IPs, countries, ASNs, STIX/ATT&CK queries
+  │           ├── _base.py            RepositoryBase (session holder)
+  │           ├── read.py             ReadRepository — event and source_ip queries
+  │           ├── write.py            WriteRepository — ingest, audit_log
+  │           ├── intelligence.py     IntelligenceRepository — top IPs, countries, ASNs, STIX/ATT&CK queries
+  │           ├── fingerprint.py      FingerprintRepository — behavioral fingerprint upserts and lookups
+  │           └── campaign.py         CampaignRepository — campaign CRUD, members, observations, export queries
   ├── app/schemas/
   │     └── models.py           RawEvent, HoneypotEvent, IngestRequest, IngestReceipt
   ├── app/utils/
@@ -144,8 +151,9 @@ ui/dashboard/
       IntelligenceIPs.jsx  Top Source IPs table with expandable IP detail rows
       TopCountries.jsx   Top Countries panel (country, event count, unique IPs)
       TopASNs.jsx        Top ASNs panel (ASN, organization, event count, unique IPs)
+      Campaigns.jsx      Campaign Intelligence panel (lifecycle badges, confidence bars, expandable detail)
     lib/
-      api.js             Authenticated fetch helpers (stats, events, intelligence, exports)
+      api.js             Authenticated fetch helpers (stats, events, intelligence, exports, campaigns)
     utils/
       format.js          Date/time formatting utilities
     index.css            Global styles + dark/light mode variables

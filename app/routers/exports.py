@@ -51,10 +51,15 @@ def get_stix_bundle(
     _: dict = Depends(require_jwt_or_api_key),
 ) -> JSONResponse:
     """
-    Return a STIX 2.1 bundle of Indicators derived from observed source IPs.
+    Return a STIX 2.1 bundle of Indicators, Campaign SDOs, and Relationship SDOs.
 
-    Each eligible IP produces one IPv4-Addr SCO and one Indicator SDO.
-    Object IDs are deterministic: the same IP always produces the same ID.
+    For each eligible IP: one IPv4-Addr SCO + one Indicator SDO.
+    For each active/dormant/reactivated campaign: one Campaign SDO.
+    For each exported IP that is a campaign member: one Relationship SDO
+      (indicator indicates campaign).
+
+    Object IDs are deterministic: the same IP or campaign always produces
+    the same ID regardless of when the bundle is generated.
 
     Blocked when PRIVACY_MODE is enabled. STIX Indicator patterns require
     raw IP addresses; privacy mode masks IPs before export. Use the IOC
@@ -73,9 +78,9 @@ def get_stix_bundle(
             ),
         )
     with get_session() as session:
-        ips = EventRepository(session).get_stix_indicator_ips(
-            limit=limit,
-            min_event_count=min_event_count,
-        )
-    bundle = build_stix_bundle(ips)
+        repo = EventRepository(session)
+        ips = repo.get_stix_indicator_ips(limit=limit, min_event_count=min_event_count)
+        campaigns = repo.get_campaigns_for_export()
+        ip_campaign_map = repo.get_campaign_member_ip_map()
+    bundle = build_stix_bundle(ips, campaigns=campaigns, ip_campaign_map=ip_campaign_map)
     return JSONResponse(content=bundle)
