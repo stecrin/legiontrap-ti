@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends
 
 from app.db.connection import get_session
 from app.db.repository import EventRepository
+from app.intelligence.analytics import refresh_all_campaign_analytics
 from app.intelligence.lifecycle import run_lifecycle_transitions
 from app.utils.auth import require_api_key
 
@@ -32,4 +33,22 @@ def run_lifecycle_job(
     with get_session() as session:
         repo = EventRepository(session)
         result = run_lifecycle_transitions(repo)
+    return result
+
+
+@router.post("/run-analytics-job")
+def run_analytics_job(
+    _: dict = Depends(require_api_key),
+) -> dict:
+    """Recompute campaign analytics for all campaigns.
+
+    Populates attack_tactic_dist and top_target_ports on every campaigns row
+    by aggregating events from each campaign's member IPs. Results are stored
+    as JSON in the existing nullable columns.
+
+    Safe to call repeatedly — computation is idempotent.
+    """
+    with get_session() as session:
+        repo = EventRepository(session)
+        result = refresh_all_campaign_analytics(repo)
     return result

@@ -457,6 +457,81 @@ class CampaignRepository(RepositoryBase):
         )
         return result.rowcount
 
+    def list_all_campaign_ids(self) -> list[str]:
+        """Return all campaign IDs (all statuses)."""
+        rows = self._session.execute(text("SELECT id FROM campaigns")).fetchall()
+        return [r[0] for r in rows]
+
+    def compute_campaign_attack_tactic_dist(self, campaign_id: str) -> dict[str, int]:
+        """Aggregate ATT&CK tactic event counts for all members of a campaign.
+
+        Joins campaign_members → events → event_types to count events per tactic.
+        Tactics that are NULL in event_types are excluded.
+        Returns {} when the campaign has no members or no matching events.
+        """
+        rows = self._session.execute(
+            text("""
+                SELECT et.attack_tactic, COUNT(*) AS event_count
+                FROM events e
+                JOIN campaign_members cm ON cm.source_ip = e.src_ip
+                JOIN event_types et ON et.id = e.event_type
+                WHERE cm.campaign_id = :campaign_id
+                  AND et.attack_tactic IS NOT NULL
+                GROUP BY et.attack_tactic
+                ORDER BY event_count DESC
+            """),
+            {"campaign_id": campaign_id},
+        ).fetchall()
+        return {r[0]: r[1] for r in rows}
+
+    def compute_campaign_top_target_ports(
+        self, campaign_id: str, top_n: int = 5
+    ) -> list[dict[str, int]]:
+        """Aggregate top target ports by event count for all members of a campaign.
+
+        Joins campaign_members → events and groups by dst_port.
+        NULL dst_port values are excluded.
+        Returns [] when the campaign has no members or no port data.
+        """
+        rows = self._session.execute(
+            text("""
+                SELECT e.dst_port, COUNT(*) AS event_count
+                FROM events e
+                JOIN campaign_members cm ON cm.source_ip = e.src_ip
+                WHERE cm.campaign_id = :campaign_id
+                  AND e.dst_port IS NOT NULL
+                GROUP BY e.dst_port
+                ORDER BY event_count DESC
+                LIMIT :top_n
+            """),
+            {"campaign_id": campaign_id, "top_n": top_n},
+        ).fetchall()
+        return [{"port": r[0], "count": r[1]} for r in rows]
+
+    def update_campaign_analytics(
+        self,
+        campaign_id: str,
+        attack_tactic_dist: str | None,
+        top_target_ports: str | None,
+        updated_at: str,
+    ) -> None:
+        """Persist pre-computed analytics JSON strings to the campaigns row."""
+        self._session.execute(
+            text("""
+                UPDATE campaigns
+                SET attack_tactic_dist = :attack_tactic_dist,
+                    top_target_ports = :top_target_ports,
+                    updated_at = :updated_at
+                WHERE id = :campaign_id
+            """),
+            {
+                "campaign_id": campaign_id,
+                "attack_tactic_dist": attack_tactic_dist,
+                "top_target_ports": top_target_ports,
+                "updated_at": updated_at,
+            },
+        )
+
     def get_campaign_observations(self, campaign_id: str) -> list[dict[str, Any]]:
         """Return all observations for a campaign, ordered by observed_at."""
         rows = self._session.execute(
