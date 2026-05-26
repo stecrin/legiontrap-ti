@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.15.0](https://github.com/stecrin/legiontrap-ti/compare/v0.14.0...v0.15.0) (2026-05-26)
+
+### Features
+
+* **campaigns:** add deterministic lifecycle maintenance ([f120f57](https://github.com/stecrin/legiontrap-ti/commit/f120f573bbf410045f13445ba256b49f6be1dfb2))
+
 ## [0.14.0](https://github.com/stecrin/legiontrap-ti/compare/v0.13.0...v0.14.0) (2026-05-26)
 
 ### Features
