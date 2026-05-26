@@ -26,6 +26,7 @@ from app.routers import (
     events,  # Event listing endpoint
 )
 from app.routers.admin import router as admin_router  # POST /api/admin/*
+from app.routers.analyze import router as analyze_router  # POST /api/campaigns/*/summary
 from app.routers.campaigns import router as campaigns_router  # GET /api/campaigns/*
 from app.routers.exports import router as exports_router  # GET /api/exports/*
 from app.routers.ingest import router as ingest_router  # POST /api/ingest
@@ -60,6 +61,7 @@ app.include_router(auth_router.router)  # /api/login
 app.include_router(ingest_router)  # /api/ingest
 app.include_router(intelligence_router)  # /api/intelligence/*
 app.include_router(campaigns_router)  # /api/campaigns/*
+app.include_router(analyze_router)  # /api/campaigns/*/summary
 app.include_router(exports_router)  # /api/exports/*
 app.include_router(iocs_pf_router, prefix="/api/iocs")  # pf.conf generator
 app.include_router(stats_router)  # /api/stats
