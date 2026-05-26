@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.14.0](https://github.com/stecrin/legiontrap-ti/compare/v0.13.0...v0.14.0) (2026-05-26)
+
+### Features
+
+* **campaigns:** expose campaign API and dashboard panel ([a9ae9ca](https://github.com/stecrin/legiontrap-ti/commit/a9ae9ca4080d2b1bb6cfe8f6f19592b474d7e86e))
+
 ## [0.13.0](https://github.com/stecrin/legiontrap-ti/compare/v0.12.0...v0.13.0) (2026-05-26)
 
 ### Features
