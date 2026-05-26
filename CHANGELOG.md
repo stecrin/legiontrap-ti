@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.12.0](https://github.com/stecrin/legiontrap-ti/compare/v0.11.0...v0.12.0) (2026-05-26)
+
+### Features
+
+* **intelligence:** add behavioral fingerprint generation ([838a406](https://github.com/stecrin/legiontrap-ti/commit/838a406f4281b6da10b6767c78aff3a15b8ea1ef))
+
 ## [0.11.0](https://github.com/stecrin/legiontrap-ti/compare/v0.10.0...v0.11.0) (2026-05-26)
 
 ### Features
