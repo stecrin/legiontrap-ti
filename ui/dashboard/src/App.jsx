@@ -5,6 +5,7 @@ import EventTrends from "./components/EventTrends";
 import IntelligenceIPs from "./components/IntelligenceIPs";
 import TopCountries from "./components/TopCountries";
 import TopASNs from "./components/TopASNs";
+import Campaigns from "./components/Campaigns";
 
 
 // keep <body> background in sync with dashboard theme
@@ -221,6 +222,11 @@ export default function App() {
         }}>
           <TopCountries dark={dark} />
           <TopASNs dark={dark} />
+        </div>
+
+        {/* 🎯 Campaigns */}
+        <div style={{ marginTop: 36 }}>
+          <Campaigns dark={dark} />
         </div>
       </div>
     </div>
