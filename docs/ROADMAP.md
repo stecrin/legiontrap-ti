@@ -14,7 +14,7 @@ The order of this roadmap is not arbitrary. Each phase is a prerequisite for the
 
 ---
 
-## Current State (as of Phase 3)
+## Current State (as of Phase 4)
 
 | Capability | Status | Notes |
 |---|---|---|
@@ -25,15 +25,17 @@ The order of this roadmap is not arbitrary. Each phase is a prerequisite for the
 | Intelligence API | Working | Top IPs, top countries, top ASNs, IP detail, reputation scoring |
 | IOC export (pf.conf, UFW) | Working | SQL-backed; privacy masking via HMAC or octet mask |
 | ATT&CK Navigator export | Working | `GET /api/exports/attack-navigator`; technique IDs from `event_types` table |
-| STIX 2.1 export | Working | `GET /api/exports/stix`; blocked when `PRIVACY_MODE=on` |
+| STIX 2.1 export | Working | `GET /api/exports/stix`; Indicators + Campaign SDOs + Relationship SDOs; blocked when `PRIVACY_MODE=on` |
 | JWT + API key auth | Working | bcrypt password verification; hardcoded defaults removed |
 | Audit logging | Working | `audit_log` table; one row per ingest batch |
 | Data retention | Working | `delete_events_before()` + `make db-prune` |
-| React dashboard | Working | KPI cards, event chart, recent events, intelligence panels (IPs, countries, ASNs) |
+| React dashboard | Working | KPI cards, event chart, recent events, intelligence panels + campaign panel |
 | CI/CD | Working | Lint, test, semantic release; Black 26.5.1 pinned |
 | Docker Compose | Working | Edge deployment profile |
+| Behavioral fingerprinting | Working | 5-dimension behavioral fingerprint per source IP; stored in `behavioral_fingerprints` |
+| Campaign clustering | Working | Deterministic similarity clustering; reactivation detection; `app/intelligence/clustering.py` |
+| Campaign API | Working | `GET /api/campaigns`, `GET /api/campaigns/{id}`, `GET /api/campaigns/{id}/observations` |
 | AI integration | None | Planned Phase 5 |
-| Behavioral memory | None | Planned Phase 6 |
 
 ---
 
@@ -132,7 +134,7 @@ Without this, LegionTrap cannot receive events from remote sensors, cloud functi
 
 ---
 
-## Phase 4 — Campaign Intelligence and Export Maturity
+## Phase 4 — Campaign Intelligence and Export Maturity — **Complete**
 
 **Duration:** 3–5 weeks
 **Goal:** Move from individual event intelligence to behavioral campaign recognition. Mature the export layer with additional standard formats.
@@ -154,6 +156,8 @@ Phase 3 delivered the foundation: enriched events, a queryable intelligence laye
 **Prerequisite note:** STIX Campaign and Relationship objects, Sigma rules, and MISP packages all require campaign-level data. Do not attempt them before campaign clustering is operational.
 
 **Exit criteria:** The system detects that a campaign observed today shares behavioral characteristics with a previously observed campaign. An analyst can export a STIX bundle containing Relationship objects. A Sigma rule can be exported for any observed behavioral pattern.
+
+**Delivered:** Behavioral fingerprinting (5 dimensions), deterministic campaign clustering, reactivation detection, lifecycle management (active/dormant/reactivated/historical), campaign API endpoints, campaign dashboard panel, STIX Campaign + Relationship SDOs. **Deferred to Phase 5:** Sigma rules, MISP packages, webhook alerting. See [PHASE_4_CLOSEOUT.md](PHASE_4_CLOSEOUT.md) for full delivery record.
 
 ---
 

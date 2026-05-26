@@ -1,5 +1,5 @@
 """
-STIX 2.1 Indicator bundle builder for LegionTrap TI.
+STIX 2.1 bundle builder for LegionTrap TI.
 
 Pure transformation module: receives plain Python dicts from the repository
 layer and returns a STIX 2.1 bundle dict ready for JSON serialisation.
@@ -7,12 +7,21 @@ layer and returns a STIX 2.1 bundle dict ready for JSON serialisation.
 No FastAPI, SQLAlchemy, or settings imports.
 No stix2 library dependency — plain Python dicts.
 
+Object types produced:
+  IPv4-Addr SCO       — network observable for each source IP
+  Indicator SDO       — threat intelligence claim for each source IP
+  Campaign SDO        — behavioral actor cluster (when campaign data provided)
+  Relationship SDO    — "indicator indicates campaign" (when campaign data provided)
+
 Design decisions:
 - Deterministic IDs: uuid5 over a stable project namespace ensures the same
-  IP always produces the same STIX object ID across exports.
-- Scope: Indicators and IPv4-Addr SCOs only. Campaign, Relationship, and
-  AttackPattern objects require Phase 6 data and are explicitly deferred.
+  IP or campaign always produces the same STIX object ID across exports.
 - Custom properties: x_legiontrap_* prefix for non-standard fields.
+- Privacy: Campaign SDOs contain no raw IP addresses; member IPs are only
+  reachable via the existing Indicator objects. Relationship SDOs link
+  object IDs, not raw IP values.
+- Backward compatibility: campaigns and ip_campaign_map are optional;
+  omitting them produces the same output as before Phase 4.
 """
 
 from __future__ import annotations
@@ -75,11 +84,57 @@ def _labels(tags: list[str] | None) -> list[str]:
     return sorted(mapped)
 
 
-def build_stix_bundle(ips: list[dict]) -> dict:
-    """
-    Build a STIX 2.1 bundle from a list of IP intelligence records.
+def _build_campaign_sdo(campaign: dict, now: str) -> dict:
+    """Build a STIX 2.1 Campaign SDO from a LegionTrap campaign record.
 
-    Each record is expected to contain:
+    No raw IP addresses are included — member IPs are only accessible
+    via their respective Indicator objects.
+    """
+    first_seen = _to_stix_ts(campaign.get("first_seen"), now)
+    last_seen = _to_stix_ts(campaign.get("last_seen"), None)
+    campaign_stix_id = _stix_id("campaign", campaign["id"])
+    obj: dict = {
+        "type": "campaign",
+        "spec_version": _SPEC_VERSION,
+        "id": campaign_stix_id,
+        "created": first_seen,
+        "modified": last_seen or first_seen,
+        "name": campaign["name"],
+        "first_seen": first_seen,
+        "confidence": _confidence(campaign.get("confidence")),
+        "x_legiontrap_status": campaign.get("status"),
+        "x_legiontrap_reactivation_count": campaign.get("reactivation_count", 0),
+        "x_legiontrap_member_ip_count": campaign.get("member_ip_count", 0),
+    }
+    if last_seen:
+        obj["last_seen"] = last_seen
+    return obj
+
+
+def _build_relationship_sdo(indicator_stix_id: str, campaign_stix_id: str, now: str) -> dict:
+    """Build a STIX 2.1 Relationship SDO: indicator indicates campaign."""
+    rel_key = f"indicates:{indicator_stix_id}:{campaign_stix_id}"
+    return {
+        "type": "relationship",
+        "spec_version": _SPEC_VERSION,
+        "id": _stix_id("relationship", rel_key),
+        "created": now,
+        "modified": now,
+        "relationship_type": "indicates",
+        "source_ref": indicator_stix_id,
+        "target_ref": campaign_stix_id,
+    }
+
+
+def build_stix_bundle(
+    ips: list[dict],
+    campaigns: list[dict] | None = None,
+    ip_campaign_map: dict[str, str] | None = None,
+) -> dict:
+    """
+    Build a STIX 2.1 bundle from IP intelligence records and optional campaign data.
+
+    ips records are expected to contain:
         ip              (str)              — IPv4 address
         first_seen      (str | None)       — ISO timestamp
         last_seen       (str | None)       — ISO timestamp
@@ -87,13 +142,20 @@ def build_stix_bundle(ips: list[dict]) -> dict:
         reputation_score (float | None)   — 0.0–1.0 heuristic score
         tags            (list[str] | None) — behavioural tag list
 
+    campaigns (optional) — list of campaign dicts from get_campaigns_for_export().
+    ip_campaign_map (optional) — {source_ip: campaign_id} from get_campaign_member_ip_map().
+      When both are provided, Campaign SDOs and Relationship SDOs are added to the bundle.
+
     Returns a STIX 2.1 Bundle dict. Caller serialises with json.dumps().
 
-    Deterministic IDs: the same IP address always produces the same object IDs,
+    Deterministic IDs: the same IP or campaign always produces the same object IDs
     regardless of when or how many times the bundle is generated.
     """
     now = _now_iso()
     objects: list[dict] = []
+
+    # Track indicator IDs built in this export for relationship linking.
+    ip_to_indicator_id: dict[str, str] = {}
 
     for record in ips:
         ip = record.get("ip")
@@ -105,6 +167,9 @@ def build_stix_bundle(ips: list[dict]) -> dict:
         tags = record.get("tags") or []
         score = record.get("reputation_score")
         event_count = record.get("event_count") or 0
+
+        indicator_id = _stix_id("indicator", ip)
+        ip_to_indicator_id[ip] = indicator_id
 
         # IPv4-Addr SCO — the network observable
         ipv4_obj: dict = {
@@ -118,7 +183,7 @@ def build_stix_bundle(ips: list[dict]) -> dict:
         indicator: dict = {
             "type": "indicator",
             "spec_version": _SPEC_VERSION,
-            "id": _stix_id("indicator", ip),
+            "id": indicator_id,
             "created": first_seen,
             "modified": last_seen or first_seen,
             "name": f"Malicious IP: {ip}",
@@ -144,6 +209,28 @@ def build_stix_bundle(ips: list[dict]) -> dict:
 
         objects.append(ipv4_obj)
         objects.append(indicator)
+
+    # Campaign SDOs — one per non-historical campaign.
+    campaign_stix_ids: dict[str, str] = {}
+    if campaigns:
+        for campaign in campaigns:
+            cid = campaign.get("id")
+            if not cid:
+                continue
+            campaign_sdo = _build_campaign_sdo(campaign, now)
+            campaign_stix_ids[cid] = campaign_sdo["id"]
+            objects.append(campaign_sdo)
+
+    # Relationship SDOs — "indicator indicates campaign" for IPs in this export.
+    if ip_campaign_map and campaign_stix_ids:
+        for ip, indicator_id in ip_to_indicator_id.items():
+            legiontrap_campaign_id = ip_campaign_map.get(ip)
+            if legiontrap_campaign_id is None:
+                continue
+            campaign_stix_id = campaign_stix_ids.get(legiontrap_campaign_id)
+            if campaign_stix_id is None:
+                continue
+            objects.append(_build_relationship_sdo(indicator_id, campaign_stix_id, now))
 
     return {
         "type": "bundle",

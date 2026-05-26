@@ -361,6 +361,43 @@ class CampaignRepository(RepositoryBase):
             for r in rows
         ]
 
+    def get_campaigns_for_export(self) -> list[dict[str, Any]]:
+        """Return non-historical campaigns for STIX export (active/dormant/reactivated)."""
+        rows = self._session.execute(
+            text("""
+                SELECT id, name, status, confidence,
+                       first_seen, last_seen, reactivation_count, member_ip_count
+                FROM campaigns
+                WHERE status IN ('active', 'dormant', 'reactivated')
+                ORDER BY last_seen DESC
+            """),
+        ).fetchall()
+        return [
+            {
+                "id": r[0],
+                "name": r[1],
+                "status": r[2],
+                "confidence": r[3],
+                "first_seen": r[4],
+                "last_seen": r[5],
+                "reactivation_count": r[6],
+                "member_ip_count": r[7],
+            }
+            for r in rows
+        ]
+
+    def get_campaign_member_ip_map(self) -> dict[str, str]:
+        """Return {source_ip: campaign_id} for all members of non-historical campaigns."""
+        rows = self._session.execute(
+            text("""
+                SELECT cm.source_ip, cm.campaign_id
+                FROM campaign_members cm
+                JOIN campaigns c ON c.id = cm.campaign_id
+                WHERE c.status IN ('active', 'dormant', 'reactivated')
+            """),
+        ).fetchall()
+        return {r[0]: r[1] for r in rows}
+
     def get_campaign_observations(self, campaign_id: str) -> list[dict[str, Any]]:
         """Return all observations for a campaign, ordered by observed_at."""
         rows = self._session.execute(
