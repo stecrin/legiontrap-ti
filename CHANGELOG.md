@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.21.0](https://github.com/stecrin/legiontrap-ti/compare/v0.20.0...v0.21.0) (2026-05-26)
+
+### Features
+
+* **ai:** add multi-campaign brief endpoint ([7633300](https://github.com/stecrin/legiontrap-ti/commit/76333008340566f488389ebf279a566ffa10ffa9))
+
 ## [0.20.0](https://github.com/stecrin/legiontrap-ti/compare/v0.19.0...v0.20.0) (2026-05-26)
 
 ### Features
