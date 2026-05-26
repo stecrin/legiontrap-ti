@@ -22,12 +22,13 @@ import json
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
 from app.db.connection import get_session
 from app.db.repository import EventRepository
+from app.intelligence.tasks import schedule_fingerprint_if_not_pending
 from app.limiter import limiter
 from app.schemas.models import (
     EnrichedEvent,
@@ -60,6 +61,7 @@ def _require_api_key(
 def ingest_events(
     request: Request,
     body: IngestRequest,
+    background_tasks: BackgroundTasks,
     _: None = Depends(_require_api_key),
 ) -> IngestReceipt:
     """
@@ -79,6 +81,7 @@ def ingest_events(
     ingested_at = datetime.now(UTC)
     accepted = rejected = duplicate = 0
     errors: list[IngestError] = []
+    accepted_ips: set[str] = set()  # unique IPs from accepted events this batch
 
     with get_session() as session:
         repo = EventRepository(session)
@@ -166,6 +169,8 @@ def ingest_events(
                     score_sp.rollback()
 
             accepted += 1
+            if src_ip:
+                accepted_ips.add(src_ip)
 
     # Stage 6: Audit log — best-effort, isolated session (never fails ingest).
     try:
@@ -183,6 +188,11 @@ def ingest_events(
             )
     except Exception:
         pass
+
+    # Stage 7: Schedule fingerprint recomputation for each unique accepted IP.
+    # Runs after the ingest session is committed; never blocks the response.
+    for ip in accepted_ips:
+        schedule_fingerprint_if_not_pending(ip, background_tasks)
 
     return IngestReceipt(
         batch_id=batch_id,
