@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.16.0](https://github.com/stecrin/legiontrap-ti/compare/v0.15.0...v0.16.0) (2026-05-26)
+
+### Features
+
+* **campaigns:** add analytics population and configurable thresholds ([e986759](https://github.com/stecrin/legiontrap-ti/commit/e986759c5b0bcc1609a0d209cdb24360c8042c66))
+
 ## [0.15.0](https://github.com/stecrin/legiontrap-ti/compare/v0.14.0...v0.15.0) (2026-05-26)
 
 ### Features
