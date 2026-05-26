@@ -34,6 +34,16 @@ class Settings(BaseSettings):
     CAMPAIGN_ACTIVE_DAYS: int = 7
     CAMPAIGN_DORMANT_DAYS: int = 90
 
+    # ---------------------------------------------------------------------------
+    # AI backend configuration (Phase 5)
+    # ---------------------------------------------------------------------------
+    AI_BACKEND: str = "none"  # none | ollama | claude
+    ANTHROPIC_API_KEY: str | None = None
+    OLLAMA_HOST: str = "http://localhost:11434"
+    AI_MODEL: str | None = None
+    AI_TIMEOUT_SECONDS: int = 30
+    AI_MAX_REQUESTS_PER_MINUTE: int = 10
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @field_validator(
@@ -64,6 +74,22 @@ class Settings(BaseSettings):
     @field_validator("MIN_EVENTS_FOR_CLUSTERING", "CAMPAIGN_ACTIVE_DAYS", "CAMPAIGN_DORMANT_DAYS")
     @classmethod
     def positive_int(cls, v: int) -> int:
+        if v < 1:
+            raise ValueError(f"Value must be >= 1; got {v}")
+        return v
+
+    @field_validator("AI_BACKEND")
+    @classmethod
+    def ai_backend_valid(cls, v: str) -> str:
+        allowed = {"none", "ollama", "claude"}
+        normalized = v.lower()
+        if normalized not in allowed:
+            raise ValueError(f"AI_BACKEND must be one of {sorted(allowed)}; got {v!r}")
+        return normalized
+
+    @field_validator("AI_TIMEOUT_SECONDS", "AI_MAX_REQUESTS_PER_MINUTE")
+    @classmethod
+    def positive_ai_int(cls, v: int) -> int:
         if v < 1:
             raise ValueError(f"Value must be >= 1; got {v}")
         return v
