@@ -21,7 +21,7 @@ export default function RecentEvents({ dark }) {
   const [loading, setLoading] = useState(true);   // table loading state (first render)
   const [lastUpdated, setLastUpdated] = useState(null); // last successful fetch time
   const [online, setOnline] = useState(true);     // backend reachability
-  const [tick, setTick] = useState(0);            // forces "Updated Xs ago" re-render
+  const [_tick, setTick] = useState(0);           // forces "Updated Xs ago" re-render
   const timerRef = useRef(null);                  // polling interval handle
 
   // --- helper to build stable unique keys ------------------------------------
