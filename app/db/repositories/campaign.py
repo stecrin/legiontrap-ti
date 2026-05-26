@@ -304,6 +304,63 @@ class CampaignRepository(RepositoryBase):
                 },
             )
 
+    def list_campaigns(self, limit: int = 100) -> list[dict[str, Any]]:
+        """Return campaigns sorted by last_seen DESC."""
+        rows = self._session.execute(
+            text("""
+                SELECT id, name, status, confidence,
+                       first_seen, last_seen, dormant_since,
+                       reactivation_count, member_ip_count,
+                       attack_tactic_dist, top_target_ports, notes,
+                       created_at, updated_at
+                FROM campaigns
+                ORDER BY last_seen DESC
+                LIMIT :limit
+            """),
+            {"limit": limit},
+        ).fetchall()
+        return [
+            {
+                "id": r[0],
+                "name": r[1],
+                "status": r[2],
+                "confidence": r[3],
+                "first_seen": r[4],
+                "last_seen": r[5],
+                "dormant_since": r[6],
+                "reactivation_count": r[7],
+                "member_ip_count": r[8],
+                "attack_tactic_dist": r[9],
+                "top_target_ports": r[10],
+                "notes": r[11],
+                "created_at": r[12],
+                "updated_at": r[13],
+            }
+            for r in rows
+        ]
+
+    def get_campaign_members(self, campaign_id: str) -> list[dict[str, Any]]:
+        """Return all members of a campaign ordered by last_active DESC."""
+        rows = self._session.execute(
+            text("""
+                SELECT campaign_id, source_ip, confidence, added_at, last_active
+                FROM campaign_members
+                WHERE campaign_id = :campaign_id
+                ORDER BY last_active DESC
+            """),
+            {"campaign_id": campaign_id},
+        ).fetchall()
+        return [
+            {
+                "campaign_id": r[0],
+                "source_ip": r[1],
+                "confidence": r[2],
+                "added_at": r[3],
+                "last_active": r[4],
+            }
+            for r in rows
+        ]
+
     def get_campaign_observations(self, campaign_id: str) -> list[dict[str, Any]]:
         """Return all observations for a campaign, ordered by observed_at."""
         rows = self._session.execute(

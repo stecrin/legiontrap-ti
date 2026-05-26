@@ -25,6 +25,7 @@ from app.routers import (
     auth_router,  # Login & JWT auth
     events,  # Event listing endpoint
 )
+from app.routers.campaigns import router as campaigns_router  # GET /api/campaigns/*
 from app.routers.exports import router as exports_router  # GET /api/exports/*
 from app.routers.ingest import router as ingest_router  # POST /api/ingest
 from app.routers.intelligence import router as intelligence_router  # GET /api/intelligence/*
@@ -56,6 +57,7 @@ app.add_middleware(
 app.include_router(auth_router.router)  # /api/login
 app.include_router(ingest_router)  # /api/ingest
 app.include_router(intelligence_router)  # /api/intelligence/*
+app.include_router(campaigns_router)  # /api/campaigns/*
 app.include_router(exports_router)  # /api/exports/*
 app.include_router(iocs_pf_router, prefix="/api/iocs")  # pf.conf generator
 app.include_router(stats_router)  # /api/stats

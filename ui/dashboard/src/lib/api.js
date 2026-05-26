@@ -33,3 +33,15 @@ export async function getTopASNs(ts = Date.now()) {
   if (!r.ok) throw new Error(`top-asns ${r.status}`);
   return r.json();
 }
+
+export async function getCampaigns(ts = Date.now()) {
+  const r = await fetch(`/api/campaigns?ts=${ts}`, { headers: { 'x-api-key': 'dev-123' } });
+  if (!r.ok) throw new Error(`campaigns ${r.status}`);
+  return r.json();
+}
+
+export async function getCampaignDetail(campaignId) {
+  const r = await fetch(`/api/campaigns/${encodeURIComponent(campaignId)}`, { headers: { 'x-api-key': 'dev-123' } });
+  if (!r.ok) throw new Error(`campaigns/${campaignId} ${r.status}`);
+  return r.json();
+}
