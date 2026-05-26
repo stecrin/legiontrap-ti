@@ -2,7 +2,7 @@
 
 **Document type:** Technical architecture reference
 **Audience:** Engineers, autonomous agents, contributors
-**Last reviewed:** 2026-05-26
+**Last reviewed:** 2026-05-26 (Phase 5)
 
 ---
 
@@ -25,7 +25,8 @@ Browser (React 19 + Vite)
   │     ├── GET /api/intelligence/ips           → Top Source IPs panel
   │     ├── GET /api/intelligence/top-countries → Top Countries panel
   │     ├── GET /api/intelligence/top-asns      → Top ASNs panel
-  │     └── GET /api/campaigns                  → Campaign Intelligence panel
+  │     ├── GET /api/campaigns                  → Campaign Intelligence panel
+  │     └── POST /api/campaigns/{id}/summary    → CampaignAiPanel (operator-triggered)
   │
   └── Auto-refresh: 10–30s interval per component
 
@@ -40,7 +41,16 @@ FastAPI Backend (app/)
   │     ├── iocs_pf.py          GET /api/iocs/pf.conf, /api/iocs/ufw.txt
   │     ├── intelligence.py     GET /api/intelligence/* (top IPs, countries, ASNs, IP detail)
   │     ├── exports.py          GET /api/exports/attack-navigator, /api/exports/stix
-  │     └── campaigns.py        GET /api/campaigns, /api/campaigns/{id}, /api/campaigns/{id}/observations
+  │     ├── campaigns.py        GET /api/campaigns, /api/campaigns/{id}, /api/campaigns/{id}/observations
+  │     └── analyze.py          POST /api/campaigns/{id}/summary, POST /api/campaigns/brief
+  ├── app/ai/
+  │     ├── __init__.py          Public API — re-exports all AI layer symbols
+  │     ├── backend.py           AIBackend ABC + DisabledAIBackend, MockAIBackend,
+  │     │                        OllamaAIBackend, ClaudeAIBackend, get_ai_backend()
+  │     ├── prompt_builder.py    build_campaign_summary_prompt(), build_brief_prompt(),
+  │     │                        format_fingerprint_summary(); SYSTEM_PROMPT, BRIEF_SYSTEM_PROMPT
+  │     └── safety.py            sanitize_field(), validate_ai_output(),
+  │                              contains_ip_pattern(), redact_ip_patterns()
   ├── app/intelligence/
   │     ├── fingerprint.py       build_behavioral_fingerprint() — 5-dimension feature extraction
   │     └── clustering.py        assign_or_create_campaign() — similarity clustering, reactivation detection
@@ -146,14 +156,15 @@ ui/dashboard/
     pages/
       Login.jsx          Login form → POST /api/login → stores JWT in localStorage
     components/
-      EventTrends.jsx    Recharts line chart of events over time
-      RecentEvents.jsx   Tabular view of most recent events
+      EventTrends.jsx      Recharts line chart of events over time
+      RecentEvents.jsx     Tabular view of most recent events
       IntelligenceIPs.jsx  Top Source IPs table with expandable IP detail rows
-      TopCountries.jsx   Top Countries panel (country, event count, unique IPs)
-      TopASNs.jsx        Top ASNs panel (ASN, organization, event count, unique IPs)
-      Campaigns.jsx      Campaign Intelligence panel (lifecycle badges, confidence bars, expandable detail)
+      TopCountries.jsx     Top Countries panel (country, event count, unique IPs)
+      TopASNs.jsx          Top ASNs panel (ASN, organization, event count, unique IPs)
+      Campaigns.jsx        Campaign Intelligence panel (lifecycle badges, confidence bars, expandable detail + AI panel)
+      CampaignAiPanel.jsx  Operator-triggered AI summary panel; warning always visible; never auto-generates
     lib/
-      api.js             Authenticated fetch helpers (stats, events, intelligence, exports, campaigns)
+      api.js               Authenticated fetch helpers (stats, events, intelligence, exports, campaigns, AI summary)
     utils/
       format.js          Date/time formatting utilities
     index.css            Global styles + dark/light mode variables
@@ -201,17 +212,54 @@ For high-volume distributed deployments, an event streaming layer (Redis Streams
 
 ---
 
-## AI Reasoning Architecture Direction
+## AI Reasoning Architecture (Phase 5)
 
-See [AI_ROADMAP.md](AI_ROADMAP.md) for the full AI integration plan. The architectural requirements it places on the data layer:
+Phase 5 added the `app/ai/` module as a read-only reasoning layer over the existing campaign data model. The AI layer is strictly additive: removing it leaves the rest of the system fully functional.
 
-1. **Queryable event store:** AI reasoning requires the ability to retrieve events by time window, source IP, event type, ASN, or campaign cluster. This requires SQL, not JSONL scan.
+### AI request flow
 
-2. **Structured event schema:** LLM prompting is most effective when the data has consistent, typed fields. Untyped dicts produce inconsistent results.
+```
+Operator (dashboard or API client)
+    │
+    │  POST /api/campaigns/{id}/summary  or  POST /api/campaigns/brief
+    ▼
+app/routers/analyze.py
+    │  Privacy check (PRIVACY_MODE + AI_BACKEND=claude → 422)
+    │  Read-only DB fetch via EventRepository (campaign, fingerprint, observations)
+    │
+    ▼
+app/ai/prompt_builder.py
+    │  Field sanitization via app/ai/safety.py
+    │  Build <data> or <campaigns> XML block (source IPs never included)
+    │
+    ▼
+app/ai/backend.py  (get_ai_backend())
+    │  DisabledAIBackend → AIDisabledError → 503
+    │  OllamaAIBackend   → POST http://OLLAMA_HOST/api/generate
+    │  ClaudeAIBackend   → anthropic SDK → Anthropic API
+    │
+    ▼
+app/ai/safety.py  (validate_ai_output)
+    │  Reject if empty, contains IP pattern, or exceeds length limit
+    │
+    ▼
+JSON response envelope (no DB writes at any step)
+```
 
-3. **Behavioral fingerprint storage:** Campaign recognition requires a separate table storing derived behavioral signatures, not just raw events.
+### AI layer isolation invariants
 
-4. **Async processing:** AI analysis must run asynchronously to avoid blocking the API. A background task queue (FastAPI `BackgroundTasks` initially, Celery or asyncio worker later) is required.
+- The AI layer never calls `get_session()` for writes. No AI code path modifies the database.
+- The ingest path (`app/routers/ingest.py`, `app/intelligence/`) has no imports from `app/ai/`.
+- `app/intelligence/clustering.py` is immutable from the AI layer's perspective. AI may describe similarity scores; it cannot change them.
+- `MockAIBackend` exists exclusively for test injection. It must not appear in production code paths.
+
+### Phase 6 AI infrastructure prerequisites
+
+1. **Async processing:** AI analysis must eventually run asynchronously to avoid blocking the API under load. A background task queue (FastAPI `BackgroundTasks` initially, Celery or asyncio worker later) is required.
+2. **Output persistence:** A new `ai_outputs` table is needed before output history, audit requirements, or operator recall are implementable.
+3. **AI call audit logging:** Every external AI API call should be logged to `audit_log` with timestamp and payload byte count.
+
+See [AI_ROADMAP.md](AI_ROADMAP.md) for the broader AI integration strategy and [PHASE_5_CLOSEOUT.md](PHASE_5_CLOSEOUT.md) for the Phase 5 delivery record.
 
 ---
 

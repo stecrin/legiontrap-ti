@@ -25,9 +25,9 @@
 | **Phase 1** | SQLite Storage Foundation | ✅ Complete |
 | **Phase 2** | HTTP Ingestion API | ✅ Complete |
 | **Phase 3** | GeoIP Enrichment & Intelligence Exports | ✅ Complete |
-| **Phase 4** | Campaign Intelligence & Export Maturity | ⏳ Next |
-| **Phase 5** | AI Integration | ⏳ Planned |
-| **Phase 6** | Behavioral Memory & Campaign Tracking | ⏳ Planned |
+| **Phase 4** | Campaign Intelligence & Export Maturity | ✅ Complete |
+| **Phase 5** | AI Integration | ✅ Complete |
+| **Phase 6** | Async AI, Output Persistence & Brief UI | ⏳ Next |
 | **Phase 7** | Privacy-Preserving Federation | ⏳ Planned |
 
 Each phase builds on the previous. See [docs/ROADMAP.md](docs/ROADMAP.md) for full detail.
@@ -141,6 +141,10 @@ curl -s -H "$H" http://127.0.0.1:8088/api/iocs/pf.conf
 | GET    | `/api/intelligence/top-asns`      | Yes     | Top ASNs by event count                  |
 | GET    | `/api/exports/attack-navigator`   | Yes     | ATT&CK Navigator layer JSON              |
 | GET    | `/api/exports/stix`               | Yes     | STIX 2.1 Indicator bundle (blocked when `PRIVACY_MODE=on`) |
+| GET    | `/api/campaigns`                  | Yes     | Campaign list (paginated, sorted by last_seen DESC) |
+| GET    | `/api/campaigns/{id}`             | Yes     | Campaign detail with members and observations |
+| POST   | `/api/campaigns/{id}/summary`     | Yes     | AI-assisted campaign summary (operator-triggered) |
+| POST   | `/api/campaigns/brief`            | Yes     | AI-assisted multi-campaign threat brief  |
 
 **Auth options:**
 - API key header: `x-api-key: <API_KEY>`
@@ -187,6 +191,11 @@ make db-validate
 | `CORS_ORIGINS`     | No       | Comma-separated allowed origins (default: localhost variants).   |
 | `DB_PATH`          | No       | SQLite file path (default: `storage/legiontrap.db`).             |
 | `LOGIN_RATE_LIMIT` | No       | Rate limit for `/api/login` (default: `5/minute`).               |
+| `AI_BACKEND`       | No       | AI inference backend: `none` (default), `claude`, or `ollama`.   |
+| `ANTHROPIC_API_KEY`| No       | Required when `AI_BACKEND=claude`.                               |
+| `AI_MODEL`         | No       | Model name override for Claude or Ollama (sensible defaults apply). |
+| `OLLAMA_HOST`      | No       | Ollama API endpoint (default: `http://localhost:11434`).         |
+| `AI_TIMEOUT_SECONDS` | No     | Timeout for AI backend requests in seconds (default: 30).        |
 
 Copy `.env.example` for a template with all required variables.
 

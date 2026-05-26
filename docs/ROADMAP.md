@@ -2,7 +2,7 @@
 
 **Document type:** Phased development plan and architectural evolution order
 **Audience:** Engineers, autonomous agents, contributors
-**Last reviewed:** 2026-05-25
+**Last reviewed:** 2026-05-26
 
 ---
 
@@ -14,7 +14,7 @@ The order of this roadmap is not arbitrary. Each phase is a prerequisite for the
 
 ---
 
-## Current State (as of Phase 4)
+## Current State (as of Phase 5)
 
 | Capability | Status | Notes |
 |---|---|---|
@@ -29,13 +29,20 @@ The order of this roadmap is not arbitrary. Each phase is a prerequisite for the
 | JWT + API key auth | Working | bcrypt password verification; hardcoded defaults removed |
 | Audit logging | Working | `audit_log` table; one row per ingest batch |
 | Data retention | Working | `delete_events_before()` + `make db-prune` |
-| React dashboard | Working | KPI cards, event chart, recent events, intelligence panels + campaign panel |
+| React dashboard | Working | KPI cards, event chart, recent events, intelligence panels, campaign panel + AI summary panel |
 | CI/CD | Working | Lint, test, semantic release; Black 26.5.1 pinned |
 | Docker Compose | Working | Edge deployment profile |
 | Behavioral fingerprinting | Working | 5-dimension behavioral fingerprint per source IP; stored in `behavioral_fingerprints` |
 | Campaign clustering | Working | Deterministic similarity clustering; reactivation detection; `app/intelligence/clustering.py` |
+| Campaign lifecycle | Working | Automatic active→dormant→historical transitions; manual trigger via `POST /api/admin/run-lifecycle-job` |
+| Campaign analytics | Working | `attack_tactic_dist` and `top_target_ports` populated per campaign by analytics job |
+| Configurable weights | Working | Similarity weights and lifecycle thresholds are environment variables with sane defaults |
 | Campaign API | Working | `GET /api/campaigns`, `GET /api/campaigns/{id}`, `GET /api/campaigns/{id}/observations` |
-| AI integration | None | Planned Phase 5 |
+| AI backend abstraction | Working | `DisabledAIBackend` (default), `OllamaAIBackend`, `ClaudeAIBackend`; swapped via `AI_BACKEND` env var |
+| AI safety layer | Working | Field sanitization, injection pattern detection, IP-in-output rejection, length limits |
+| Campaign AI summary | Working | `POST /api/campaigns/{id}/summary`; operator-triggered; no persistence |
+| Multi-campaign brief | Working | `POST /api/campaigns/brief`; operator-triggered; no persistence |
+| Dashboard AI panel | Working | `CampaignAiPanel` — operator-triggered, plain text, warning always visible |
 
 ---
 
@@ -161,22 +168,23 @@ Phase 3 delivered the foundation: enriched events, a queryable intelligence laye
 
 ---
 
-## Phase 5 — First AI Integration
+## Phase 5 — First AI Integration — **Complete**
 
 **Duration:** 2–4 weeks
-**Goal:** Prove the AI reasoning concept with a minimal viable implementation. A single endpoint that produces natural-language intelligence from real event data.
-
-This is the proof-of-concept that validates the entire strategic direction. It must be built on the Phase 1–3 foundation (queryable storage, enriched events) to be meaningful.
+**Goal:** Prove the AI reasoning concept with a minimal viable implementation. Operator-triggered natural-language intelligence from real campaign data.
 
 | Task | Notes |
 |---|---|
-| `POST /api/analyze` | Takes a time window or event set; returns narrative threat brief |
-| Claude API integration | Use structured prompting over enriched event data |
-| Campaign detection (simple clustering) | Group events by source ASN, timing, port sequence |
-| Natural-language brief generation | "In the last 24 hours, 3 actors probed SSH from ASN 12345..." |
-| Local LLM option | Ollama integration for air-gapped deployments |
+| Campaign lifecycle maintenance | Automatic status transitions; manual trigger endpoint |
+| Campaign analytics population | `attack_tactic_dist` and `top_target_ports` per campaign |
+| Configurable similarity weights | Environment-variable weights and thresholds |
+| AI backend abstraction | Claude, Ollama, and disabled backends behind a uniform interface |
+| Prompt builder and safety layer | Field sanitization, injection detection, IP-in-output rejection |
+| `POST /api/campaigns/{id}/summary` | Operator-triggered single campaign AI summary |
+| Dashboard AI summary panel | `CampaignAiPanel` — never auto-generates; warning always visible |
+| `POST /api/campaigns/brief` | Operator-triggered multi-campaign threat brief |
 
-**Exit criteria:** An operator can submit a time window and receive a plain-language description of observed attack patterns. The brief is accurate and useful, not generic.
+**Delivered:** AI-assisted natural-language campaign summaries and threat briefs. Every AI output is traceable to specific deterministic records. AI is additive — the system functions fully without it. See [PHASE_5_CLOSEOUT.md](PHASE_5_CLOSEOUT.md) for full delivery record, safety boundaries, known limitations, and deferred items.
 
 ---
 
