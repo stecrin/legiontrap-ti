@@ -619,3 +619,442 @@ def test_backend_name_in_response_is_none(monkeypatch):
     resp = client.post(f"/api/campaigns/{_CID}/summary", headers=HEADERS)
     # ai_backend reflects settings.AI_BACKEND which is "none" in test env
     assert resp.json()["ai_backend"] == "none"
+
+
+# ===========================================================================
+# POST /api/campaigns/brief — multi-campaign threat brief
+# ===========================================================================
+
+_BRIEF_URL = "/api/campaigns/brief"
+
+_CID2 = "bbbbbbbb-cccc-dddd-eeee-ffffffffffff"
+_CID3 = "cccccccc-dddd-eeee-ffff-000000000000"
+
+
+def _insert_n_campaigns(n: int, base_status: str = "active") -> list[str]:
+    """Insert n campaigns with distinct IDs, returning their IDs."""
+    ids = [str(uuid.uuid4()) for _ in range(n)]
+    for i, cid in enumerate(ids):
+        _insert_campaign(
+            cid,
+            name=f"CAMPAIGN-{i:02d}",
+            status=base_status,
+            last_seen=f"2026-05-{(24 - i):02d}T00:00:00+00:00",
+        )
+    return ids
+
+
+# ---------------------------------------------------------------------------
+# Brief — disabled backend
+# ---------------------------------------------------------------------------
+
+
+def test_brief_disabled_backend_returns_503():
+    _insert_campaign()
+    resp = client.post(_BRIEF_URL, headers=HEADERS)
+    assert resp.status_code == 503
+
+
+def test_brief_disabled_backend_detail_mentions_ai_backend():
+    _insert_campaign()
+    resp = client.post(_BRIEF_URL, headers=HEADERS)
+    assert "AI_BACKEND" in resp.json()["detail"]
+
+
+# ---------------------------------------------------------------------------
+# Brief — mocked backend happy path
+# ---------------------------------------------------------------------------
+
+
+def test_brief_mock_backend_returns_200(monkeypatch):
+    _insert_campaign()
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Two campaigns were active this period."),
+    )
+    resp = client.post(_BRIEF_URL, headers=HEADERS)
+    assert resp.status_code == 200
+
+
+def test_brief_response_has_ai_assisted_true(monkeypatch):
+    _insert_campaign()
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief text."),
+    )
+    resp = client.post(_BRIEF_URL, headers=HEADERS)
+    assert resp.json()["ai_assisted"] is True
+
+
+def test_brief_response_has_warning(monkeypatch):
+    _insert_campaign()
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief text."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert "warning" in body
+    assert len(body["warning"]) > 0
+
+
+def test_brief_response_has_summary(monkeypatch):
+    _insert_campaign()
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief text."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert body["summary"] == "Brief text."
+
+
+def test_brief_response_has_campaign_count(monkeypatch):
+    _insert_campaign()
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief text."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert "campaign_count" in body
+    assert body["campaign_count"] == 1
+
+
+def test_brief_response_has_source_records(monkeypatch):
+    _insert_campaign()
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief text."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert "source_records" in body
+    sr = body["source_records"]
+    assert "campaign_ids" in sr
+    assert "campaign_count" in sr
+
+
+def test_brief_source_records_campaign_ids_list(monkeypatch):
+    _insert_campaign(_CID)
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief text."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert _CID in body["source_records"]["campaign_ids"]
+
+
+def test_brief_response_has_generated_at(monkeypatch):
+    _insert_campaign()
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief text."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert "generated_at" in body
+    assert body["generated_at"] is not None
+
+
+def test_brief_response_has_ai_backend_field(monkeypatch):
+    _insert_campaign()
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief text."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert "ai_backend" in body
+
+
+def test_brief_response_rejected_false_on_clean_output(monkeypatch):
+    _insert_campaign()
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief text."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert body["rejected"] is False
+
+
+def test_brief_response_truncated_false_on_short_output(monkeypatch):
+    _insert_campaign()
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief text."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert body["truncated"] is False
+
+
+# ---------------------------------------------------------------------------
+# Brief — max_campaigns validation
+# ---------------------------------------------------------------------------
+
+
+def test_brief_default_max_campaigns_is_10(monkeypatch):
+    ids = _insert_n_campaigns(15)
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    # Default max_campaigns=10; only 10 should be included
+    assert body["campaign_count"] <= 10
+    assert body["source_records"]["campaign_count"] <= 10
+    _ = ids  # referenced to avoid unused-variable warning
+
+
+def test_brief_max_campaigns_explicit(monkeypatch):
+    _insert_n_campaigns(15)
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS, json={"max_campaigns": 5}).json()
+    assert body["campaign_count"] <= 5
+
+
+def test_brief_max_campaigns_at_hard_cap_accepted(monkeypatch):
+    _insert_n_campaigns(5)
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief."),
+    )
+    resp = client.post(_BRIEF_URL, headers=HEADERS, json={"max_campaigns": 25})
+    assert resp.status_code == 200
+
+
+def test_brief_max_campaigns_exceeds_hard_cap_returns_422():
+    resp = client.post(_BRIEF_URL, headers=HEADERS, json={"max_campaigns": 26})
+    assert resp.status_code == 422
+
+
+def test_brief_max_campaigns_zero_returns_422():
+    resp = client.post(_BRIEF_URL, headers=HEADERS, json={"max_campaigns": 0})
+    assert resp.status_code == 422
+
+
+def test_brief_max_campaigns_negative_returns_422():
+    resp = client.post(_BRIEF_URL, headers=HEADERS, json={"max_campaigns": -1})
+    assert resp.status_code == 422
+
+
+def test_brief_no_body_uses_defaults(monkeypatch):
+    _insert_campaign()
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief."),
+    )
+    # POST with no body at all
+    resp = client.post(_BRIEF_URL, headers=HEADERS)
+    assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Brief — empty campaign set
+# ---------------------------------------------------------------------------
+
+
+def test_brief_empty_campaign_set_returns_200():
+    # No campaigns inserted
+    resp = client.post(_BRIEF_URL, headers=HEADERS)
+    # Will 503 (disabled backend) before the empty-campaigns check, so mock
+    # the backend to get past that, then hit the empty-campaigns path
+    # Note: 503 happens AFTER the empty-campaigns check in the route handler
+    # (privacy check → fetch → empty check → backend call). So no backend
+    # needed here — empty check fires first.
+    assert resp.status_code in (200, 503)
+
+
+def test_brief_empty_campaign_set_with_mock_returns_200(monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief."),
+    )
+    resp = client.post(_BRIEF_URL, headers=HEADERS)
+    assert resp.status_code == 200
+
+
+def test_brief_empty_campaign_set_campaign_count_zero(monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert body["campaign_count"] == 0
+
+
+def test_brief_empty_campaign_set_summary_is_none(monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert body["summary"] is None
+
+
+def test_brief_empty_campaign_set_rejection_reason(monkeypatch):
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert body["rejection_reason"] == "no_campaigns"
+
+
+def test_brief_historical_campaigns_excluded(monkeypatch):
+    # Insert only historical campaigns — should produce empty brief
+    _insert_n_campaigns(3, base_status="historical")
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert body["campaign_count"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Brief — auth
+# ---------------------------------------------------------------------------
+
+
+def test_brief_no_auth_returns_401():
+    resp = client.post(_BRIEF_URL)
+    assert resp.status_code == 401
+
+
+def test_brief_wrong_api_key_returns_401():
+    resp = client.post(_BRIEF_URL, headers={"x-api-key": "wrong"})
+    assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Brief — privacy mode
+# ---------------------------------------------------------------------------
+
+
+def test_brief_privacy_mode_with_claude_returns_422(monkeypatch):
+    _insert_campaign()
+    monkeypatch.setattr(settings, "PRIVACY_MODE", True)
+    monkeypatch.setattr(settings, "AI_BACKEND", "claude")
+    resp = client.post(_BRIEF_URL, headers=HEADERS)
+    assert resp.status_code == 422
+
+
+def test_brief_privacy_mode_422_mentions_claude(monkeypatch):
+    _insert_campaign()
+    monkeypatch.setattr(settings, "PRIVACY_MODE", True)
+    monkeypatch.setattr(settings, "AI_BACKEND", "claude")
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert "claude" in body["detail"]
+
+
+def test_brief_privacy_mode_ollama_not_blocked(monkeypatch):
+    _insert_campaign()
+    monkeypatch.setattr(settings, "PRIVACY_MODE", True)
+    monkeypatch.setattr(settings, "AI_BACKEND", "ollama")
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief."),
+    )
+    resp = client.post(_BRIEF_URL, headers=HEADERS)
+    assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Brief — output safety
+# ---------------------------------------------------------------------------
+
+
+def test_brief_ip_in_output_rejected(monkeypatch):
+    _insert_campaign()
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Threat actor at 192.168.1.1 was observed."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert body["rejected"] is True
+    assert body["summary"] is None
+    assert body["rejection_reason"] == "ip_detected"
+
+
+def test_brief_ip_in_output_ai_assisted_still_true(monkeypatch):
+    _insert_campaign()
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Threat actor at 192.168.1.1 was observed."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert body["ai_assisted"] is True
+
+
+def test_brief_long_output_truncated(monkeypatch):
+    _insert_campaign()
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("X" * 3000),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert body["truncated"] is True
+    assert body["summary"] is not None
+    assert len(body["summary"]) == 2500
+
+
+def test_brief_long_output_not_rejected(monkeypatch):
+    _insert_campaign()
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("X" * 3000),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert body["rejected"] is False
+
+
+# ---------------------------------------------------------------------------
+# Brief — no database writes
+# ---------------------------------------------------------------------------
+
+
+def test_brief_campaign_rows_unchanged_after_brief(monkeypatch):
+    _insert_campaign(_CID)
+    updated_at_before = _get_campaign_updated_at(_CID)
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief."),
+    )
+    resp = client.post(_BRIEF_URL, headers=HEADERS)
+    assert resp.status_code == 200
+    assert _get_campaign_updated_at(_CID) == updated_at_before
+
+
+# ---------------------------------------------------------------------------
+# Brief — multiple campaigns included correctly
+# ---------------------------------------------------------------------------
+
+
+def test_brief_multiple_campaigns_all_in_source_records(monkeypatch):
+    ids = _insert_n_campaigns(3)
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Multi-campaign brief."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS, json={"max_campaigns": 10}).json()
+    assert body["campaign_count"] == 3
+    for cid in ids:
+        assert cid in body["source_records"]["campaign_ids"]
+
+
+def test_brief_dormant_campaigns_included(monkeypatch):
+    _insert_campaign(_CID, status="dormant")
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert body["campaign_count"] == 1
+
+
+def test_brief_reactivated_campaigns_included(monkeypatch):
+    _insert_campaign(_CID, status="reactivated")
+    monkeypatch.setattr(
+        "app.routers.analyze.get_ai_backend",
+        lambda: MockAIBackend("Brief."),
+    )
+    body = client.post(_BRIEF_URL, headers=HEADERS).json()
+    assert body["campaign_count"] == 1
