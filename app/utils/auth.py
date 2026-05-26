@@ -48,6 +48,22 @@ def verify_token(token: str) -> dict | None:
         return None
 
 
+def require_api_key(
+    x_api_key: str | None = Header(default=None, alias="x-api-key"),
+):
+    """Accept API key via x-api-key header only. Does not accept JWT.
+
+    Used by admin endpoints that must not be accessible via dashboard sessions.
+    """
+    env_key = os.getenv("API_KEY")
+    if x_api_key and env_key and x_api_key == env_key:
+        return {"auth": "api_key"}
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Missing or invalid API key",
+    )
+
+
 def require_jwt_or_api_key(
     authorization: str | None = Header(default=None, alias="Authorization"),
     x_api_key: str | None = Header(default=None, alias="x-api-key"),

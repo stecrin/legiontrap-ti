@@ -25,6 +25,7 @@ from app.routers import (
     auth_router,  # Login & JWT auth
     events,  # Event listing endpoint
 )
+from app.routers.admin import router as admin_router  # POST /api/admin/*
 from app.routers.campaigns import router as campaigns_router  # GET /api/campaigns/*
 from app.routers.exports import router as exports_router  # GET /api/exports/*
 from app.routers.ingest import router as ingest_router  # POST /api/ingest
@@ -54,6 +55,7 @@ app.add_middleware(
 # --- Register Routers --------------------------------------------------------
 # Each router encapsulates a specific domain of functionality.
 # Prefixes help keep the API structure clean and RESTful.
+app.include_router(admin_router)  # /api/admin/*
 app.include_router(auth_router.router)  # /api/login
 app.include_router(ingest_router)  # /api/ingest
 app.include_router(intelligence_router)  # /api/intelligence/*

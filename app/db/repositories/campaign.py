@@ -398,6 +398,65 @@ class CampaignRepository(RepositoryBase):
         ).fetchall()
         return {r[0]: r[1] for r in rows}
 
+    def transition_active_to_dormant(
+        self,
+        last_seen_cutoff: str,
+        dormant_since: str,
+        updated_at: str,
+    ) -> int:
+        """Move active/reactivated campaigns to dormant.
+
+        Campaigns whose last_seen is older than last_seen_cutoff are transitioned.
+        dormant_since is set to the provided timestamp (typically now).
+
+        Returns the number of rows updated.
+        """
+        result = self._session.execute(
+            text("""
+                UPDATE campaigns
+                SET status = 'dormant',
+                    dormant_since = :dormant_since,
+                    updated_at = :updated_at
+                WHERE status IN ('active', 'reactivated')
+                  AND last_seen < :last_seen_cutoff
+            """),
+            {
+                "last_seen_cutoff": last_seen_cutoff,
+                "dormant_since": dormant_since,
+                "updated_at": updated_at,
+            },
+        )
+        return result.rowcount
+
+    def transition_dormant_to_historical(
+        self,
+        dormant_since_cutoff: str,
+        updated_at: str,
+    ) -> int:
+        """Move dormant campaigns to historical.
+
+        Campaigns that have had dormant_since set for longer than
+        dormant_since_cutoff are transitioned. dormant_since is preserved
+        to retain the record of when the campaign entered dormancy.
+
+        Returns the number of rows updated.
+        """
+        result = self._session.execute(
+            text("""
+                UPDATE campaigns
+                SET status = 'historical',
+                    updated_at = :updated_at
+                WHERE status = 'dormant'
+                  AND dormant_since IS NOT NULL
+                  AND dormant_since < :dormant_since_cutoff
+            """),
+            {
+                "dormant_since_cutoff": dormant_since_cutoff,
+                "updated_at": updated_at,
+            },
+        )
+        return result.rowcount
+
     def get_campaign_observations(self, campaign_id: str) -> list[dict[str, Any]]:
         """Return all observations for a campaign, ordered by observed_at."""
         rows = self._session.execute(
