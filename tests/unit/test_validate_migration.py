@@ -71,6 +71,19 @@ def _add_full_indexes_and_revision(engine) -> None:
         )
         conn.execute(text("CREATE INDEX idx_events_src_ip_type ON events(src_ip, event_type)"))
 
+        # 0003_phase4_behavioral_and_campaign_schema
+        conn.execute(text("CREATE INDEX idx_campaigns_status ON campaigns(status)"))
+        conn.execute(text("CREATE INDEX idx_campaigns_last_seen ON campaigns(last_seen)"))
+        conn.execute(
+            text("CREATE INDEX idx_campaign_members_source_ip ON campaign_members(source_ip)")
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX idx_campaign_observations_campaign "
+                "ON campaign_observations(campaign_id, observed_at)"
+            )
+        )
+
         # Alembic version table (mirrors what Alembic creates)
         conn.execute(
             text(
@@ -110,7 +123,7 @@ def test_validate_create_all_tables_reports_missing_indexes(tmp_path):
 
 
 def test_validate_create_all_tables_has_all_tables(tmp_path):
-    """create_all_tables creates all 5 expected tables — only indexes are missing."""
+    """create_all_tables creates all expected tables — only indexes are missing."""
     engine = _bootstrap_engine(tmp_path)
     result = validate_database(engine)
     engine.dispose()
@@ -199,6 +212,18 @@ def test_validate_missing_alembic_version_is_invalid(tmp_path):
             text("CREATE INDEX idx_source_ips_reputation ON source_ips(reputation_score DESC)")
         )
         conn.execute(text("CREATE INDEX idx_events_src_ip_type ON events(src_ip, event_type)"))
+        # 0003_phase4_behavioral_and_campaign_schema
+        conn.execute(text("CREATE INDEX idx_campaigns_status ON campaigns(status)"))
+        conn.execute(text("CREATE INDEX idx_campaigns_last_seen ON campaigns(last_seen)"))
+        conn.execute(
+            text("CREATE INDEX idx_campaign_members_source_ip ON campaign_members(source_ip)")
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX idx_campaign_observations_campaign "
+                "ON campaign_observations(campaign_id, observed_at)"
+            )
+        )
         conn.commit()
 
     result = validate_database(engine)

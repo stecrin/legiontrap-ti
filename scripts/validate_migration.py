@@ -29,6 +29,12 @@ EXPECTED_TABLES: list[str] = [
     "source_ips",
     "events",
     "audit_log",
+    # 0003_phase4_behavioral_and_campaign_schema
+    "behavioral_fingerprints",
+    "campaigns",
+    "campaign_members",
+    "campaign_observations",
+    "campaign_tags",
 ]
 
 # All indexes created by Alembic migrations up to the current head.
@@ -57,9 +63,14 @@ EXPECTED_INDEXES: list[str] = [
     # 0002_phase2_intelligence_indexes
     "idx_source_ips_reputation",
     "idx_events_src_ip_type",
+    # 0003_phase4_behavioral_and_campaign_schema
+    "idx_campaigns_status",
+    "idx_campaigns_last_seen",
+    "idx_campaign_members_source_ip",
+    "idx_campaign_observations_campaign",
 ]
 
-EXPECTED_ALEMBIC_REVISION = "0002"
+EXPECTED_ALEMBIC_REVISION = "0003"
 
 
 @dataclass
