@@ -37,6 +37,11 @@ def clean_db():
     from app.db.connection import get_engine
 
     with get_engine().connect() as conn:
+        conn.execute(text("DELETE FROM behavioral_fingerprints"))
+        conn.execute(text("DELETE FROM campaign_tags"))
+        conn.execute(text("DELETE FROM campaign_observations"))
+        conn.execute(text("DELETE FROM campaign_members"))
+        conn.execute(text("DELETE FROM campaigns"))
         conn.execute(text("DELETE FROM events"))
         conn.execute(text("DELETE FROM raw_events"))
         conn.execute(text("DELETE FROM source_ips"))
