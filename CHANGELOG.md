@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.18.0](https://github.com/stecrin/legiontrap-ti/compare/v0.17.0...v0.18.0) (2026-05-26)
+
+### Features
+
+* **ai:** add prompt builder and safety layer ([5b87de0](https://github.com/stecrin/legiontrap-ti/commit/5b87de02c38869a3aa03a47f6acdba964103194f))
+
 ## [0.17.0](https://github.com/stecrin/legiontrap-ti/compare/v0.16.0...v0.17.0) (2026-05-26)
 
 ### Features
