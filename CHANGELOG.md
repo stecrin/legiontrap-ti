@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.17.0](https://github.com/stecrin/legiontrap-ti/compare/v0.16.0...v0.17.0) (2026-05-26)
+
+### Features
+
+* **ai:** add backend abstraction layer ([a9ae6e9](https://github.com/stecrin/legiontrap-ti/commit/a9ae6e9b54d66760dba2a624a4d16048a0c2821f))
+
 ## [0.16.0](https://github.com/stecrin/legiontrap-ti/compare/v0.15.0...v0.16.0) (2026-05-26)
 
 ### Features
