@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.19.0](https://github.com/stecrin/legiontrap-ti/compare/v0.18.0...v0.19.0) (2026-05-26)
+
+### Features
+
+* **ai:** add single campaign summary endpoint ([a80176c](https://github.com/stecrin/legiontrap-ti/commit/a80176ce0418ee1625a63db281b07202c721de86))
+
 ## [0.18.0](https://github.com/stecrin/legiontrap-ti/compare/v0.17.0...v0.18.0) (2026-05-26)
 
 ### Features
