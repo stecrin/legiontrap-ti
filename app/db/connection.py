@@ -238,7 +238,33 @@ def create_all_tables(engine: Engine) -> None:
                 "progress_percent INTEGER NOT NULL DEFAULT 0, "
                 "result_summary_json TEXT, "
                 "error_message TEXT, "
-                "backend_metadata_json TEXT)"
+                "backend_metadata_json TEXT, "
+                "ai_output_id TEXT)"
+            )
+        )
+
+        # Phase 6 PR A2 — immutable AI output records.
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS ai_outputs ("
+                "id TEXT PRIMARY KEY, "
+                "job_id TEXT NOT NULL, "
+                "output_type TEXT NOT NULL, "
+                "resource_type TEXT, "
+                "resource_id TEXT, "
+                "content TEXT, "
+                "backend TEXT NOT NULL, "
+                "model_name TEXT NOT NULL, "
+                "prompt_hash TEXT NOT NULL, "
+                "payload_bytes INTEGER NOT NULL, "
+                "source_records_json TEXT NOT NULL, "
+                "safety_flags_json TEXT, "
+                "rejected INTEGER NOT NULL DEFAULT 0, "
+                "rejection_reason TEXT, "
+                "truncated INTEGER NOT NULL DEFAULT 0, "
+                "data_quality_score REAL, "
+                "generated_at TEXT NOT NULL, "
+                "triggered_by TEXT)"
             )
         )
         conn.commit()

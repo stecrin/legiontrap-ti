@@ -8,22 +8,26 @@ Execution model:
   2. Transition to 'running' via start_job(). If start_job returns False,
      another executor has already taken the job — return silently.
   3. Execute AI logic (read-only DB fetch → prompt build → AI call → validate).
-  4. On success: complete_job() with result_summary_json.
+  4. On success: write ai_outputs row, then complete_job() with ai_output_id.
   5. On any exception: fail_job() with a safe error summary. Stack traces
      are logged but never stored in the job record.
 
 Deterministic-first invariants enforced here:
   - No writes to campaigns, fingerprints, events, or observations.
-  - AI output is stored only in processing_jobs.result_summary_json (A1).
-    PR A2 will introduce the ai_outputs table.
+  - AI outputs are stored in ai_outputs (PR A2) and result_summary_json
+    on processing_jobs is retained for polling continuity.
   - get_ai_backend() is imported here so tests can monkeypatch
     'app.jobs.runner.get_ai_backend' without touching the router.
+  - AI outputs are never used as prompt inputs (§3, §10 Rule 1).
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import time
+import uuid
 from datetime import UTC, datetime
 
 from app.ai import (
@@ -93,7 +97,6 @@ def _execute_summary(job_id: str) -> None:
         repo = EventRepository(session)
         started = repo.start_job(job_id, started_at=started_at)
         if not started:
-            # Another executor already took this job, or it was cancelled.
             logger.debug("run_campaign_summary_job: job %s not in pending state, skipping", job_id)
             return
         job = repo.get_job(job_id)
@@ -103,6 +106,7 @@ def _execute_summary(job_id: str) -> None:
         return
 
     campaign_id: str = job.get("resource_id") or ""
+    triggered_by: str | None = job.get("triggered_by")
 
     # Fetch campaign data — read-only session, separate from job lifecycle session.
     with get_session() as session:
@@ -120,10 +124,14 @@ def _execute_summary(job_id: str) -> None:
 
     # Build prompt and call AI backend.
     prompt_data = build_campaign_summary_prompt(campaign, fingerprint, observations)
+    user_prompt = prompt_data["user_prompt"]
+    prompt_hash = _prompt_hash(user_prompt)
+    payload_bytes = len(user_prompt.encode("utf-8"))
+    data_quality_score = _compute_data_quality_score(campaign, fingerprint, observations)
 
     try:
         backend = get_ai_backend()
-        raw_output = backend.generate(prompt_data["user_prompt"])
+        raw_output = backend.generate(user_prompt)
     except AIDisabledError as exc:
         _fail_job_safe(job_id, str(exc))
         return
@@ -156,12 +164,38 @@ def _execute_summary(job_id: str) -> None:
     }
     backend_meta = {"ai_backend": settings.AI_BACKEND, "latency_ms": latency_ms}
 
+    # Write ai_output BEFORE completing the job.
+    output_id = str(uuid.uuid4())
+    with get_session() as session:
+        repo = EventRepository(session)
+        repo.create_ai_output(
+            output_id=output_id,
+            job_id=job_id,
+            output_type="campaign_summary",
+            resource_type="campaign",
+            resource_id=campaign_id,
+            content=None if is_rejected else validated_text,
+            backend=settings.AI_BACKEND,
+            model_name=backend.model_name,
+            prompt_hash=prompt_hash,
+            payload_bytes=payload_bytes,
+            source_records_json=prompt_data["source_records"],
+            safety_flags_json=prompt_data["safety_flags"],
+            rejected=is_rejected,
+            rejection_reason=rejection_reason,
+            truncated=is_truncated,
+            data_quality_score=data_quality_score,
+            generated_at=generated_at,
+            triggered_by=triggered_by,
+        )
+
     with get_session() as session:
         repo = EventRepository(session)
         repo.complete_job(
             job_id,
             result_summary_json=result,
             backend_metadata_json=backend_meta,
+            ai_output_id=output_id,
         )
 
 
@@ -180,13 +214,13 @@ def _execute_brief(job_id: str) -> None:
     if job is None:
         return
 
+    triggered_by: str | None = job.get("triggered_by")
+
     # Parse max_campaigns from backend_metadata_json (stored by analyze router).
     max_campaigns = 10
     if job.get("backend_metadata_json"):
-        import json as _json
-
         try:
-            meta = _json.loads(job["backend_metadata_json"])
+            meta = json.loads(job["backend_metadata_json"])
             max_campaigns = int(meta.get("max_campaigns", 10))
         except (ValueError, TypeError, KeyError):
             pass
@@ -224,10 +258,14 @@ def _execute_brief(job_id: str) -> None:
         return
 
     prompt_data = build_brief_prompt(campaigns)
+    user_prompt = prompt_data["user_prompt"]
+    prompt_hash = _prompt_hash(user_prompt)
+    payload_bytes = len(user_prompt.encode("utf-8"))
+    data_quality_score = round(min(len(campaigns) / 10.0, 1.0), 3)
 
     try:
         backend = get_ai_backend()
-        raw_output = backend.generate(prompt_data["user_prompt"])
+        raw_output = backend.generate(user_prompt)
     except AIDisabledError as exc:
         _fail_job_safe(job_id, str(exc))
         return
@@ -259,13 +297,77 @@ def _execute_brief(job_id: str) -> None:
     }
     backend_meta = {"ai_backend": settings.AI_BACKEND, "latency_ms": latency_ms}
 
+    # Write ai_output BEFORE completing the job.
+    output_id = str(uuid.uuid4())
+    with get_session() as session:
+        repo = EventRepository(session)
+        repo.create_ai_output(
+            output_id=output_id,
+            job_id=job_id,
+            output_type="campaign_brief",
+            resource_type=None,
+            resource_id=None,
+            content=None if is_rejected else validated_text,
+            backend=settings.AI_BACKEND,
+            model_name=backend.model_name,
+            prompt_hash=prompt_hash,
+            payload_bytes=payload_bytes,
+            source_records_json=prompt_data["source_records"],
+            safety_flags_json=None,
+            rejected=is_rejected,
+            rejection_reason=rejection_reason,
+            truncated=is_truncated,
+            data_quality_score=data_quality_score,
+            generated_at=generated_at,
+            triggered_by=triggered_by,
+        )
+
     with get_session() as session:
         repo = EventRepository(session)
         repo.complete_job(
             job_id,
             result_summary_json=result,
             backend_metadata_json=backend_meta,
+            ai_output_id=output_id,
         )
+
+
+# ---------------------------------------------------------------------------
+# Provenance helpers
+# ---------------------------------------------------------------------------
+
+
+def _prompt_hash(prompt_text: str) -> str:
+    """Return SHA-256 hex digest of the prompt. No prompt content is stored."""
+    return hashlib.sha256(prompt_text.encode("utf-8")).hexdigest()
+
+
+def _compute_data_quality_score(
+    campaign: dict,
+    fingerprint: dict | None,
+    observations: list,
+) -> float:
+    """Composite data quality score: confidence 40%, obs 30%, fp 20%, recency 10%."""
+    confidence = float(campaign.get("confidence") or 0.5)
+
+    obs_score = min(len(observations) / 10.0, 1.0)
+
+    fp_score = 0.0
+    if fingerprint:
+        dims = [
+            "timing_features",
+            "sequence_features",
+            "protocol_features",
+            "credential_features",
+            "target_features",
+        ]
+        present = sum(1 for d in dims if fingerprint.get(d))
+        fp_score = present / 5.0
+
+    recency = 1.0 if observations else 0.0
+
+    score = confidence * 0.4 + obs_score * 0.3 + fp_score * 0.2 + recency * 0.1
+    return round(score, 3)
 
 
 # ---------------------------------------------------------------------------

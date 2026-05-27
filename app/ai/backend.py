@@ -64,6 +64,11 @@ class AIBackend(abc.ABC):
     and return a response string, with no side effects.
     """
 
+    @property
+    def model_name(self) -> str:
+        """The specific model identifier used by this backend instance."""
+        return "unknown"
+
     @abc.abstractmethod
     def generate(self, prompt: str) -> str:
         """Generate a response for the given prompt.
@@ -87,6 +92,10 @@ class DisabledAIBackend(AIBackend):
     the default backend and the safe fallback for misconfigured deployments.
     """
 
+    @property
+    def model_name(self) -> str:
+        return "none"
+
     def generate(self, prompt: str) -> str:
         raise AIDisabledError(
             "AI features are disabled. " "Set AI_BACKEND=claude or AI_BACKEND=ollama to enable."
@@ -108,6 +117,10 @@ class MockAIBackend(AIBackend):
     def __init__(self, response: str = "Mock AI response.") -> None:
         self._response = response
 
+    @property
+    def model_name(self) -> str:
+        return "mock"
+
     def generate(self, prompt: str) -> str:
         return self._response
 
@@ -128,6 +141,10 @@ class OllamaAIBackend(AIBackend):
         self._host = host.rstrip("/")
         self._model = model
         self._timeout = timeout
+
+    @property
+    def model_name(self) -> str:
+        return self._model
 
     def generate(self, prompt: str) -> str:
         try:
@@ -172,6 +189,10 @@ class ClaudeAIBackend(AIBackend):
         self._api_key = api_key
         self._model = model
         self._timeout = timeout
+
+    @property
+    def model_name(self) -> str:
+        return self._model
 
     def generate(self, prompt: str) -> str:
         try:
