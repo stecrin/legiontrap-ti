@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.24.0](https://github.com/stecrin/legiontrap-ti/compare/v0.23.0...v0.24.0) (2026-05-27)
+
+### Features
+
+* **ai:** add audit logging and rate limiting ([93f47ba](https://github.com/stecrin/legiontrap-ti/commit/93f47ba4ff682214dcae746f551e40ee03db6b0e))
+
 ## [0.23.0](https://github.com/stecrin/legiontrap-ti/compare/v0.22.0...v0.23.0) (2026-05-27)
 
 ### Features
