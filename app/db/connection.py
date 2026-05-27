@@ -204,6 +204,7 @@ def create_all_tables(engine: Engine) -> None:
                 "is_reactivation INTEGER NOT NULL DEFAULT 0, "
                 "dormancy_gap_days REAL, "
                 "notes TEXT, "
+                "analyst_review_json TEXT, "
                 "FOREIGN KEY (campaign_id) REFERENCES campaigns(id))"
             )
         )

@@ -1,8 +1,10 @@
 """Campaign intelligence endpoints.
 
-GET /api/campaigns                          — paginated campaign list
-GET /api/campaigns/{campaign_id}            — detail: campaign + members + observations
-GET /api/campaigns/{campaign_id}/observations — observation list for one campaign
+GET  /api/campaigns                                           — paginated list
+GET  /api/campaigns/uncertain-associations                    — pending review queue
+POST /api/campaigns/uncertain-associations/{id}/review        — submit analyst review
+GET  /api/campaigns/{campaign_id}                             — campaign detail
+GET  /api/campaigns/{campaign_id}/observations                — observation list
 
 All endpoints require API key or JWT authentication via require_jwt_or_api_key.
 No SQL belongs here — all queries go through EventRepository.
@@ -10,13 +12,27 @@ No SQL belongs here — all queries go through EventRepository.
 
 from __future__ import annotations
 
+import json
+import logging
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 
 from app.db.connection import get_session
 from app.db.repository import EventRepository
 from app.utils.auth import require_jwt_or_api_key
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/campaigns", tags=["campaigns"])
+
+_VALID_REVIEW_DECISIONS = {"analyst_confirmed", "analyst_denied"}
+
+
+class ObservationReviewRequest(BaseModel):
+    decision: str
+    notes: str | None = None
 
 
 @router.get("")
@@ -28,6 +44,88 @@ def list_campaigns(
     with get_session() as session:
         items = EventRepository(session).list_campaigns(limit=limit)
     return {"items": items, "count": len(items)}
+
+
+@router.get("/uncertain-associations")
+def list_uncertain_associations(
+    campaign_id: str | None = Query(default=None),
+    include_reviewed: bool = Query(default=False),
+    limit: int = Query(default=200, ge=1, le=1000),
+    _: dict = Depends(require_jwt_or_api_key),
+):
+    """Return uncertain-association observations pending analyst review.
+
+    By default only unreviewed (pending) observations are returned.
+    Pass include_reviewed=true to include observations that have already
+    been reviewed.  Optionally filter to a single campaign via campaign_id.
+    """
+    with get_session() as session:
+        items = EventRepository(session).list_uncertain_observations(
+            campaign_id=campaign_id,
+            include_reviewed=include_reviewed,
+            limit=limit,
+        )
+    return {"items": items, "count": len(items)}
+
+
+@router.post("/uncertain-associations/{observation_id}/review", status_code=status.HTTP_200_OK)
+def review_uncertain_association(
+    observation_id: str,
+    body: ObservationReviewRequest,
+    _: dict = Depends(require_jwt_or_api_key),
+):
+    """Submit an analyst review for an uncertain-association observation.
+
+    decision must be one of: analyst_confirmed, analyst_denied.
+    The review records the analyst's interpretation only — it does not
+    modify the original clustering decision, campaign membership, or
+    observation records.
+    """
+    if body.decision not in _VALID_REVIEW_DECISIONS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"Invalid decision {body.decision!r}. "
+                f"Must be one of: {sorted(_VALID_REVIEW_DECISIONS)}"
+            ),
+        )
+
+    reviewed_at = datetime.now(UTC).isoformat()
+
+    with get_session() as session:
+        repo = EventRepository(session)
+        obs = repo.get_campaign_observation(observation_id)
+        if obs is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Observation {observation_id!r} not found",
+            )
+        repo.annotate_campaign_observation(
+            observation_id=observation_id,
+            analyst_decision=body.decision,
+            analyst_notes=body.notes,
+            reviewed_at=reviewed_at,
+        )
+        updated = repo.get_campaign_observation(observation_id)
+
+    try:
+        with get_session() as audit_session:
+            EventRepository(audit_session).insert_audit_log(
+                event_type="observation_review",
+                detail=json.dumps(
+                    {
+                        "observation_id": observation_id,
+                        "campaign_id": obs["campaign_id"],
+                        "decision": body.decision,
+                    }
+                ),
+            )
+    except Exception:
+        logger.exception(
+            "Audit log failed for observation_review observation_id=%s", observation_id
+        )
+
+    return updated
 
 
 @router.get("/{campaign_id}")

@@ -643,7 +643,7 @@ class CampaignRepository(RepositoryBase):
         rows = self._session.execute(
             text("""
                 SELECT id, campaign_id, source_ip, observed_at, event_count,
-                       is_reactivation, dormancy_gap_days, notes
+                       is_reactivation, dormancy_gap_days, notes, analyst_review_json
                 FROM campaign_observations
                 WHERE campaign_id = :campaign_id
                 ORDER BY observed_at ASC
@@ -660,6 +660,125 @@ class CampaignRepository(RepositoryBase):
                 "is_reactivation": bool(r[5]),
                 "dormancy_gap_days": r[6],
                 "notes": r[7],
+                "analyst_review_json": r[8],
             }
             for r in rows
         ]
+
+    def get_campaign_observation(self, observation_id: str) -> dict[str, Any] | None:
+        """Return a single campaign_observations row as dict, or None if not found."""
+        row = self._session.execute(
+            text("""
+                SELECT id, campaign_id, source_ip, observed_at, event_count,
+                       is_reactivation, dormancy_gap_days, notes, analyst_review_json
+                FROM campaign_observations
+                WHERE id = :id
+            """),
+            {"id": observation_id},
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "id": row[0],
+            "campaign_id": row[1],
+            "source_ip": row[2],
+            "observed_at": row[3],
+            "event_count": row[4],
+            "is_reactivation": bool(row[5]),
+            "dormancy_gap_days": row[6],
+            "notes": row[7],
+            "analyst_review_json": row[8],
+        }
+
+    def list_uncertain_observations(
+        self,
+        *,
+        campaign_id: str | None = None,
+        include_reviewed: bool = False,
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        """Return uncertain-association observations from campaign_observations.
+
+        Uncertain observations are those whose notes JSON contains
+        "decision":"uncertain_association".  SQL pre-filters with LIKE, then
+        Python-side parsing confirms (no json_extract per PostgreSQL compat rules).
+
+        When include_reviewed=False (default), only rows where
+        analyst_review_json IS NULL are returned.
+        """
+        params: dict[str, Any] = {"limit": limit}
+        cid_clause = ""
+        if campaign_id is not None:
+            params["campaign_id"] = campaign_id
+            cid_clause = "AND campaign_id = :campaign_id"
+
+        review_clause = "" if include_reviewed else "AND analyst_review_json IS NULL"
+
+        rows = self._session.execute(
+            text(f"""
+                SELECT id, campaign_id, source_ip, observed_at, event_count,
+                       is_reactivation, dormancy_gap_days, notes, analyst_review_json
+                FROM campaign_observations
+                WHERE notes LIKE '%"decision":"uncertain_association"%'
+                {cid_clause}
+                {review_clause}
+                ORDER BY observed_at ASC
+                LIMIT :limit
+            """),
+            params,
+        ).fetchall()
+
+        result = []
+        for r in rows:
+            try:
+                parsed = json.loads(r[7]) if r[7] else {}
+                if not isinstance(parsed, dict):
+                    continue
+            except (json.JSONDecodeError, TypeError):
+                continue
+            if parsed.get("decision") != "uncertain_association":
+                continue
+            result.append(
+                {
+                    "id": r[0],
+                    "campaign_id": r[1],
+                    "source_ip": r[2],
+                    "observed_at": r[3],
+                    "event_count": r[4],
+                    "is_reactivation": bool(r[5]),
+                    "dormancy_gap_days": r[6],
+                    "notes": r[7],
+                    "analyst_review_json": r[8],
+                }
+            )
+        return result
+
+    def annotate_campaign_observation(
+        self,
+        observation_id: str,
+        analyst_decision: str,
+        analyst_notes: str | None,
+        reviewed_at: str,
+    ) -> None:
+        """Write analyst review metadata to a campaign_observations row.
+
+        Does not modify the original clustering decision, campaign membership,
+        or any other observation fields.  Idempotent: subsequent calls overwrite
+        the previous review.
+        """
+        review = {
+            "decision": analyst_decision,
+            "notes": analyst_notes,
+            "reviewed_at": reviewed_at,
+        }
+        self._session.execute(
+            text("""
+                UPDATE campaign_observations
+                SET analyst_review_json = :review_json
+                WHERE id = :observation_id
+            """),
+            {
+                "observation_id": observation_id,
+                "review_json": json.dumps(review),
+            },
+        )
