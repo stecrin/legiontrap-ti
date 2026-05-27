@@ -46,6 +46,7 @@ def _row_to_dict(row) -> dict[str, Any]:
         "result_summary_json": row[12],
         "error_message": row[13],
         "backend_metadata_json": row[14],
+        "ai_output_id": row[15] if len(row) > 15 else None,
     }
 
 
@@ -104,7 +105,7 @@ class JobRepository(RepositoryBase):
                        completed_at, failed_at, triggered_by,
                        resource_type, resource_id, deduplication_key,
                        progress_percent, result_summary_json,
-                       error_message, backend_metadata_json
+                       error_message, backend_metadata_json, ai_output_id
                 FROM processing_jobs WHERE id = :id
             """),
             {"id": job_id},
@@ -140,7 +141,7 @@ class JobRepository(RepositoryBase):
                        completed_at, failed_at, triggered_by,
                        resource_type, resource_id, deduplication_key,
                        progress_percent, result_summary_json,
-                       error_message, backend_metadata_json
+                       error_message, backend_metadata_json, ai_output_id
                 FROM processing_jobs
                 {where}
                 ORDER BY created_at DESC
@@ -163,7 +164,7 @@ class JobRepository(RepositoryBase):
                        completed_at, failed_at, triggered_by,
                        resource_type, resource_id, deduplication_key,
                        progress_percent, result_summary_json,
-                       error_message, backend_metadata_json
+                       error_message, backend_metadata_json, ai_output_id
                 FROM processing_jobs
                 WHERE deduplication_key = :key
                   AND status IN ('pending', 'running')
@@ -199,10 +200,12 @@ class JobRepository(RepositoryBase):
         completed_at: str | None = None,
         result_summary_json: dict | str | None = None,
         backend_metadata_json: dict | str | None = None,
+        ai_output_id: str | None = None,
     ) -> bool:
         """Transition job from 'running' to 'completed'.
 
         Returns True on success, False if job is not in 'running' state.
+        ai_output_id links to the persisted ai_outputs row (set in PR A2+).
         """
         now = completed_at or datetime.now(UTC).isoformat()
         result_str = (
@@ -222,7 +225,8 @@ class JobRepository(RepositoryBase):
                     completed_at = :completed_at,
                     progress_percent = 100,
                     result_summary_json = :result_summary_json,
-                    backend_metadata_json = :backend_metadata_json
+                    backend_metadata_json = :backend_metadata_json,
+                    ai_output_id = :ai_output_id
                 WHERE id = :id AND status = 'running'
             """),
             {
@@ -230,6 +234,7 @@ class JobRepository(RepositoryBase):
                 "completed_at": now,
                 "result_summary_json": result_str,
                 "backend_metadata_json": meta_str,
+                "ai_output_id": ai_output_id,
             },
         )
         return result.rowcount > 0

@@ -55,6 +55,9 @@ def _enrich_job(job: dict) -> dict:
     else:
         enriched["backend_metadata"] = None
 
+    # ai_output_id is already a plain string (or None); no parsing needed.
+    # It links to GET /api/ai/outputs/{ai_output_id} when status=completed.
+
     return enriched
 
 
