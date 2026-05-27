@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.22.0](https://github.com/stecrin/legiontrap-ti/compare/v0.21.0...v0.22.0) (2026-05-27)
+
+### Features
+
+* **jobs:** add processing job infrastructure and async AI workflow ([3fed113](https://github.com/stecrin/legiontrap-ti/commit/3fed1137aca130a99f0fa838d3e95a5b7143161d))
+
 ## [0.21.0](https://github.com/stecrin/legiontrap-ti/compare/v0.20.0...v0.21.0) (2026-05-26)
 
 ### Features
