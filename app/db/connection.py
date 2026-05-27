@@ -216,6 +216,31 @@ def create_all_tables(engine: Engine) -> None:
                 "FOREIGN KEY (campaign_id) REFERENCES campaigns(id))"
             )
         )
+
+        # Phase 6 — async job infrastructure.
+        # processing_jobs is the central coordination table for all async
+        # operations: AI summary/brief execution, clustering deduplication,
+        # and future long-running intelligence tasks.
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS processing_jobs ("
+                "id TEXT PRIMARY KEY, "
+                "job_type TEXT NOT NULL, "
+                "status TEXT NOT NULL DEFAULT 'pending', "
+                "created_at TEXT NOT NULL, "
+                "started_at TEXT, "
+                "completed_at TEXT, "
+                "failed_at TEXT, "
+                "triggered_by TEXT, "
+                "resource_type TEXT, "
+                "resource_id TEXT, "
+                "deduplication_key TEXT, "
+                "progress_percent INTEGER NOT NULL DEFAULT 0, "
+                "result_summary_json TEXT, "
+                "error_message TEXT, "
+                "backend_metadata_json TEXT)"
+            )
+        )
         conn.commit()
 
 
