@@ -176,7 +176,8 @@ def create_all_tables(engine: Engine) -> None:
                 "notes TEXT, "
                 "created_at TEXT NOT NULL, "
                 "updated_at TEXT NOT NULL, "
-                "representative_fingerprint_json TEXT)"
+                "representative_fingerprint_json TEXT, "
+                "behavioral_stability_json TEXT)"
             )
         )
         conn.execute(
