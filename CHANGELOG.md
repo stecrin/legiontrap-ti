@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.23.0](https://github.com/stecrin/legiontrap-ti/compare/v0.22.0...v0.23.0) (2026-05-27)
+
+### Features
+
+* **ai:** persist immutable AI outputs ([9b1288a](https://github.com/stecrin/legiontrap-ti/commit/9b1288afb45e3d755cc451e0e2338a38ea45328e))
+
 ## [0.22.0](https://github.com/stecrin/legiontrap-ti/compare/v0.21.0...v0.22.0) (2026-05-27)
 
 ### Features
