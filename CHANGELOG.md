@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.25.0](https://github.com/stecrin/legiontrap-ti/compare/v0.24.0...v0.25.0) (2026-05-27)
+
+### Features
+
+* **intelligence:** add fingerprint history and representative campaign fingerprints ([57c9ba3](https://github.com/stecrin/legiontrap-ti/commit/57c9ba353dea5b0a3eb30e530370db11b5e1d79a))
+
 ## [0.24.0](https://github.com/stecrin/legiontrap-ti/compare/v0.23.0...v0.24.0) (2026-05-27)
 
 ### Features
