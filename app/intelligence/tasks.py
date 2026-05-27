@@ -17,18 +17,45 @@ Deduplication model (Phase 6):
   because fingerprint computation is idempotent (upsert semantics). The
   previous threading.Lock was correct for single-process deployments; the DB
   check is correct for multi-process deployments.
+
+Phase 6 Group B additions:
+  - _compute_and_store() appends a fingerprint_history row on each computation.
+  - _run_campaign_clustering() updates representative_fingerprint_json on the
+    assigned campaign after a successful association.
+  - _build_representative_fp_json() packages feature columns for the cache;
+    tool_signals is excluded (§11.2).
 """
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from fastapi import BackgroundTasks
 
 logger = logging.getLogger(__name__)
+
+
+def _build_representative_fp_json(fp: dict[str, Any]) -> str:
+    """Serialize fingerprint feature columns to JSON for representative_fingerprint_json.
+
+    tool_signals is excluded — it is not a stability-relevant dimension and
+    may contain tool-name strings that could encode identifiable information
+    across versions (§11.2).
+    """
+    return json.dumps(
+        {
+            "timing_features": fp.get("timing_features"),
+            "sequence_features": fp.get("sequence_features"),
+            "protocol_features": fp.get("protocol_features"),
+            "credential_features": fp.get("credential_features"),
+            "target_features": fp.get("target_features"),
+            "confidence": fp.get("confidence"),
+        }
+    )
 
 
 def schedule_fingerprint_if_not_pending(ip: str, background_tasks: BackgroundTasks) -> None:
@@ -102,6 +129,9 @@ def _run_fingerprint_task(ip: str, job_id: str) -> None:
 def _compute_and_store(ip: str) -> None:
     """Fetch events, compute fingerprint, write to behavioral_fingerprints.
 
+    Appends a fingerprint_history row in the same session as the upsert so
+    the history write is atomic with the fingerprint update (§11.2, §11.3).
+
     After a successful fingerprint commit, triggers campaign clustering when
     the fingerprint meets the minimum confidence threshold (§12.6). The
     fingerprint session commits before clustering — a clustering failure
@@ -120,10 +150,11 @@ def _compute_and_store(ip: str) -> None:
         if not events:
             return
         fp = build_fingerprint(events)
+        computed_at = datetime.now(UTC).isoformat()
         repo.upsert_behavioral_fingerprint(
             ip=ip,
             fingerprint_version=FINGERPRINT_VERSION,
-            computed_at=datetime.now(UTC).isoformat(),
+            computed_at=computed_at,
             event_count=fp["event_count"],
             timing_features=fp["timing_features"],
             sequence_features=fp["sequence_features"],
@@ -133,6 +164,23 @@ def _compute_and_store(ip: str) -> None:
             tool_signals=fp["tool_signals"],
             confidence=fp["confidence"],
         )
+        stored = repo.get_behavioral_fingerprint(ip)
+        member = repo.get_campaign_member_by_ip(ip)
+        if stored is not None:
+            repo.insert_fingerprint_history(
+                fingerprint_id=stored["id"],
+                source_ip=ip,
+                campaign_id=member["campaign_id"] if member is not None else None,
+                fingerprint_version=FINGERPRINT_VERSION,
+                computed_at=computed_at,
+                event_count_at_computation=fp["event_count"],
+                confidence=fp["confidence"],
+                timing_features=fp["timing_features"],
+                sequence_features=fp["sequence_features"],
+                protocol_features=fp["protocol_features"],
+                credential_features=fp["credential_features"],
+                target_features=fp["target_features"],
+            )
         fp_confidence = fp["confidence"]
 
     if fp_confidence >= 0.20:
@@ -141,6 +189,9 @@ def _compute_and_store(ip: str) -> None:
 
 def _run_campaign_clustering(ip: str) -> None:
     """Run campaign assignment for ip in a fresh session.
+
+    After assignment, updates representative_fingerprint_json on the campaign
+    so the next clustering query can use the fast path (§13.2).
 
     Failures are logged but do not propagate — a clustering failure must
     never surface as a fingerprint-computation error (§3.3 / §11).
@@ -155,6 +206,9 @@ def _run_campaign_clustering(ip: str) -> None:
             stored_fp = repo.get_behavioral_fingerprint(ip)
             if stored_fp is None:
                 return
-            assign_to_campaign(ip, stored_fp, repo)
+            decision = assign_to_campaign(ip, stored_fp, repo)
+            if decision.campaign_id is not None:
+                rep_fp_json = _build_representative_fp_json(stored_fp)
+                repo.update_representative_fingerprint(decision.campaign_id, rep_fp_json)
     except Exception:
         logger.exception("Campaign clustering failed for ip=%s", ip)

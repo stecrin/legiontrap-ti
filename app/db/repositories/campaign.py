@@ -11,6 +11,7 @@ PostgreSQL-compatibility rules enforced here:
 
 from __future__ import annotations
 
+import json
 import uuid
 from typing import Any
 
@@ -97,15 +98,17 @@ class CampaignRepository(RepositoryBase):
     def get_campaigns_for_clustering(self) -> list[dict[str, Any]]:
         """Return active/dormant/reactivated campaigns with a representative fingerprint.
 
-        The representative fingerprint is the stored fingerprint of the
-        most-recently-active member IP for each campaign.
+        Fast path: when representative_fingerprint_json is populated on the
+        campaign row, parse it directly — one SQL query for all campaigns.
 
-        Campaigns with no members or whose most-recent member has no
-        stored fingerprint are silently excluded (no candidate to compare
-        against).
+        Slow path (fallback): for campaigns whose representative_fingerprint_json
+        is NULL (or fails to parse), fall back to per-member + behavioral_fingerprints
+        lookup.  This handles pre-migration rows and any cache-miss edge cases.
+
+        Campaigns with no members or no stored fingerprint are silently excluded.
         """
         campaign_rows = self._session.execute(text("""
-                SELECT id, status, last_seen
+                SELECT id, status, last_seen, representative_fingerprint_json
                 FROM campaigns
                 WHERE status IN ('active', 'dormant', 'reactivated')
             """)).fetchall()
@@ -114,7 +117,28 @@ class CampaignRepository(RepositoryBase):
             return []
 
         results: list[dict[str, Any]] = []
-        for cid, status, last_seen in campaign_rows:
+        for cid, status, last_seen, rep_fp_json in campaign_rows:
+            if rep_fp_json is not None:
+                try:
+                    fp_data = json.loads(rep_fp_json)
+                    results.append(
+                        {
+                            "campaign_id": cid,
+                            "status": status,
+                            "last_seen": last_seen,
+                            "timing_features": fp_data.get("timing_features"),
+                            "sequence_features": fp_data.get("sequence_features"),
+                            "protocol_features": fp_data.get("protocol_features"),
+                            "credential_features": fp_data.get("credential_features"),
+                            "target_features": fp_data.get("target_features"),
+                            "confidence": fp_data.get("confidence"),
+                        }
+                    )
+                    continue
+                except (json.JSONDecodeError, TypeError, AttributeError):
+                    pass
+
+            # Slow path: per-member lookup.
             member_row = self._session.execute(
                 text("""
                     SELECT source_ip FROM campaign_members
@@ -153,6 +177,41 @@ class CampaignRepository(RepositoryBase):
             )
 
         return results
+
+    def update_representative_fingerprint(
+        self,
+        campaign_id: str,
+        representative_fingerprint_json: str,
+    ) -> None:
+        """Cache the representative fingerprint JSON on the campaign row.
+
+        Called after a successful fingerprint computation + clustering assignment.
+        behavioral_fingerprints remains the authoritative source; this is a
+        denormalized cache to avoid O(n) per-campaign member + fingerprint lookups
+        in get_campaigns_for_clustering().
+        """
+        self._session.execute(
+            text("""
+                UPDATE campaigns
+                SET representative_fingerprint_json = :fp_json
+                WHERE id = :campaign_id
+            """),
+            {
+                "campaign_id": campaign_id,
+                "fp_json": representative_fingerprint_json,
+            },
+        )
+
+    def get_representative_fingerprint(self, campaign_id: str) -> str | None:
+        """Return the cached representative_fingerprint_json, or None if not set."""
+        row = self._session.execute(
+            text("""
+                SELECT representative_fingerprint_json
+                FROM campaigns WHERE id = :id
+            """),
+            {"id": campaign_id},
+        ).fetchone()
+        return row[0] if row is not None else None
 
     def get_campaign_member_by_ip(self, source_ip: str) -> dict[str, Any] | None:
         """Return the campaign_members row for source_ip, or None if unassigned."""

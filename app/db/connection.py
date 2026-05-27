@@ -175,7 +175,8 @@ def create_all_tables(engine: Engine) -> None:
                 "top_target_ports TEXT, "
                 "notes TEXT, "
                 "created_at TEXT NOT NULL, "
-                "updated_at TEXT NOT NULL)"
+                "updated_at TEXT NOT NULL, "
+                "representative_fingerprint_json TEXT)"
             )
         )
         conn.execute(
@@ -286,6 +287,27 @@ def create_all_tables(engine: Engine) -> None:
                 "latency_ms INTEGER NOT NULL DEFAULT 0, "
                 "status TEXT NOT NULL, "
                 "error_type TEXT, "
+                "created_at TEXT NOT NULL)"
+            )
+        )
+
+        # Phase 6 Group B — fingerprint history (append-only longitudinal snapshots).
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS fingerprint_history ("
+                "id TEXT PRIMARY KEY, "
+                "fingerprint_id TEXT, "
+                "source_ip TEXT NOT NULL, "
+                "campaign_id TEXT, "
+                "fingerprint_version INTEGER NOT NULL, "
+                "computed_at TEXT NOT NULL, "
+                "event_count_at_computation INTEGER NOT NULL, "
+                "confidence REAL NOT NULL, "
+                "timing_features TEXT, "
+                "sequence_features TEXT, "
+                "protocol_features TEXT, "
+                "credential_features TEXT, "
+                "target_features TEXT, "
                 "created_at TEXT NOT NULL)"
             )
         )
