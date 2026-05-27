@@ -267,6 +267,28 @@ def create_all_tables(engine: Engine) -> None:
                 "triggered_by TEXT)"
             )
         )
+
+        # Phase 6 PR A3 — AI call audit log (metadata only, no content).
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS ai_audit_log ("
+                "id TEXT PRIMARY KEY, "
+                "job_id TEXT, "
+                "output_id TEXT, "
+                "triggered_by TEXT, "
+                "backend TEXT NOT NULL, "
+                "model_name TEXT NOT NULL, "
+                "operation_type TEXT NOT NULL, "
+                "resource_type TEXT, "
+                "resource_id TEXT, "
+                "payload_bytes INTEGER NOT NULL DEFAULT 0, "
+                "response_bytes INTEGER NOT NULL DEFAULT 0, "
+                "latency_ms INTEGER NOT NULL DEFAULT 0, "
+                "status TEXT NOT NULL, "
+                "error_type TEXT, "
+                "created_at TEXT NOT NULL)"
+            )
+        )
         conn.commit()
 
 

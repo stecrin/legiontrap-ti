@@ -6,7 +6,7 @@ dashboard sessions from triggering maintenance operations accidentally.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.db.connection import get_session
 from app.db.repository import EventRepository
@@ -52,3 +52,34 @@ def run_analytics_job(
         repo = EventRepository(session)
         result = refresh_all_campaign_analytics(repo)
     return result
+
+
+@router.get("/ai-audit")
+def list_ai_audit_logs(
+    limit: int = Query(default=50, ge=1, le=500),
+    triggered_by: str | None = Query(default=None),
+    backend: str | None = Query(default=None),
+    status: str | None = Query(default=None),
+    _: dict = Depends(require_api_key),
+) -> dict:
+    """Return AI call audit records. API key required; JWT is not accepted.
+
+    Records contain call metadata only — no prompt text, no response content.
+    Sorted newest first.
+
+    Query params:
+      limit        — max records to return (1–500, default 50)
+      triggered_by — filter by operator identity (e.g. "api_key", "user:alice")
+      backend      — filter by AI backend name (e.g. "claude", "ollama", "none")
+      status       — filter by call outcome (success | failure | unavailable |
+                     disabled | rate_limited)
+    """
+    with get_session() as session:
+        repo = EventRepository(session)
+        logs = repo.list_ai_audit_logs(
+            limit=limit,
+            triggered_by=triggered_by,
+            backend=backend,
+            status=status,
+        )
+    return {"logs": logs, "count": len(logs)}
