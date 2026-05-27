@@ -31,6 +31,7 @@ from __future__ import annotations
 from app.db.repositories.campaign import CampaignRepository
 from app.db.repositories.fingerprint import FingerprintRepository
 from app.db.repositories.intelligence import IntelligenceRepository
+from app.db.repositories.jobs import JobRepository
 from app.db.repositories.read import ReadRepository
 from app.db.repositories.write import WriteRepository
 
@@ -41,13 +42,14 @@ class EventRepository(
     IntelligenceRepository,
     FingerprintRepository,
     CampaignRepository,
+    JobRepository,
 ):
     """
-    Unified repository class. Inherits all SQL methods from the five concern
+    Unified repository class. Inherits all SQL methods from the six concern
     mixins. Callers see a single object with the full method surface; the
     internal split is an organisation detail invisible to callers.
 
     Python MRO: EventRepository → WriteRepository → ReadRepository →
                 IntelligenceRepository → FingerprintRepository →
-                CampaignRepository → RepositoryBase → object
+                CampaignRepository → JobRepository → RepositoryBase → object
     """

@@ -1,26 +1,27 @@
-"""Background fingerprint computation tasks.
+"""Background fingerprint computation tasks — Phase 6 PR A1 refactor.
 
 Provides schedule_fingerprint_if_not_pending(), the only entry point called
-from the ingest router.  All fingerprint computation runs asynchronously via
+from the ingest router. All fingerprint computation runs asynchronously via
 FastAPI BackgroundTasks — never in the synchronous ingest request path (§12.5).
 
-Deduplication model (§12.5):
-  A module-level set tracks IPs whose fingerprint tasks are pending or
-  in-flight.  A threading.Lock makes the check-and-add atomic, which is
-  correct for FastAPI's single-process BackgroundTasks execution model.
+Deduplication model (Phase 6):
+  A processing_jobs row with deduplication_key='fingerprint:{ip}' replaces
+  the module-level _pending set from Phase 4. The DB-backed approach survives
+  process restarts: a pending/running fingerprint job persists across restarts,
+  preventing duplicate recomputation after a crash or redeploy.
 
-  This design is intentionally scoped to single-process deployments (the
-  Phase 4 target environment with BackgroundTasks).  Multi-process worker
-  deployments (Gunicorn with multiple uvicorn workers) would need a shared
-  coordination store (Redis, DB advisory locks) — deferred to Phase 5/6
-  when task volume justifies the operational overhead (§11: No async worker
-  infrastructure unless task backlog is measured).
+  Race condition: between the SELECT (no active job found) and the INSERT,
+  another request could create a duplicate job. This is inherent in any
+  optimistic check-then-insert pattern without a DB-level unique constraint.
+  The consequence — two fingerprint computations for the same IP — is harmless
+  because fingerprint computation is idempotent (upsert semantics). The
+  previous threading.Lock was correct for single-process deployments; the DB
+  check is correct for multi-process deployments.
 """
 
 from __future__ import annotations
 
 import logging
-import threading
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -29,46 +30,80 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_pending: set[str] = set()
-_pending_lock = threading.Lock()
-
 
 def schedule_fingerprint_if_not_pending(ip: str, background_tasks: BackgroundTasks) -> None:
-    """Enqueue a fingerprint computation task for ip unless one is already queued.
+    """Enqueue a fingerprint computation job for ip unless one is already active.
 
-    Thread-safe: the check-and-add is atomic under _pending_lock.
-    If an existing task is in-flight for this ip, the new request is silently
-    dropped — the in-flight task will read all events committed so far when
-    it executes.
+    Creates a processing_jobs row in 'pending' state before enqueuing the
+    background task. If a pending or running job for this ip already exists
+    (by deduplication_key), the new request is silently dropped.
     """
-    with _pending_lock:
-        if ip in _pending:
-            return
-        _pending.add(ip)
-    background_tasks.add_task(_run_fingerprint_task, ip)
+    from app.db.connection import get_session
+    from app.db.repository import EventRepository
+
+    dedup_key = f"fingerprint:{ip}"
+    now = datetime.now(UTC).isoformat()
+    job_id: str | None = None
+
+    try:
+        with get_session() as session:
+            repo = EventRepository(session)
+            existing = repo.get_active_job_by_dedup_key(dedup_key)
+            if existing is not None:
+                return
+            job = repo.create_job(
+                job_type="fingerprint_clustering",
+                triggered_by="system:ingest",
+                resource_type="ip",
+                resource_id=ip,
+                deduplication_key=dedup_key,
+                created_at=now,
+            )
+            job_id = job["id"]
+    except Exception:
+        logger.exception("Failed to create fingerprint job for ip=%s", ip)
+        return
+
+    background_tasks.add_task(_run_fingerprint_task, ip, job_id)
 
 
-def _run_fingerprint_task(ip: str) -> None:
+def _run_fingerprint_task(ip: str, job_id: str) -> None:
     """Execute fingerprint computation for ip in a background context.
 
+    Manages job lifecycle: pending → running → completed | failed.
     Failures are logged but do not propagate — a fingerprint failure must
     never surface as an ingest error to the sensor (§3.3 / §11).
-    The ip is removed from _pending in the finally block regardless of outcome.
     """
+    from app.db.connection import get_session
+    from app.db.repository import EventRepository
+
     try:
+        with get_session() as session:
+            repo = EventRepository(session)
+            started = repo.start_job(job_id, started_at=datetime.now(UTC).isoformat())
+            if not started:
+                # Job was cancelled or already started by another executor.
+                logger.debug("Fingerprint job %s not in pending state, skipping", job_id)
+                return
         _compute_and_store(ip)
+        with get_session() as session:
+            repo = EventRepository(session)
+            repo.complete_job(job_id, result_summary_json={"ip": ip, "outcome": "computed"})
     except Exception:
-        logger.exception("Fingerprint computation failed for ip=%s", ip)
-    finally:
-        with _pending_lock:
-            _pending.discard(ip)
+        logger.exception("Fingerprint computation failed for ip=%s job_id=%s", ip, job_id)
+        try:
+            with get_session() as session:
+                repo = EventRepository(session)
+                repo.fail_job(job_id, error_message="Fingerprint computation error")
+        except Exception:
+            logger.exception("Failed to record fingerprint job failure for job_id=%s", job_id)
 
 
 def _compute_and_store(ip: str) -> None:
     """Fetch events, compute fingerprint, write to behavioral_fingerprints.
 
     After a successful fingerprint commit, triggers campaign clustering when
-    the fingerprint meets the minimum confidence threshold (§12.6).  The
+    the fingerprint meets the minimum confidence threshold (§12.6). The
     fingerprint session commits before clustering — a clustering failure
     cannot roll back the stored fingerprint.
     """
@@ -99,10 +134,7 @@ def _compute_and_store(ip: str) -> None:
             confidence=fp["confidence"],
         )
         fp_confidence = fp["confidence"]
-    # Fingerprint committed above.
 
-    # Campaign clustering runs in a separate session so a clustering failure
-    # cannot roll back the already-committed fingerprint (§12.6).
     if fp_confidence >= 0.20:
         _run_campaign_clustering(ip)
 

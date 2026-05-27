@@ -20,6 +20,7 @@ def reset_db_rows():
     yield
     engine = get_engine()
     with engine.connect() as conn:
+        conn.execute(text("DELETE FROM processing_jobs"))
         conn.execute(text("DELETE FROM behavioral_fingerprints"))
         conn.execute(text("DELETE FROM campaign_tags"))
         conn.execute(text("DELETE FROM campaign_observations"))
