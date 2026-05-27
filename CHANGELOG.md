@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.26.0](https://github.com/stecrin/legiontrap-ti/compare/v0.25.0...v0.26.0) (2026-05-27)
+
+### Features
+
+* **intelligence:** add behavioral stability scoring ([7d31633](https://github.com/stecrin/legiontrap-ti/commit/7d3163365a42c0577d267c89b3da62967fbee225))
+
 ## [0.25.0](https://github.com/stecrin/legiontrap-ti/compare/v0.24.0...v0.25.0) (2026-05-27)
 
 ### Features
