@@ -336,3 +336,20 @@ class JobRepository(RepositoryBase):
             },
         )
         return result.rowcount
+
+    def count_recent_ai_jobs(self, triggered_by: str, *, since: str) -> int:
+        """Count campaign_summary and campaign_brief jobs created by triggered_by since cutoff.
+
+        Used for per-operator AI rate limiting at the analyze endpoints.
+        Only AI-triggering job types are counted; fingerprint_clustering is excluded.
+        """
+        row = self._session.execute(
+            text("""
+                SELECT COUNT(*) FROM processing_jobs
+                WHERE triggered_by = :triggered_by
+                  AND job_type IN ('campaign_summary', 'campaign_brief')
+                  AND created_at >= :since
+            """),
+            {"triggered_by": triggered_by, "since": since},
+        ).fetchone()
+        return int(row[0]) if row else 0

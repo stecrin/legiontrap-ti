@@ -8,14 +8,14 @@ Execution model:
   2. Transition to 'running' via start_job(). If start_job returns False,
      another executor has already taken the job — return silently.
   3. Execute AI logic (read-only DB fetch → prompt build → AI call → validate).
-  4. On success: write ai_outputs row, then complete_job() with ai_output_id.
-  5. On any exception: fail_job() with a safe error summary. Stack traces
-     are logged but never stored in the job record.
+  4. On success: write ai_outputs row, write audit log, complete_job().
+  5. On any AI failure: write audit log, fail_job() with safe error summary.
+  6. On unhandled exception: _force_fail() best-effort.
 
 Deterministic-first invariants enforced here:
   - No writes to campaigns, fingerprints, events, or observations.
-  - AI outputs are stored in ai_outputs (PR A2) and result_summary_json
-    on processing_jobs is retained for polling continuity.
+  - AI outputs are stored in ai_outputs; result_summary_json retained for polling.
+  - AI audit records store metadata only — no prompt text, no response text.
   - get_ai_backend() is imported here so tests can monkeypatch
     'app.jobs.runner.get_ai_backend' without touching the router.
   - AI outputs are never used as prompt inputs (§3, §10 Rule 1).
@@ -108,7 +108,7 @@ def _execute_summary(job_id: str) -> None:
     campaign_id: str = job.get("resource_id") or ""
     triggered_by: str | None = job.get("triggered_by")
 
-    # Fetch campaign data — read-only session, separate from job lifecycle session.
+    # Fetch campaign data — read-only session.
     with get_session() as session:
         repo = EventRepository(session)
         campaign = repo.get_campaign(campaign_id)
@@ -122,23 +122,99 @@ def _execute_summary(job_id: str) -> None:
         all_obs = repo.get_campaign_observations(campaign_id)
         observations = all_obs[-_MAX_OBSERVATIONS:]
 
-    # Build prompt and call AI backend.
+    # Build prompt.
     prompt_data = build_campaign_summary_prompt(campaign, fingerprint, observations)
     user_prompt = prompt_data["user_prompt"]
     prompt_hash = _prompt_hash(user_prompt)
     payload_bytes = len(user_prompt.encode("utf-8"))
     data_quality_score = _compute_data_quality_score(campaign, fingerprint, observations)
 
+    # Acquire backend — may raise AIBackendError if misconfigured.
+    t0_call = time.monotonic()
     try:
         backend = get_ai_backend()
+    except AIBackendError as exc:
+        call_latency_ms = int((time.monotonic() - t0_call) * 1000)
+        _write_audit_log_safe(
+            job_id=job_id,
+            output_id=None,
+            triggered_by=triggered_by,
+            backend=settings.AI_BACKEND,
+            model_name="unknown",
+            operation_type="campaign_summary",
+            resource_type="campaign",
+            resource_id=campaign_id,
+            payload_bytes=payload_bytes,
+            response_bytes=0,
+            latency_ms=call_latency_ms,
+            status="failure",
+            error_type="AIBackendError",
+        )
+        _fail_job_safe(job_id, str(exc))
+        return
+
+    # Call AI backend.
+    try:
         raw_output = backend.generate(user_prompt)
+        call_latency_ms = int((time.monotonic() - t0_call) * 1000)
+        response_bytes = len(raw_output.encode("utf-8"))
+        call_status = "success"
+        call_error_type = None
     except AIDisabledError as exc:
+        call_latency_ms = int((time.monotonic() - t0_call) * 1000)
+        _write_audit_log_safe(
+            job_id=job_id,
+            output_id=None,
+            triggered_by=triggered_by,
+            backend=settings.AI_BACKEND,
+            model_name=backend.model_name,
+            operation_type="campaign_summary",
+            resource_type="campaign",
+            resource_id=campaign_id,
+            payload_bytes=payload_bytes,
+            response_bytes=0,
+            latency_ms=call_latency_ms,
+            status="disabled",
+            error_type="AIDisabledError",
+        )
         _fail_job_safe(job_id, str(exc))
         return
     except AIBackendUnavailableError as exc:
+        call_latency_ms = int((time.monotonic() - t0_call) * 1000)
+        _write_audit_log_safe(
+            job_id=job_id,
+            output_id=None,
+            triggered_by=triggered_by,
+            backend=settings.AI_BACKEND,
+            model_name=backend.model_name,
+            operation_type="campaign_summary",
+            resource_type="campaign",
+            resource_id=campaign_id,
+            payload_bytes=payload_bytes,
+            response_bytes=0,
+            latency_ms=call_latency_ms,
+            status="unavailable",
+            error_type="AIBackendUnavailableError",
+        )
         _fail_job_safe(job_id, str(exc))
         return
     except AIBackendError as exc:
+        call_latency_ms = int((time.monotonic() - t0_call) * 1000)
+        _write_audit_log_safe(
+            job_id=job_id,
+            output_id=None,
+            triggered_by=triggered_by,
+            backend=settings.AI_BACKEND,
+            model_name=backend.model_name,
+            operation_type="campaign_summary",
+            resource_type="campaign",
+            resource_id=campaign_id,
+            payload_bytes=payload_bytes,
+            response_bytes=0,
+            latency_ms=call_latency_ms,
+            status="failure",
+            error_type="AIBackendError",
+        )
         _fail_job_safe(job_id, str(exc))
         return
 
@@ -189,6 +265,23 @@ def _execute_summary(job_id: str) -> None:
             triggered_by=triggered_by,
         )
 
+    # Write audit log with output_id now known.
+    _write_audit_log_safe(
+        job_id=job_id,
+        output_id=output_id,
+        triggered_by=triggered_by,
+        backend=settings.AI_BACKEND,
+        model_name=backend.model_name,
+        operation_type="campaign_summary",
+        resource_type="campaign",
+        resource_id=campaign_id,
+        payload_bytes=payload_bytes,
+        response_bytes=response_bytes,
+        latency_ms=call_latency_ms,
+        status=call_status,
+        error_type=call_error_type,
+    )
+
     with get_session() as session:
         repo = EventRepository(session)
         repo.complete_job(
@@ -216,7 +309,7 @@ def _execute_brief(job_id: str) -> None:
 
     triggered_by: str | None = job.get("triggered_by")
 
-    # Parse max_campaigns from backend_metadata_json (stored by analyze router).
+    # Parse max_campaigns from backend_metadata_json.
     max_campaigns = 10
     if job.get("backend_metadata_json"):
         try:
@@ -263,16 +356,90 @@ def _execute_brief(job_id: str) -> None:
     payload_bytes = len(user_prompt.encode("utf-8"))
     data_quality_score = round(min(len(campaigns) / 10.0, 1.0), 3)
 
+    t0_call = time.monotonic()
     try:
         backend = get_ai_backend()
+    except AIBackendError as exc:
+        call_latency_ms = int((time.monotonic() - t0_call) * 1000)
+        _write_audit_log_safe(
+            job_id=job_id,
+            output_id=None,
+            triggered_by=triggered_by,
+            backend=settings.AI_BACKEND,
+            model_name="unknown",
+            operation_type="campaign_brief",
+            resource_type=None,
+            resource_id=None,
+            payload_bytes=payload_bytes,
+            response_bytes=0,
+            latency_ms=call_latency_ms,
+            status="failure",
+            error_type="AIBackendError",
+        )
+        _fail_job_safe(job_id, str(exc))
+        return
+
+    try:
         raw_output = backend.generate(user_prompt)
+        call_latency_ms = int((time.monotonic() - t0_call) * 1000)
+        response_bytes = len(raw_output.encode("utf-8"))
+        call_status = "success"
+        call_error_type = None
     except AIDisabledError as exc:
+        call_latency_ms = int((time.monotonic() - t0_call) * 1000)
+        _write_audit_log_safe(
+            job_id=job_id,
+            output_id=None,
+            triggered_by=triggered_by,
+            backend=settings.AI_BACKEND,
+            model_name=backend.model_name,
+            operation_type="campaign_brief",
+            resource_type=None,
+            resource_id=None,
+            payload_bytes=payload_bytes,
+            response_bytes=0,
+            latency_ms=call_latency_ms,
+            status="disabled",
+            error_type="AIDisabledError",
+        )
         _fail_job_safe(job_id, str(exc))
         return
     except AIBackendUnavailableError as exc:
+        call_latency_ms = int((time.monotonic() - t0_call) * 1000)
+        _write_audit_log_safe(
+            job_id=job_id,
+            output_id=None,
+            triggered_by=triggered_by,
+            backend=settings.AI_BACKEND,
+            model_name=backend.model_name,
+            operation_type="campaign_brief",
+            resource_type=None,
+            resource_id=None,
+            payload_bytes=payload_bytes,
+            response_bytes=0,
+            latency_ms=call_latency_ms,
+            status="unavailable",
+            error_type="AIBackendUnavailableError",
+        )
         _fail_job_safe(job_id, str(exc))
         return
     except AIBackendError as exc:
+        call_latency_ms = int((time.monotonic() - t0_call) * 1000)
+        _write_audit_log_safe(
+            job_id=job_id,
+            output_id=None,
+            triggered_by=triggered_by,
+            backend=settings.AI_BACKEND,
+            model_name=backend.model_name,
+            operation_type="campaign_brief",
+            resource_type=None,
+            resource_id=None,
+            payload_bytes=payload_bytes,
+            response_bytes=0,
+            latency_ms=call_latency_ms,
+            status="failure",
+            error_type="AIBackendError",
+        )
         _fail_job_safe(job_id, str(exc))
         return
 
@@ -297,7 +464,6 @@ def _execute_brief(job_id: str) -> None:
     }
     backend_meta = {"ai_backend": settings.AI_BACKEND, "latency_ms": latency_ms}
 
-    # Write ai_output BEFORE completing the job.
     output_id = str(uuid.uuid4())
     with get_session() as session:
         repo = EventRepository(session)
@@ -321,6 +487,22 @@ def _execute_brief(job_id: str) -> None:
             generated_at=generated_at,
             triggered_by=triggered_by,
         )
+
+    _write_audit_log_safe(
+        job_id=job_id,
+        output_id=output_id,
+        triggered_by=triggered_by,
+        backend=settings.AI_BACKEND,
+        model_name=backend.model_name,
+        operation_type="campaign_brief",
+        resource_type=None,
+        resource_id=None,
+        payload_bytes=payload_bytes,
+        response_bytes=response_bytes,
+        latency_ms=call_latency_ms,
+        status=call_status,
+        error_type=call_error_type,
+    )
 
     with get_session() as session:
         repo = EventRepository(session)
@@ -349,9 +531,7 @@ def _compute_data_quality_score(
 ) -> float:
     """Composite data quality score: confidence 40%, obs 30%, fp 20%, recency 10%."""
     confidence = float(campaign.get("confidence") or 0.5)
-
     obs_score = min(len(observations) / 10.0, 1.0)
-
     fp_score = 0.0
     if fingerprint:
         dims = [
@@ -363,11 +543,53 @@ def _compute_data_quality_score(
         ]
         present = sum(1 for d in dims if fingerprint.get(d))
         fp_score = present / 5.0
-
     recency = 1.0 if observations else 0.0
-
     score = confidence * 0.4 + obs_score * 0.3 + fp_score * 0.2 + recency * 0.1
     return round(score, 3)
+
+
+# ---------------------------------------------------------------------------
+# Audit log helper
+# ---------------------------------------------------------------------------
+
+
+def _write_audit_log_safe(
+    *,
+    job_id: str | None,
+    output_id: str | None,
+    triggered_by: str | None,
+    backend: str,
+    model_name: str,
+    operation_type: str,
+    resource_type: str | None,
+    resource_id: str | None,
+    payload_bytes: int,
+    response_bytes: int,
+    latency_ms: int,
+    status: str,
+    error_type: str | None,
+) -> None:
+    """Write an AI audit record. Failures are logged but never propagated."""
+    try:
+        with get_session() as session:
+            repo = EventRepository(session)
+            repo.create_ai_audit_log(
+                job_id=job_id,
+                output_id=output_id,
+                triggered_by=triggered_by,
+                backend=backend,
+                model_name=model_name,
+                operation_type=operation_type,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                payload_bytes=payload_bytes,
+                response_bytes=response_bytes,
+                latency_ms=latency_ms,
+                status=status,
+                error_type=error_type,
+            )
+    except Exception:
+        logger.exception("Failed to write AI audit log job_id=%s status=%s", job_id, status)
 
 
 # ---------------------------------------------------------------------------

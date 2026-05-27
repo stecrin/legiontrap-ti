@@ -15,6 +15,7 @@ Failure modes that still raise at POST time (before job creation):
   404 — campaign not found (summary only)
   401 — missing or invalid credentials
   422 — invalid request body
+  429 — per-operator AI rate limit exceeded (AI_MAX_REQUESTS_PER_MINUTE)
 
 Failure modes handled asynchronously (via job status):
   job.status=failed + error_message — AI disabled, backend unreachable,
@@ -25,12 +26,20 @@ Deduplication (summary only):
   campaign_id, the existing job_id is returned immediately with
   HTTP 202 and status='running'|'pending'.
 
+Rate limiting:
+  DB-backed, using the processing_jobs table. Counts campaign_summary and
+  campaign_brief jobs created by the same operator in the last 60 seconds.
+  Limit is AI_MAX_REQUESTS_PER_MINUTE (default 10). Rate-limited requests
+  are written to ai_audit_log with status='rate_limited' in a separate
+  session so the record commits even though an HTTPException is raised.
+
 Auth: require_jwt_or_api_key on all endpoints.
 """
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+import logging
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, status
 from pydantic import BaseModel, Field
@@ -40,6 +49,8 @@ from app.db.connection import get_session
 from app.db.repository import EventRepository
 from app.jobs.runner import run_campaign_brief_job, run_campaign_summary_job
 from app.utils.auth import require_jwt_or_api_key
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/campaigns", tags=["analyze"])
 
@@ -54,6 +65,39 @@ def _triggered_by(auth_info: dict) -> str:
         sub = auth_info.get("sub") or "unknown"
         return f"user:{sub}"
     return "api_key"
+
+
+def _write_rate_limit_audit_safe(
+    *,
+    triggered_by: str | None,
+    operation_type: str,
+    resource_type: str | None,
+    resource_id: str | None,
+) -> None:
+    """Write a rate_limited ai_audit_log record in a separate session.
+
+    Uses a separate get_session() call so this write commits independently
+    of the HTTPException that immediately follows — exceptions in the same
+    session block trigger rollback, which would swallow the audit record.
+    """
+    try:
+        with get_session() as session:
+            repo = EventRepository(session)
+            repo.create_ai_audit_log(
+                triggered_by=triggered_by,
+                backend=settings.AI_BACKEND,
+                model_name="unknown",
+                operation_type=operation_type,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                payload_bytes=0,
+                response_bytes=0,
+                latency_ms=0,
+                status="rate_limited",
+                error_type="RateLimitExceeded",
+            )
+    except Exception:
+        logger.exception("Failed to write rate_limited audit log triggered_by=%s", triggered_by)
 
 
 @router.post("/{campaign_id}/summary", status_code=status.HTTP_202_ACCEPTED)
@@ -85,6 +129,9 @@ def campaign_summary(
     dedup_key = f"campaign_summary:{campaign_id}"
     now = datetime.now(UTC).isoformat()
 
+    rate_limited = False
+    job = None
+
     with get_session() as session:
         repo = EventRepository(session)
 
@@ -101,18 +148,38 @@ def campaign_summary(
         if existing is not None:
             return _accepted_response(existing["id"], existing["status"], now)
 
-        # Create a new job.
-        job = repo.create_job(
-            job_type="campaign_summary",
+        # Rate limit: count AI jobs created by this operator in the last 60s.
+        cutoff = (datetime.now(UTC) - timedelta(seconds=60)).isoformat()
+        if (
+            repo.count_recent_ai_jobs(triggered_by, since=cutoff)
+            >= settings.AI_MAX_REQUESTS_PER_MINUTE
+        ):
+            rate_limited = True
+        else:
+            job = repo.create_job(
+                job_type="campaign_summary",
+                triggered_by=triggered_by,
+                resource_type="campaign",
+                resource_id=campaign_id,
+                deduplication_key=dedup_key,
+                created_at=now,
+            )
+
+    if rate_limited:
+        _write_rate_limit_audit_safe(
             triggered_by=triggered_by,
+            operation_type="campaign_summary",
             resource_type="campaign",
             resource_id=campaign_id,
-            deduplication_key=dedup_key,
-            created_at=now,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="AI rate limit exceeded. Try again in 60 seconds.",
+            headers={"Retry-After": "60"},
         )
 
-    background_tasks.add_task(run_campaign_summary_job, job["id"])
-    return _accepted_response(job["id"], "pending", now)
+    background_tasks.add_task(run_campaign_summary_job, job["id"])  # type: ignore[union-attr]
+    return _accepted_response(job["id"], "pending", now)  # type: ignore[index]
 
 
 @router.post("/brief", status_code=status.HTTP_202_ACCEPTED)
@@ -139,21 +206,45 @@ def campaign_brief(
     triggered_by = _triggered_by(auth_info)
     now = datetime.now(UTC).isoformat()
 
+    rate_limited = False
+    job = None
+
     with get_session() as session:
         repo = EventRepository(session)
-        # Store max_campaigns in backend_metadata_json so the runner can read it.
-        job = repo.create_job(
-            job_type="campaign_brief",
+        # Rate limit: count AI jobs created by this operator in the last 60s.
+        cutoff = (datetime.now(UTC) - timedelta(seconds=60)).isoformat()
+        if (
+            repo.count_recent_ai_jobs(triggered_by, since=cutoff)
+            >= settings.AI_MAX_REQUESTS_PER_MINUTE
+        ):
+            rate_limited = True
+        else:
+            # Store max_campaigns in backend_metadata_json so the runner can read it.
+            job = repo.create_job(
+                job_type="campaign_brief",
+                triggered_by=triggered_by,
+                resource_type=None,
+                resource_id=None,
+                deduplication_key=None,
+                created_at=now,
+                backend_metadata_json={"max_campaigns": body.max_campaigns},
+            )
+
+    if rate_limited:
+        _write_rate_limit_audit_safe(
             triggered_by=triggered_by,
+            operation_type="campaign_brief",
             resource_type=None,
             resource_id=None,
-            deduplication_key=None,
-            created_at=now,
-            backend_metadata_json={"max_campaigns": body.max_campaigns},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="AI rate limit exceeded. Try again in 60 seconds.",
+            headers={"Retry-After": "60"},
         )
 
-    background_tasks.add_task(run_campaign_brief_job, job["id"])
-    return _accepted_response(job["id"], "pending", now)
+    background_tasks.add_task(run_campaign_brief_job, job["id"])  # type: ignore[union-attr]
+    return _accepted_response(job["id"], "pending", now)  # type: ignore[index]
 
 
 def _accepted_response(job_id: str, job_status: str, accepted_at: str) -> dict:
