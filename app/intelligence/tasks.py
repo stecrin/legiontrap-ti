@@ -190,12 +190,17 @@ def _compute_and_store(ip: str) -> None:
 def _run_campaign_clustering(ip: str) -> None:
     """Run campaign assignment for ip in a fresh session.
 
-    After assignment, updates representative_fingerprint_json on the campaign
-    so the next clustering query can use the fast path (§13.2).
+    After assignment:
+      - Updates representative_fingerprint_json on the campaign (fast-path cache, §13.2).
+      - Triggers behavioral stability refresh for the assigned campaign in a
+        separate failure domain — a stability failure must never mask a
+        clustering success.
 
     Failures are logged but do not propagate — a clustering failure must
     never surface as a fingerprint-computation error (§3.3 / §11).
     """
+    assigned_campaign_id: str | None = None
+
     try:
         from app.db.connection import get_session
         from app.db.repository import EventRepository
@@ -210,5 +215,14 @@ def _run_campaign_clustering(ip: str) -> None:
             if decision.campaign_id is not None:
                 rep_fp_json = _build_representative_fp_json(stored_fp)
                 repo.update_representative_fingerprint(decision.campaign_id, rep_fp_json)
+                assigned_campaign_id = decision.campaign_id
     except Exception:
         logger.exception("Campaign clustering failed for ip=%s", ip)
+
+    if assigned_campaign_id is not None:
+        try:
+            from app.intelligence.stability import refresh_campaign_stability
+
+            refresh_campaign_stability(assigned_campaign_id)
+        except Exception:
+            logger.exception("Stability refresh failed for campaign_id=%s", assigned_campaign_id)

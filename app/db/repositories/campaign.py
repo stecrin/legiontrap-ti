@@ -71,7 +71,7 @@ class CampaignRepository(RepositoryBase):
                        first_seen, last_seen, dormant_since,
                        reactivation_count, member_ip_count,
                        attack_tactic_dist, top_target_ports, notes,
-                       created_at, updated_at
+                       created_at, updated_at, behavioral_stability_json
                 FROM campaigns WHERE id = :id
             """),
             {"id": campaign_id},
@@ -93,6 +93,7 @@ class CampaignRepository(RepositoryBase):
             "notes": row[11],
             "created_at": row[12],
             "updated_at": row[13],
+            "behavioral_stability_json": row[14],
         }
 
     def get_campaigns_for_clustering(self) -> list[dict[str, Any]]:
@@ -212,6 +213,51 @@ class CampaignRepository(RepositoryBase):
             {"id": campaign_id},
         ).fetchone()
         return row[0] if row is not None else None
+
+    def update_campaign_stability(
+        self,
+        campaign_id: str,
+        behavioral_stability_json: str,
+    ) -> None:
+        """Persist the behavioral stability JSON for a campaign.
+
+        Called by refresh_campaign_stability() after each stability recomputation.
+        The column is derived data — fingerprint_history is the authoritative source.
+        """
+        self._session.execute(
+            text("""
+                UPDATE campaigns
+                SET behavioral_stability_json = :stability_json
+                WHERE id = :campaign_id
+            """),
+            {
+                "campaign_id": campaign_id,
+                "stability_json": behavioral_stability_json,
+            },
+        )
+
+    def get_campaign_stability(self, campaign_id: str) -> str | None:
+        """Return behavioral_stability_json for campaign_id, or None if not set."""
+        row = self._session.execute(
+            text("""
+                SELECT behavioral_stability_json
+                FROM campaigns WHERE id = :id
+            """),
+            {"id": campaign_id},
+        ).fetchone()
+        return row[0] if row is not None else None
+
+    def list_campaigns_missing_stability(self) -> list[str]:
+        """Return campaign_ids where behavioral_stability_json is NULL.
+
+        Used for batch refresh of campaigns that have not yet been scored.
+        """
+        rows = self._session.execute(text("""
+                SELECT id FROM campaigns
+                WHERE behavioral_stability_json IS NULL
+                ORDER BY last_seen DESC
+            """)).fetchall()
+        return [r[0] for r in rows]
 
     def get_campaign_member_by_ip(self, source_ip: str) -> dict[str, Any] | None:
         """Return the campaign_members row for source_ip, or None if unassigned."""
@@ -371,7 +417,7 @@ class CampaignRepository(RepositoryBase):
                        first_seen, last_seen, dormant_since,
                        reactivation_count, member_ip_count,
                        attack_tactic_dist, top_target_ports, notes,
-                       created_at, updated_at
+                       created_at, updated_at, behavioral_stability_json
                 FROM campaigns
                 ORDER BY last_seen DESC
                 LIMIT :limit
@@ -394,6 +440,7 @@ class CampaignRepository(RepositoryBase):
                 "notes": r[11],
                 "created_at": r[12],
                 "updated_at": r[13],
+                "behavioral_stability_json": r[14],
             }
             for r in rows
         ]

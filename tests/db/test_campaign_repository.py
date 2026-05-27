@@ -123,6 +123,7 @@ def test_get_campaign_returned_keys(db_session):
         "notes",
         "created_at",
         "updated_at",
+        "behavioral_stability_json",
     }
 
 
