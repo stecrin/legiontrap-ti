@@ -42,7 +42,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.core.config import settings
 from app.db.connection import get_session
@@ -57,6 +57,26 @@ router = APIRouter(prefix="/api/campaigns", tags=["analyze"])
 
 class BriefRequest(BaseModel):
     max_campaigns: int = Field(default=10, ge=1, le=25)
+    time_window_start: str | None = None
+    time_window_end: str | None = None
+
+    @model_validator(mode="after")
+    def _check_time_window(self) -> BriefRequest:
+        start = self.time_window_start
+        end = self.time_window_end
+        if (start is None) != (end is None):
+            raise ValueError("Both time_window_start and time_window_end must be provided together")
+        if start is not None and end is not None:
+            try:
+                dt_start = datetime.fromisoformat(start)
+                dt_end = datetime.fromisoformat(end)
+            except ValueError as exc:
+                raise ValueError(
+                    "time_window_start and time_window_end must be valid ISO 8601 strings"
+                ) from exc
+            if dt_start >= dt_end:
+                raise ValueError("time_window_start must be before time_window_end")
+        return self
 
 
 def _triggered_by(auth_info: dict) -> str:
@@ -219,7 +239,11 @@ def campaign_brief(
         ):
             rate_limited = True
         else:
-            # Store max_campaigns in backend_metadata_json so the runner can read it.
+            # Store params in backend_metadata_json so the runner can read them.
+            meta: dict = {"max_campaigns": body.max_campaigns}
+            if body.time_window_start is not None:
+                meta["time_window_start"] = body.time_window_start
+                meta["time_window_end"] = body.time_window_end
             job = repo.create_job(
                 job_type="campaign_brief",
                 triggered_by=triggered_by,
@@ -227,7 +251,7 @@ def campaign_brief(
                 resource_id=None,
                 deduplication_key=None,
                 created_at=now,
-                backend_metadata_json={"max_campaigns": body.max_campaigns},
+                backend_metadata_json=meta,
             )
 
     if rate_limited:

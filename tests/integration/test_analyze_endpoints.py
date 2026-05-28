@@ -1094,3 +1094,150 @@ def test_brief_reactivated_campaigns_included(monkeypatch):
     resp = client.post(_BRIEF_URL, headers=HEADERS)
     job = _get_job_result(resp.json()["job_id"])
     assert job["result"]["campaign_count"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Time-window support (PR C1)
+# ---------------------------------------------------------------------------
+
+_TW_INSIDE = "2026-03-01T00:00:00+00:00"  # inside window [2026-02-01, 2026-04-01]
+_TW_OUTSIDE = "2025-12-01T00:00:00+00:00"  # before window
+_TW_START = "2026-02-01T00:00:00+00:00"
+_TW_END = "2026-04-01T00:00:00+00:00"
+
+_TW_BODY = {
+    "time_window_start": _TW_START,
+    "time_window_end": _TW_END,
+}
+
+
+def test_brief_time_window_only_start_returns_422():
+    resp = client.post(
+        _BRIEF_URL,
+        headers=HEADERS,
+        json={"time_window_start": _TW_START},
+    )
+    assert resp.status_code == 422
+
+
+def test_brief_time_window_only_end_returns_422():
+    resp = client.post(
+        _BRIEF_URL,
+        headers=HEADERS,
+        json={"time_window_end": _TW_END},
+    )
+    assert resp.status_code == 422
+
+
+def test_brief_time_window_start_after_end_returns_422():
+    resp = client.post(
+        _BRIEF_URL,
+        headers=HEADERS,
+        json={"time_window_start": _TW_END, "time_window_end": _TW_START},
+    )
+    assert resp.status_code == 422
+
+
+def test_brief_time_window_start_equal_end_returns_422():
+    resp = client.post(
+        _BRIEF_URL,
+        headers=HEADERS,
+        json={"time_window_start": _TW_START, "time_window_end": _TW_START},
+    )
+    assert resp.status_code == 422
+
+
+def test_brief_time_window_invalid_iso_start_returns_422():
+    resp = client.post(
+        _BRIEF_URL,
+        headers=HEADERS,
+        json={"time_window_start": "not-a-date", "time_window_end": _TW_END},
+    )
+    assert resp.status_code == 422
+
+
+def test_brief_time_window_invalid_iso_end_returns_422():
+    resp = client.post(
+        _BRIEF_URL,
+        headers=HEADERS,
+        json={"time_window_start": _TW_START, "time_window_end": "not-a-date"},
+    )
+    assert resp.status_code == 422
+
+
+def test_brief_time_window_filters_in_campaign(monkeypatch):
+    """Campaign with last_seen inside the window is included."""
+    cid = str(uuid.uuid4())
+    _insert_campaign(cid, last_seen=_TW_INSIDE)
+    monkeypatch.setattr("app.jobs.runner.get_ai_backend", lambda: MockAIBackend("Brief."))
+    resp = client.post(_BRIEF_URL, headers=HEADERS, json=_TW_BODY)
+    assert resp.status_code == 202
+    job = _get_job_result(resp.json()["job_id"])
+    assert job["result"]["campaign_count"] >= 1
+    assert cid in job["result"]["source_records"]["campaign_ids"]
+
+
+def test_brief_time_window_excludes_campaign_outside_window(monkeypatch):
+    """Campaign with last_seen before window start is excluded."""
+    cid = str(uuid.uuid4())
+    _insert_campaign(cid, last_seen=_TW_OUTSIDE)
+    monkeypatch.setattr("app.jobs.runner.get_ai_backend", lambda: MockAIBackend("Brief."))
+    resp = client.post(_BRIEF_URL, headers=HEADERS, json=_TW_BODY)
+    assert resp.status_code == 202
+    job = _get_job_result(resp.json()["job_id"])
+    assert cid not in job["result"]["source_records"]["campaign_ids"]
+
+
+def test_brief_time_window_source_records_has_window_fields(monkeypatch):
+    """source_records includes time_window_start/end when window is provided."""
+    _insert_campaign(last_seen=_TW_INSIDE)
+    monkeypatch.setattr("app.jobs.runner.get_ai_backend", lambda: MockAIBackend("Brief."))
+    resp = client.post(_BRIEF_URL, headers=HEADERS, json=_TW_BODY)
+    job = _get_job_result(resp.json()["job_id"])
+    sr = job["result"]["source_records"]
+    assert sr["time_window_start"] == _TW_START
+    assert sr["time_window_end"] == _TW_END
+
+
+def test_brief_no_time_window_source_records_no_window_fields(monkeypatch):
+    """source_records has no time_window fields when no window is provided."""
+    _insert_campaign()
+    monkeypatch.setattr("app.jobs.runner.get_ai_backend", lambda: MockAIBackend("Brief."))
+    resp = client.post(_BRIEF_URL, headers=HEADERS)
+    job = _get_job_result(resp.json()["job_id"])
+    sr = job["result"]["source_records"]
+    assert "time_window_start" not in sr
+    assert "time_window_end" not in sr
+
+
+def test_brief_time_window_max_campaigns_still_enforced(monkeypatch):
+    """max_campaigns cap applies after time window filter."""
+    for _ in range(10):
+        cid = str(uuid.uuid4())
+        _insert_campaign(cid, last_seen=_TW_INSIDE)
+    monkeypatch.setattr("app.jobs.runner.get_ai_backend", lambda: MockAIBackend("Brief."))
+    body = {**_TW_BODY, "max_campaigns": 3}
+    resp = client.post(_BRIEF_URL, headers=HEADERS, json=body)
+    job = _get_job_result(resp.json()["job_id"])
+    assert job["result"]["campaign_count"] <= 3
+
+
+def test_brief_time_window_empty_window_result(monkeypatch):
+    """No campaigns in window produces no_campaigns rejection."""
+    _insert_campaign(last_seen=_TW_OUTSIDE)  # outside window
+    monkeypatch.setattr("app.jobs.runner.get_ai_backend", lambda: MockAIBackend("Brief."))
+    resp = client.post(_BRIEF_URL, headers=HEADERS, json=_TW_BODY)
+    job = _get_job_result(resp.json()["job_id"])
+    assert job["result"]["campaign_count"] == 0
+    assert job["result"]["rejection_reason"] == "no_campaigns"
+
+
+def test_brief_no_time_window_backward_compatible(monkeypatch):
+    """Requests without time_window work exactly as before."""
+    _insert_campaign()
+    monkeypatch.setattr("app.jobs.runner.get_ai_backend", lambda: MockAIBackend("Brief."))
+    resp = client.post(_BRIEF_URL, headers=HEADERS)
+    assert resp.status_code == 202
+    job = _get_job_result(resp.json()["job_id"])
+    assert job["result"]["status"] if "status" in job["result"] else job["status"] == "completed"
+    assert job["result"]["campaign_count"] >= 1
