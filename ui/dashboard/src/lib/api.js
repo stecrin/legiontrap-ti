@@ -74,6 +74,18 @@ export async function postCampaignBrief({
   return { status: r.status, data };
 }
 
+export async function getCampaignAiOutputs(campaignId, { limit = 20 } = {}) {
+  const r = await fetch(`/api/campaigns/${encodeURIComponent(campaignId)}/ai-outputs?limit=${limit}`, { headers: { 'x-api-key': 'dev-123' } });
+  if (!r.ok) throw new Error(`ai-outputs ${r.status}`);
+  return r.json();
+}
+
+export async function getAiOutput(outputId) {
+  const r = await fetch(`/api/ai/outputs/${encodeURIComponent(outputId)}`, { headers: { 'x-api-key': 'dev-123' } });
+  if (!r.ok) throw new Error(`ai/outputs/${outputId} ${r.status}`);
+  return r.json();
+}
+
 export async function getJob(jobId) {
   const r = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, {
     headers: { 'x-api-key': 'dev-123' },

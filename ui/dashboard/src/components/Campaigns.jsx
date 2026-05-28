@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from "react";
 import { getCampaigns, getCampaignDetail, postCampaignSummary } from "../lib/api";
 import { timeAgo } from "../utils/format";
 import CampaignAiPanel from "./CampaignAiPanel";
+import CampaignAiOutputHistory from "./CampaignAiOutputHistory";
 
 const REFRESH_MS = 30_000;
 
@@ -373,6 +374,10 @@ export default function Campaigns({ dark }) {
                           summaryState={aiSummaries[item.id] ?? { status: "idle", data: null, errorMsg: null }}
                           onGenerate={() => generateSummary(item.id)}
                           onDismiss={() => dismissSummary(item.id)}
+                          dark={dark}
+                        />
+                        <CampaignAiOutputHistory
+                          campaignId={item.id}
                           dark={dark}
                         />
                       </td>
