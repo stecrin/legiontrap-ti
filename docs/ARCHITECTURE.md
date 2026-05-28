@@ -2,7 +2,7 @@
 
 **Document type:** Technical architecture reference
 **Audience:** Engineers, autonomous agents, contributors
-**Last reviewed:** 2026-05-26 (Phase 5)
+**Last reviewed:** 2026-05-28 (Phase 6)
 
 ---
 
@@ -19,14 +19,17 @@ Browser (React 19 + Vite)
   │     └── POST /api/login → JWT token stored in localStorage
   │
   ├── Dashboard (authenticated)
-  │     ├── GET /api/stats                      → KPI counters
-  │     ├── GET /api/iocs/pf.conf               → Firewall block table preview
-  │     ├── GET /api/events                     → Recent events table + trends chart
-  │     ├── GET /api/intelligence/ips           → Top Source IPs panel
-  │     ├── GET /api/intelligence/top-countries → Top Countries panel
-  │     ├── GET /api/intelligence/top-asns      → Top ASNs panel
-  │     ├── GET /api/campaigns                  → Campaign Intelligence panel
-  │     └── POST /api/campaigns/{id}/summary    → CampaignAiPanel (operator-triggered)
+  │     ├── GET /api/stats                                   → KPI counters
+  │     ├── GET /api/iocs/pf.conf                            → Firewall block table preview
+  │     ├── GET /api/events                                  → Recent events table + trends chart
+  │     ├── GET /api/intelligence/ips                        → Top Source IPs panel
+  │     ├── GET /api/intelligence/top-countries              → Top Countries panel
+  │     ├── GET /api/intelligence/top-asns                   → Top ASNs panel
+  │     ├── GET /api/campaigns                               → Campaign Intelligence panel
+  │     ├── POST /api/campaigns/{id}/summary                 → CampaignAiPanel (operator-triggered, 202)
+  │     ├── POST /api/campaigns/brief                        → CampaignBriefPanel (operator-triggered, 202)
+  │     ├── GET /api/jobs/{job_id}                           → async polling for AI job status
+  │     └── GET /api/campaigns/{id}/ai-outputs              → CampaignAiOutputHistory panel
   │
   └── Auto-refresh: 10–30s interval per component
 
@@ -42,7 +45,11 @@ FastAPI Backend (app/)
   │     ├── intelligence.py     GET /api/intelligence/* (top IPs, countries, ASNs, IP detail)
   │     ├── exports.py          GET /api/exports/attack-navigator, /api/exports/stix
   │     ├── campaigns.py        GET /api/campaigns, /api/campaigns/{id}, /api/campaigns/{id}/observations
-  │     └── analyze.py          POST /api/campaigns/{id}/summary, POST /api/campaigns/brief
+  │     │                       GET /api/campaigns/uncertain-associations
+  │     │                       POST /api/campaigns/uncertain-associations/{id}/review
+  │     ├── analyze.py          POST /api/campaigns/{id}/summary (202), POST /api/campaigns/brief (202)
+  │     ├── jobs.py             GET /api/jobs/{job_id}, GET /api/jobs
+  │     └── ai_outputs.py       GET /api/ai/outputs/{id}, GET /api/campaigns/{id}/ai-outputs
   ├── app/ai/
   │     ├── __init__.py          Public API — re-exports all AI layer symbols
   │     ├── backend.py           AIBackend ABC + DisabledAIBackend, MockAIBackend,
@@ -61,12 +68,17 @@ FastAPI Backend (app/)
   │     ├── connection.py        SQLAlchemy engine, session factory, create_all_tables()
   │     ├── repository.py        EventRepository public facade (re-exports mixin composition)
   │     └── repositories/
-  │           ├── _base.py            RepositoryBase (session holder)
-  │           ├── read.py             ReadRepository — event and source_ip queries
-  │           ├── write.py            WriteRepository — ingest, audit_log
-  │           ├── intelligence.py     IntelligenceRepository — top IPs, countries, ASNs, STIX/ATT&CK queries
-  │           ├── fingerprint.py      FingerprintRepository — behavioral fingerprint upserts and lookups
-  │           └── campaign.py         CampaignRepository — campaign CRUD, members, observations, export queries
+  │           ├── _base.py               RepositoryBase (session holder)
+  │           ├── read.py                ReadRepository — event and source_ip queries
+  │           ├── write.py               WriteRepository — ingest, audit_log
+  │           ├── intelligence.py        IntelligenceRepository — top IPs, countries, ASNs, STIX/ATT&CK queries
+  │           ├── fingerprint.py         FingerprintRepository — behavioral fingerprint upserts and lookups
+  │           ├── fingerprint_history.py FingerprintHistoryRepository — append-only longitudinal snapshots
+  │           ├── campaign.py            CampaignRepository — campaign CRUD, members, observations, export queries
+  │           ├── jobs.py                JobRepository — processing_jobs CRUD, dedup, TTL enforcement
+  │           ├── ai_outputs.py          AiOutputRepository — write-once AI output records
+  │           ├── ai_audit_log.py        AiAuditLogRepository — AI call metadata audit records
+  │           └── actor.py               ActorRepository — actor_profiles and campaign_lineage (Phase 7 foundations)
   ├── app/schemas/
   │     └── models.py           RawEvent, HoneypotEvent, IngestRequest, IngestReceipt
   ├── app/utils/
@@ -156,15 +168,18 @@ ui/dashboard/
     pages/
       Login.jsx          Login form → POST /api/login → stores JWT in localStorage
     components/
-      EventTrends.jsx      Recharts line chart of events over time
-      RecentEvents.jsx     Tabular view of most recent events
-      IntelligenceIPs.jsx  Top Source IPs table with expandable IP detail rows
-      TopCountries.jsx     Top Countries panel (country, event count, unique IPs)
-      TopASNs.jsx          Top ASNs panel (ASN, organization, event count, unique IPs)
-      Campaigns.jsx        Campaign Intelligence panel (lifecycle badges, confidence bars, expandable detail + AI panel)
-      CampaignAiPanel.jsx  Operator-triggered AI summary panel; warning always visible; never auto-generates
+      EventTrends.jsx             Recharts line chart of events over time
+      RecentEvents.jsx            Tabular view of most recent events
+      IntelligenceIPs.jsx         Top Source IPs table with expandable IP detail rows
+      TopCountries.jsx            Top Countries panel (country, event count, unique IPs)
+      TopASNs.jsx                 Top ASNs panel (ASN, organization, event count, unique IPs)
+      Campaigns.jsx               Campaign Intelligence panel (lifecycle badges, confidence bars, expandable detail)
+      CampaignAiPanel.jsx         Operator-triggered AI summary panel; warning always visible; never auto-generates
+      CampaignBriefPanel.jsx      Multi-campaign threat brief panel; time-window inputs; async 202 polling
+      CampaignAiOutputHistory.jsx Persisted AI output history per campaign; regenerate button; historical warning
     lib/
-      api.js               Authenticated fetch helpers (stats, events, intelligence, exports, campaigns, AI summary)
+      api.js               Authenticated fetch helpers (stats, events, intelligence, exports, campaigns,
+                           AI summary/brief, job polling, AI output history)
     utils/
       format.js          Date/time formatting utilities
     index.css            Global styles + dark/light mode variables
@@ -212,11 +227,11 @@ For high-volume distributed deployments, an event streaming layer (Redis Streams
 
 ---
 
-## AI Reasoning Architecture (Phase 5)
+## AI Reasoning Architecture (Phase 5–6)
 
-Phase 5 added the `app/ai/` module as a read-only reasoning layer over the existing campaign data model. The AI layer is strictly additive: removing it leaves the rest of the system fully functional.
+Phase 5 added the `app/ai/` module as a read-only reasoning layer over the existing campaign data model. Phase 6 made that layer async, persistent, and auditable. The AI layer is strictly additive: removing it leaves the rest of the system fully functional.
 
-### AI request flow
+### AI request flow (Phase 6 — async)
 
 ```
 Operator (dashboard or API client)
@@ -225,7 +240,20 @@ Operator (dashboard or API client)
     ▼
 app/routers/analyze.py
     │  Privacy check (PRIVACY_MODE + AI_BACKEND=claude → 422)
+    │  Campaign existence check (summary only; 404 if not found)
+    │  Deduplication check (summary only; returns existing job_id if pending/running)
+    │  Per-operator rate limit check (DB-backed; 429 + audit record if exceeded)
+    │  Create processing_jobs row (status=pending)
+    │
+    ▼
+HTTP 202 Accepted  { job_id, status: "pending", poll_url }
+    │
+    │  FastAPI BackgroundTasks executes the job function after HTTP response sent
+    ▼
+app/jobs/runner.py
+    │  Set job status=running
     │  Read-only DB fetch via EventRepository (campaign, fingerprint, observations)
+    │  Apply time-window filter if provided (brief only)
     │
     ▼
 app/ai/prompt_builder.py
@@ -234,7 +262,7 @@ app/ai/prompt_builder.py
     │
     ▼
 app/ai/backend.py  (get_ai_backend())
-    │  DisabledAIBackend → AIDisabledError → 503
+    │  DisabledAIBackend → job fails with AI features disabled
     │  OllamaAIBackend   → POST http://OLLAMA_HOST/api/generate
     │  ClaudeAIBackend   → anthropic SDK → Anthropic API
     │
@@ -243,23 +271,27 @@ app/ai/safety.py  (validate_ai_output)
     │  Reject if empty, contains IP pattern, or exceeds length limit
     │
     ▼
-JSON response envelope (no DB writes at any step)
+AiOutputRepository.create_ai_output()
+    │  Write immutable row to ai_outputs (content, backend, prompt_hash, source_records, safety_flags, etc.)
+    │  Write metadata row to ai_audit_log (no content — byte counts and latency only)
+    │
+    ▼
+Job status=completed, ai_output_id set in processing_jobs
+    │
+    │  Operator polls GET /api/jobs/{job_id} until terminal state
+    │  On completed: fetch result from GET /api/ai/outputs/{ai_output_id}
+    │  Or: view full history at GET /api/campaigns/{id}/ai-outputs
 ```
 
 ### AI layer isolation invariants
 
-- The AI layer never calls `get_session()` for writes. No AI code path modifies the database.
+- The AI layer never calls `get_session()` for writes to campaign, fingerprint, event, or observation tables.
 - The ingest path (`app/routers/ingest.py`, `app/intelligence/`) has no imports from `app/ai/`.
 - `app/intelligence/clustering.py` is immutable from the AI layer's perspective. AI may describe similarity scores; it cannot change them.
 - `MockAIBackend` exists exclusively for test injection. It must not appear in production code paths.
+- AI outputs are never fed back into any prompt. The chain from `ai_outputs` back to the prompt builder is never traversed.
 
-### Phase 6 AI infrastructure prerequisites
-
-1. **Async processing:** AI analysis must eventually run asynchronously to avoid blocking the API under load. A background task queue (FastAPI `BackgroundTasks` initially, Celery or asyncio worker later) is required.
-2. **Output persistence:** A new `ai_outputs` table is needed before output history, audit requirements, or operator recall are implementable.
-3. **AI call audit logging:** Every external AI API call should be logged to `audit_log` with timestamp and payload byte count.
-
-See [AI_ROADMAP.md](AI_ROADMAP.md) for the broader AI integration strategy and [PHASE_5_CLOSEOUT.md](PHASE_5_CLOSEOUT.md) for the Phase 5 delivery record.
+See [AI_ROADMAP.md](AI_ROADMAP.md) for the broader AI integration strategy, [PHASE_5_CLOSEOUT.md](PHASE_5_CLOSEOUT.md) for the Phase 5 delivery record, and [PHASE_6_CLOSEOUT.md](PHASE_6_CLOSEOUT.md) for the Phase 6 delivery record.
 
 ---
 

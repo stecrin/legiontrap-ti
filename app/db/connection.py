@@ -313,6 +313,38 @@ def create_all_tables(engine: Engine) -> None:
                 "created_at TEXT NOT NULL)"
             )
         )
+
+        # Phase 6 Group D — actor identity schema foundations for Phase 7.
+        # actor_profiles and campaign_lineage are empty containers.  No row is
+        # created automatically by clustering, lifecycle, or AI code paths.
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS actor_profiles ("
+                "id TEXT PRIMARY KEY, "
+                "display_name TEXT NOT NULL, "
+                "confidence REAL NOT NULL DEFAULT 0.5, "
+                "status TEXT NOT NULL DEFAULT 'active', "
+                "representative_fingerprint_json TEXT, "
+                "behavioral_stability_json TEXT, "
+                "notes TEXT, "
+                "created_at TEXT NOT NULL, "
+                "updated_at TEXT NOT NULL)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS campaign_lineage ("
+                "id TEXT PRIMARY KEY, "
+                "actor_profile_id TEXT NOT NULL, "
+                "campaign_id TEXT NOT NULL, "
+                "relationship_type TEXT NOT NULL, "
+                "confidence REAL NOT NULL DEFAULT 0.5, "
+                "evidence_json TEXT, "
+                "created_at TEXT NOT NULL, "
+                "FOREIGN KEY (actor_profile_id) REFERENCES actor_profiles(id), "
+                "FOREIGN KEY (campaign_id) REFERENCES campaigns(id))"
+            )
+        )
         conn.commit()
 
 

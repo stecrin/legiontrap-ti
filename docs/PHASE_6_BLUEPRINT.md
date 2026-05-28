@@ -1,7 +1,7 @@
 # LegionTrap TI — Phase 6 Architecture Blueprint
 
 **Document type:** Pre-implementation architecture blueprint
-**Status:** Under review — do not begin implementation until this document is approved
+**Status:** Complete — see [PHASE_6_CLOSEOUT.md](PHASE_6_CLOSEOUT.md) for the delivery record
 **Audience:** Engineers, contributors
 **Date:** 2026-05-27
 

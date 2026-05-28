@@ -2,7 +2,7 @@
 
 **Document type:** Phased development plan and architectural evolution order
 **Audience:** Engineers, autonomous agents, contributors
-**Last reviewed:** 2026-05-26
+**Last reviewed:** 2026-05-28
 
 ---
 
@@ -14,7 +14,7 @@ The order of this roadmap is not arbitrary. Each phase is a prerequisite for the
 
 ---
 
-## Current State (as of Phase 5)
+## Current State (as of Phase 6)
 
 | Capability | Status | Notes |
 |---|---|---|
@@ -29,20 +29,30 @@ The order of this roadmap is not arbitrary. Each phase is a prerequisite for the
 | JWT + API key auth | Working | bcrypt password verification; hardcoded defaults removed |
 | Audit logging | Working | `audit_log` table; one row per ingest batch |
 | Data retention | Working | `delete_events_before()` + `make db-prune` |
-| React dashboard | Working | KPI cards, event chart, recent events, intelligence panels, campaign panel + AI summary panel |
+| React dashboard | Working | KPI cards, event chart, recent events, intelligence panels, campaign panel, AI summary panel, brief panel, AI output history panel |
 | CI/CD | Working | Lint, test, semantic release; Black 26.5.1 pinned |
 | Docker Compose | Working | Edge deployment profile |
 | Behavioral fingerprinting | Working | 5-dimension behavioral fingerprint per source IP; stored in `behavioral_fingerprints` |
+| Fingerprint history | Working | Append-only longitudinal snapshots in `fingerprint_history`; enables Phase 7 drift detection |
+| Representative fingerprints | Working | Cluster centroid fingerprint stored per campaign in `representative_fingerprint_json` |
+| Behavioral stability scoring | Working | Longitudinal stability metrics stored per campaign in `behavioral_stability_json` |
 | Campaign clustering | Working | Deterministic similarity clustering; reactivation detection; `app/intelligence/clustering.py` |
 | Campaign lifecycle | Working | Automatic active→dormant→historical transitions; manual trigger via `POST /api/admin/run-lifecycle-job` |
 | Campaign analytics | Working | `attack_tactic_dist` and `top_target_ports` populated per campaign by analytics job |
 | Configurable weights | Working | Similarity weights and lifecycle thresholds are environment variables with sane defaults |
 | Campaign API | Working | `GET /api/campaigns`, `GET /api/campaigns/{id}`, `GET /api/campaigns/{id}/observations` |
+| Uncertain association review | Working | `GET /api/campaigns/uncertain-associations`, `POST /api/campaigns/uncertain-associations/{id}/review` |
 | AI backend abstraction | Working | `DisabledAIBackend` (default), `OllamaAIBackend`, `ClaudeAIBackend`; swapped via `AI_BACKEND` env var |
 | AI safety layer | Working | Field sanitization, injection pattern detection, IP-in-output rejection, length limits |
-| Campaign AI summary | Working | `POST /api/campaigns/{id}/summary`; operator-triggered; no persistence |
-| Multi-campaign brief | Working | `POST /api/campaigns/brief`; operator-triggered; no persistence |
-| Dashboard AI panel | Working | `CampaignAiPanel` — operator-triggered, plain text, warning always visible |
+| Async AI job infrastructure | Working | 202 Accepted contract; `processing_jobs` table; `GET /api/jobs/{job_id}` polling; TTL enforcement |
+| AI output persistence | Working | Every AI artifact written to `ai_outputs` (write-once, immutable); linked to job via `ai_output_id` |
+| AI audit logging | Working | Every AI API call logged to `ai_audit_log`; metadata only (no content); rate-limited requests logged |
+| AI rate limiting | Working | DB-backed per-operator rate limit; `AI_MAX_REQUESTS_PER_MINUTE` env var (default: 10) |
+| Campaign AI summary | Working | `POST /api/campaigns/{id}/summary`; 202 Accepted; operator-triggered; persisted to `ai_outputs` |
+| Multi-campaign brief | Working | `POST /api/campaigns/brief`; 202 Accepted; optional time-window filter; persisted to `ai_outputs` |
+| Campaign AI output history | Working | `GET /api/campaigns/{id}/ai-outputs`; newest-first; `CampaignAiOutputHistory` dashboard panel |
+| Dashboard AI brief panel | Working | `CampaignBriefPanel` — time-window inputs, async polling, plain text, warning always visible |
+| Actor identity foundations | Schema only | `actor_profiles` + `campaign_lineage` tables; `ActorRepository`; no attribution logic yet |
 
 ---
 
@@ -188,42 +198,46 @@ Phase 3 delivered the foundation: enriched events, a queryable intelligence laye
 
 ---
 
-## Phase 6 — Behavioral Memory and Campaign Tracking
+## Phase 6 — Behavioral Memory and Campaign Intelligence — **Complete**
 
-**Duration:** 4–6 weeks
-**Goal:** Persistent behavioral fingerprinting that enables campaign recognition across time.
+**Duration:** ~2 weeks (Phase 5 infrastructure build-out + Phase 6 delivery)
+**Goal:** Make AI-generated intelligence accountable, auditable, and recallable. Deepen behavioral memory into a longitudinal model. Prepare actor identity foundations for Phase 7.
 
-This is the strategic core of the platform. Events are not isolated incidents; they are data points in persistent behavioral patterns.
+Phase 6 delivered in four groups. Group A shipped the async job infrastructure and AI persistence layer before any AI feature expansion. Groups B and C built on that foundation. Group D created empty schema foundations for Phase 7 without implementing attribution.
 
-| Task | Notes |
-|---|---|
-| Behavioral fingerprint schema | Encode port sequences, timing distributions, User-Agent patterns, tool signatures |
-| Campaign cluster model | Group events into campaigns based on behavioral similarity |
-| Actor persistence table | Track campaigns across multiple observation periods |
-| `GET /api/campaigns` | Return active and historical campaign clusters |
-| Campaign recurrence detection | Alert when a known campaign fingerprint reappears |
-| Threat scoring | Score actors by frequency, behavioral diversity, targeting patterns |
+| Group | PRs | Title |
+|-------|-----|-------|
+| A | #51–#53 | Async job infrastructure, AI output persistence, audit logging, rate limiting |
+| B | #54–#56 | Fingerprint history, representative fingerprints, behavioral stability scoring, uncertain association review queue |
+| C | #57–#58 | Time-window campaign briefs, dashboard brief panel, AI output history panel |
+| D | D1+D2 | Actor identity schema foundations, Phase 6 close-out documentation |
 
-**Exit criteria:** The system identifies that a campaign observed today shares behavioral characteristics with a campaign observed three months ago, even if the IP infrastructure is entirely different.
+**Exit criteria met:** The system persists, audits, and serves every AI-generated artifact. Behavioral fingerprints are recorded longitudinally. Clustering decisions with uncertain confidence are surfaced to analysts for review. Actor identity tables are in place for Phase 7 assignment.
+
+**Delivered:** See [PHASE_6_CLOSEOUT.md](PHASE_6_CLOSEOUT.md) for the complete delivery record, architectural changes, known limitations, and Phase 7 recommended direction.
 
 ---
 
-## Phase 7 — Privacy-Preserving Federation
+## Phase 7 — Actor Identity and Behavioral Federation
 
 **Duration:** 6–10 weeks
-**Goal:** Enable consenting operators to share behavioral fingerprints without exposing raw telemetry.
+**Goal:** Build on Phase 6 actor identity foundations to enable campaign-to-actor assignment, then enable consenting operators to share behavioral fingerprints without exposing raw telemetry.
 
-See [FEDERATION_VISION.md](FEDERATION_VISION.md) for detailed design.
+Phase 6 Group D created the `actor_profiles` and `campaign_lineage` tables and repository layer. Phase 7 activates them with API endpoints, operator tooling, and a federation protocol.
 
-| Task | Notes |
-|---|---|
-| Behavioral fingerprint serialization format | Standardized, privacy-safe representation of behavioral patterns |
-| Federation protocol design | Push/pull model; signed submissions; operator identity management |
-| Opt-in contribution mechanism | Operators explicitly choose what to share |
-| Received intelligence integration | Imported fingerprints enrich local campaign detection |
-| Federation API endpoints | `POST /api/federation/contribute`, `GET /api/federation/fingerprints` |
+See [FEDERATION_VISION.md](FEDERATION_VISION.md) for detailed federation design. See [PHASE_6_CLOSEOUT.md](PHASE_6_CLOSEOUT.md) §10 for the recommended Phase 7 direction.
 
-**Exit criteria:** Two independent LegionTrap deployments can exchange behavioral fingerprints. Each deployment's campaign detection improves measurably from the shared data.
+| Task | Track | Notes |
+|------|-------|-------|
+| Actor profile CRUD API | 1 | `POST /api/actors`, `GET /api/actors/{id}`, `PATCH /api/actors/{id}` |
+| Campaign-to-actor linking API | 1 | `POST /api/actors/{id}/campaigns`, `GET /api/actors/{id}/campaigns` |
+| Actor profile dashboard panel | 1 | Read-only; no automatic attribution |
+| Behavioral fingerprint serialization format | 2 | Standardized, privacy-safe representation; no raw IPs |
+| Operator identity management | 2 | Cryptographic keypair per deployment for signing |
+| Federation push/pull API | 2 | `POST /api/federation/contribute`, `GET /api/federation/fingerprints` |
+| Received intelligence integration | 2 | Imported fingerprints enrich local campaign detection |
+
+**Exit criteria:** An operator can assign campaigns to actor profiles via API. Two independent LegionTrap deployments can exchange behavioral fingerprints. Each deployment's campaign detection improves measurably from the shared data.
 
 ---
 
