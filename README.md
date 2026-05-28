@@ -4,40 +4,23 @@
 - [Thesis](#thesis)
 - [What This Is](#what-this-is)
 - [The Intelligence Model](#the-intelligence-model)
-- [Roadmap](#-roadmap)
-- [Tech Stack](#-tech-stack)
 - [Architecture Overview](#architecture-overview)
 - [Sovereignty Model](#sovereignty-model)
 - [Current State](#current-state)
 - [Direction](#direction)
+- [Roadmap](#roadmap)
+- [Tech Stack](#tech-stack)
 - [Quick Start](#quick-start-local)
-- [API Endpoints](#api-endpoints)
+- [API Reference](#api-reference)
 - [Database Operations](#database-operations)
 - [Environment Configuration](#environment-configuration)
 - [Privacy & Anonymization](#privacy--anonymization)
 - [Tests & CI](#tests--ci)
 - [Troubleshooting](#troubleshooting)
-- [Release Automation](#-release-automation)
+- [Release Automation](#release-automation)
 - [Contributing](#contributing)
 - [License](#license)
 
-
-## 🚀 Roadmap
-
-| Phase | Focus Area | Status |
-|-------|-------------|--------|
-| **Phase 0** | Security & Infrastructure Hygiene | ✅ Complete |
-| **Phase 1** | SQLite Storage Foundation | ✅ Complete |
-| **Phase 2** | HTTP Ingestion API | ✅ Complete |
-| **Phase 3** | GeoIP Enrichment & Intelligence Exports | ✅ Complete |
-| **Phase 4** | Campaign Intelligence & Export Maturity | ✅ Complete |
-| **Phase 5** | AI Integration | ✅ Complete |
-| **Phase 6** | Async AI, Output Persistence & Brief UI | ✅ Complete |
-| **Phase 7** | Actor Identity and Behavioral Federation | ⏳ Next |
-
-Each phase builds on the previous. See [docs/ROADMAP.md](docs/ROADMAP.md) for full detail.
-
----
 
 ## Thesis
 
@@ -70,18 +53,6 @@ Every time a fingerprint is recomputed, a snapshot is appended to that source's 
 Behavioral stability measures how consistently a campaign has behaved across its fingerprint history. High stability indicates the campaign's tooling, timing, and targets have remained recognizable across all observed snapshots. Declining stability across recent snapshots may indicate adaptation. A sparse designation means the history is too short to compute meaningful stability metrics. Stability is a signal, not a verdict; the operator decides what a given stability profile means in their specific context.
 
 The AI reasoning layer operates on this structured, deterministic data — fingerprints, campaign records, stability scores — and produces natural-language analysis on operator request. AI is not the source of the intelligence. It explains and contextualizes data that was produced entirely by deterministic algorithms. Every conclusion the AI layer draws is traceable to specific behavioral dimensions and similarity scores. The operator remains the final interpreter; no action is taken automatically.
-
----
-
-## 🧠 Tech Stack
-
-![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-Framework-009688?logo=fastapi&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-WAL%20Mode-003B57?logo=sqlite&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white)
-![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-2088FF?logo=githubactions&logoColor=white)
-![Semantic Release](https://img.shields.io/badge/Semantic%20Release-Automated%20Versioning-blueviolet?logo=semanticrelease&logoColor=white)
-![MIT License](https://img.shields.io/badge/License-MIT-green.svg)
 
 ---
 
@@ -162,6 +133,35 @@ Privacy-preserving behavioral federation is the logical continuation of the thes
 
 ---
 
+## Roadmap
+
+| Phase | Focus Area | Status |
+|-------|-------------|--------|
+| **Phase 0** | Security & Infrastructure Hygiene | ✅ Complete |
+| **Phase 1** | SQLite Storage Foundation | ✅ Complete |
+| **Phase 2** | HTTP Ingestion API | ✅ Complete |
+| **Phase 3** | GeoIP Enrichment & Intelligence Exports | ✅ Complete |
+| **Phase 4** | Campaign Intelligence & Export Maturity | ✅ Complete |
+| **Phase 5** | AI Integration | ✅ Complete |
+| **Phase 6** | Async AI, Output Persistence & Brief UI | ✅ Complete |
+| **Phase 7** | Actor Identity and Behavioral Federation | ⏳ Next |
+
+Each phase builds on the previous. See [docs/ROADMAP.md](docs/ROADMAP.md) for full detail.
+
+---
+
+## Tech Stack
+
+![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-Framework-009688?logo=fastapi&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-WAL%20Mode-003B57?logo=sqlite&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?logo=docker&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-CI%2FCD-2088FF?logo=githubactions&logoColor=white)
+![Semantic Release](https://img.shields.io/badge/Semantic%20Release-Automated%20Versioning-blueviolet?logo=semanticrelease&logoColor=white)
+![MIT License](https://img.shields.io/badge/License-MIT-green.svg)
+
+---
+
 ## Quick Start (local)
 
 ```bash
@@ -195,31 +195,9 @@ curl -s -H "$H" http://127.0.0.1:8088/api/iocs/pf.conf
 
 ---
 
-## API Endpoints
+## API Reference
 
-| Method | Path                              | Auth    | Description                              |
-|-------:|-----------------------------------|:-------:|------------------------------------------|
-| GET    | `/api/health`                     | No      | Liveness check                           |
-| POST   | `/api/login`                      | No      | Dashboard login → JWT token              |
-| POST   | `/api/ingest`                     | API key | Batch event ingest (up to 500)           |
-| GET    | `/api/stats`                      | Yes     | Total events, unique IPs, last-24h       |
-| GET    | `/api/events`                     | Yes     | Recent events (newest first)             |
-| GET    | `/api/iocs/ufw.txt`               | Yes     | UFW deny list (privacy-aware)            |
-| GET    | `/api/iocs/pf.conf`               | Yes     | PF table config (privacy-aware)          |
-| GET    | `/api/intelligence/ips`           | Yes     | Top source IPs with reputation scores    |
-| GET    | `/api/intelligence/ips/{ip}`      | Yes     | Detail record for a single IP            |
-| GET    | `/api/intelligence/top-countries` | Yes     | Top countries by event count             |
-| GET    | `/api/intelligence/top-asns`      | Yes     | Top ASNs by event count                  |
-| GET    | `/api/exports/attack-navigator`   | Yes     | ATT&CK Navigator layer JSON              |
-| GET    | `/api/exports/stix`               | Yes     | STIX 2.1 Indicator bundle (blocked when `PRIVACY_MODE=on`) |
-| GET    | `/api/campaigns`                  | Yes     | Campaign list (paginated, sorted by last_seen DESC) |
-| GET    | `/api/campaigns/{id}`             | Yes     | Campaign detail with members and observations |
-| POST   | `/api/campaigns/{id}/summary`     | Yes     | AI-assisted campaign summary (operator-triggered) |
-| POST   | `/api/campaigns/brief`            | Yes     | AI-assisted multi-campaign threat brief  |
-
-**Auth options:**
-- API key header: `x-api-key: <API_KEY>`
-- JWT bearer (dashboard): `Authorization: Bearer <token>`
+The complete API endpoint reference, authentication model, and contract details are documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 
@@ -274,8 +252,6 @@ Copy `.env.example` for a template with all required variables.
 
 ## Privacy & Anonymization
 
-IOC exports support two privacy strategies controlled by `PRIVACY_MODE` and `FEED_SALT`:
-
 **`PRIVACY_MODE=off`** (default): Full IPs exported as-is.
 ```
 8.8.8.8
@@ -329,7 +305,7 @@ Free port 8088 or set `PORT=<other>` when calling `make run`.
 
 ---
 
-## 🚀 Release Automation
+## Release Automation
 
 This repository uses **semantic-release** to automatically handle versioning, tagging, and changelog updates.
 
@@ -362,7 +338,7 @@ pytest -q
 
 ---
 
-## 🧾 Changelog & Release History
+## Changelog & Release History
 
 [![GitHub release](https://img.shields.io/github/v/release/stecrin/legiontrap-ti?label=Current%20Version&color=blue)](https://github.com/stecrin/legiontrap-ti/releases/latest)
 
