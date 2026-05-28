@@ -1,7 +1,8 @@
 # LegionTrap TI
 
 ## Table of Contents
-- [Vision](#-vision)
+- [Thesis](#thesis)
+- [What This Is](#what-this-is)
 - [Roadmap](#-roadmap)
 - [Tech Stack](#-tech-stack)
 - [Architecture Overview](#-architecture-overview)
@@ -34,20 +35,21 @@ Each phase builds on the previous. See [docs/ROADMAP.md](docs/ROADMAP.md) for fu
 
 ---
 
-## 💡 Vision
+## Thesis
 
-LegionTrap TI was born from a simple idea: to turn raw hacker noise into real, understandable insight.
-It's not just another honeypot... it's a living system that listens, learns, and reacts.
-Every IP that touches your network leaves a trace, and LegionTrap TI captures it, cleans it, and turns it into something you can actually use.
+Most threat intelligence is organized around indicators: IP addresses, domain names, file hashes, signatures. Each indicator represents a point-in-time observation of attacker infrastructure. The operational cycle becomes observe, publish, block. The useful life of that observation is bounded by how long the attacker continues to use that infrastructure. An IP is cheap to rotate. A domain costs a few dollars.
 
-The goal is independence.
-You don't need a massive enterprise setup or cloud subscription to understand who's targeting you; you can host your own private threat-intelligence environment, built with open tools and transparent logic.
-Step by step, LegionTrap TI is evolving into a smart, self-sustaining platform that detects, analyzes, and reports attacks in real time, helping you stay one step ahead without relying on anyone else's system.
+This has always been the structural limitation of indicator-based defense. What changes when AI tooling is widely available is the decay rate. Generating new domains, rotating infrastructure, and cycling credential lists become scripted tasks rather than manual ones. The cost of retiring a burned indicator approaches zero. The category of intelligence that gets cheapest to defeat is exactly the category most defensive tooling is organized to produce.
 
-*Pleased to stand among those securing humanity's future in the digital age.
-Every small defense matters in securing humanity's future.*
+Behavioral patterns change more slowly. How an attacker conducts a campaign — their timing distributions, the sequence of probes, the credential preferences, the logic behind target selection — reflects operational decisions that are expensive to revise. These patterns persist across infrastructure rotation because they describe behavior, not addresses. A behavioral fingerprint built from months of observations survives changes that would expire any indicator. LegionTrap is built on the thesis that this kind of intelligence — longitudinal, behavioral, compounding — is worth the architectural complexity required to build it.
 
-**— Stefan Cringusi**
+---
+
+## What This Is
+
+LegionTrap runs on a single operator's infrastructure, analyzing adversarial traffic from a sensor they control. The design is local-first: no shared intelligence feed, no cloud dependency. The system was built to process real events from a honeypot deployment running in an isolated network segment — actual scans, probes, and credential attempts from external adversarial activity.
+
+The architecture follows from that operational context. Storage is local SQLite, compatible with PostgreSQL when scale requires migration. The AI reasoning layer supports fully local inference; cloud-based backends are available as an operator choice, not a dependency. PRIVACY_MODE is a first-class configuration option, not an afterthought. Every constraint in the design reflects the same underlying principle: the operator should own their intelligence entirely — not access to it through a subscription or a feed, but the data, the analysis pipeline, and the conclusions drawn from it.
 
 
 ## 🧠 Tech Stack
