@@ -309,24 +309,43 @@ def _execute_brief(job_id: str) -> None:
 
     triggered_by: str | None = job.get("triggered_by")
 
-    # Parse max_campaigns from backend_metadata_json.
+    # Parse params from backend_metadata_json.
     max_campaigns = 10
+    time_window_start: str | None = None
+    time_window_end: str | None = None
     if job.get("backend_metadata_json"):
         try:
             meta = json.loads(job["backend_metadata_json"])
             max_campaigns = int(meta.get("max_campaigns", 10))
+            time_window_start = meta.get("time_window_start") or None
+            time_window_end = meta.get("time_window_end") or None
         except (ValueError, TypeError, KeyError):
             pass
 
-    # Fetch campaigns — read-only session.
+    # Fetch campaigns sorted by last_seen DESC — read-only session.
     with get_session() as session:
         repo = EventRepository(session)
         all_campaigns = repo.list_campaigns(limit=max_campaigns * 4)
 
-    campaigns = [c for c in all_campaigns if c.get("status") in _BRIEF_STATUSES][:max_campaigns]
+    campaigns = [c for c in all_campaigns if c.get("status") in _BRIEF_STATUSES]
+
+    # Apply time window filter when provided.
+    if time_window_start is not None and time_window_end is not None:
+        campaigns = [
+            c
+            for c in campaigns
+            if time_window_start <= (c.get("last_seen") or "") <= time_window_end
+        ]
+
+    campaigns = campaigns[:max_campaigns]
 
     generated_at = datetime.now(UTC).isoformat()
     latency_ms = int((time.monotonic() - t0) * 1000)
+
+    empty_source_records: dict = {"campaign_ids": [], "campaign_count": 0}
+    if time_window_start is not None:
+        empty_source_records["time_window_start"] = time_window_start
+        empty_source_records["time_window_end"] = time_window_end
 
     if not campaigns:
         result = {
@@ -336,7 +355,7 @@ def _execute_brief(job_id: str) -> None:
             "warning": _SUMMARY_WARNING,
             "summary": None,
             "campaign_count": 0,
-            "source_records": {"campaign_ids": [], "campaign_count": 0},
+            "source_records": empty_source_records,
             "rejected": False,
             "rejection_reason": "no_campaigns",
             "truncated": False,
@@ -450,6 +469,11 @@ def _execute_brief(job_id: str) -> None:
     is_rejected = rejection_reason in ("ip_detected", "empty_response")
     is_truncated = rejection_reason == "truncated"
 
+    source_records = dict(prompt_data["source_records"])
+    if time_window_start is not None:
+        source_records["time_window_start"] = time_window_start
+        source_records["time_window_end"] = time_window_end
+
     result = {
         "ai_assisted": True,
         "ai_backend": settings.AI_BACKEND,
@@ -457,7 +481,7 @@ def _execute_brief(job_id: str) -> None:
         "warning": _SUMMARY_WARNING,
         "summary": None if is_rejected else validated_text,
         "campaign_count": len(campaigns),
-        "source_records": prompt_data["source_records"],
+        "source_records": source_records,
         "rejected": is_rejected,
         "rejection_reason": rejection_reason,
         "truncated": is_truncated,
