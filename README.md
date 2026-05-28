@@ -6,7 +6,8 @@
 - [The Intelligence Model](#the-intelligence-model)
 - [Roadmap](#-roadmap)
 - [Tech Stack](#-tech-stack)
-- [Architecture Overview](#-architecture-overview)
+- [Architecture Overview](#architecture-overview)
+- [Sovereignty Model](#sovereignty-model)
 - [Quick Start](#quick-start-local)
 - [API Endpoints](#api-endpoints)
 - [Database Operations](#database-operations)
@@ -82,32 +83,58 @@ The AI reasoning layer operates on this structured, deterministic data — finge
 
 ---
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
-Events arrive via `POST /api/ingest`, are validated and normalized, and are stored in SQLite. All dashboard and IOC queries run SQL via `EventRepository`.
+The system has two structurally isolated paths. The ingest path runs on every event; the reasoning path runs on operator request. The ingest path imports nothing from the AI layer. The reasoning path never writes to campaign, fingerprint, or event tables. Removing the reasoning path leaves the ingest path fully functional.
 
 ```
-Honeypot sensors (Cowrie, Dionaea, ...)
-         │
-         │  POST /api/ingest  (x-api-key)
-         ▼
-    FastAPI Backend (app/)
-         │  Pydantic validation → normalization → deduplication
-         │  GeoIP enrichment (country, city, ASN) via geoip2
-         ▼
-    storage/legiontrap.db  (SQLite, primary store)
-         │  INSERT raw_events + events + UPSERT source_ips
-         │  INSERT audit_log
-         │
-    Read path: SQL queries via EventRepository
-         │
-         ├── GET /api/stats, /api/events         → Browser dashboard
-         ├── GET /api/iocs/pf.conf, /ufw.txt     → Firewall scripts
-         ├── GET /api/intelligence/*             → Intelligence panels
-         └── GET /api/exports/*                 → External TI tools
+External sensors
+       │
+       ▼
+  Ingest + GeoIP enrichment
+       │
+       ▼
+  Behavioral fingerprinting  (5 dimensions)
+       │
+       ▼
+  Campaign clustering  (deterministic similarity scoring)
+       │
+       ├─→  Fingerprint history
+       └─→  Behavioral stability
+                    │
+            [on operator request]
+                    ▼
+           AI reasoning layer  (read-only)
+                    │
+                    ▼
+          Operator review and decision
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full component map.
+The ingest path receives event batches, validates and normalizes them, enriches with GeoIP data, and writes to the local database. After each ingest, behavioral fingerprints are updated for affected source IPs and campaign clustering runs: each fingerprint is compared against all active campaign fingerprints, and a deterministic decision is recorded — automatic association, uncertain association, or new campaign — along with per-dimension similarity scores.
+
+Campaign records accumulate observations across multiple IPs and across time. Every fingerprint recompute appends a snapshot to that source's history. Behavioral stability is derived from that history: pairwise similarity between consecutive snapshots produces a per-dimension stability score. High stability indicates consistent behavior; declining stability across recent snapshots may indicate tooling or operational adaptation.
+
+On operator request, the AI reasoning layer reads from campaign records, fingerprints, and stability scores and produces a natural-language summary or threat brief. The endpoint returns a job ID immediately; the analysis runs in the background. AI outputs are stored immutably alongside their data sources, prompt hash, and safety validation results. The AI audit log records metadata only — operation type, byte counts, latency — without storing content.
+
+Uncertain clustering associations are surfaced for analyst review. A review decision is recorded on the observation without altering the original clustering outcome or campaign membership. Actor attribution will be operator-assigned. No automatic action is taken anywhere in the system.
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full component map, repository structure, and API contract details.
+
+---
+
+## Sovereignty Model
+
+The behavioral fingerprints LegionTrap builds are specific to one operator's exposure profile: their services, their network, their attack surface. Local storage is not primarily a privacy measure — it is a requirement for the intelligence to be relevant. Your attack history can only be built from your observations. A service that does not have access to your sensor data cannot build your behavioral memory for you.
+
+Commercial threat feeds provide intelligence derived from external, aggregated observations. That intelligence is useful for blocking known-bad infrastructure. It is not useful for understanding whether a behavioral pattern targeting your specific services has appeared before, or whether a dormant campaign has returned. No feed can provide that answer because no feed has your longitudinal record.
+
+PRIVACY_MODE addresses a specific operational need: IOC exports — firewall block lists, deny rules — are often shared across teams or integrated into partner systems. An operator may need to publish actionable block rules without revealing the specific IPs they have observed. PRIVACY_MODE separates the intelligence asset from the operational artifact. The two can be managed independently.
+
+The clustering algorithm, fingerprint builder, and stability scorer are deterministic: the same inputs always produce the same output. This is an operational requirement. An operator who needs to understand why a source was assigned to a campaign can read the per-dimension similarity scores stored with every observation. Explainability is not a layer added on top of the intelligence pipeline — it is part of the core data model.
+
+The AI reasoning layer is disabled by default. When enabled, it supports fully local inference; a cloud backend is an operator configuration choice, not a dependency. Every AI request is logged with metadata — operation type, byte counts, latency — without storing prompt content or response text. Every AI output is stored immutably with its data sources and safety validation results. The audit trail answers the operational question "what analysis was performed and on what data" without reconstructing the analysis.
+
+No decision in LegionTrap is made automatically. Campaign membership is computed deterministically; uncertain cases are surfaced for operator review. AI analysis is generated on request; it does not trigger action. The operator is not a step in an automated pipeline. The operator is the decision layer.
 
 ---
 
