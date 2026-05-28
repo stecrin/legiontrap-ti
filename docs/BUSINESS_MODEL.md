@@ -248,7 +248,7 @@ Multi-site enterprise deployments with SLA-backed support, SSO integration, and 
 
 A commercial service that manages trust circle membership, verifies participant identities, and provides curated behavioral fingerprint feeds for organizations that want federation benefits without managing peer relationships themselves.
 
-**Prerequisite:** Phase 7 (federation) completion and sufficient network scale to make curated feeds valuable.
+**Prerequisite:** Phase 8 (federation) completion and sufficient network scale to make curated feeds valuable.
 
 ---
 

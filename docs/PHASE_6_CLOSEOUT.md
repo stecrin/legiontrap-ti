@@ -201,9 +201,9 @@ The following items were scoped, understood, and explicitly deferred from Phase 
 
 **SQLite write serialization:** `processing_jobs` and `ai_outputs` writes are serialized by SQLite's WAL-mode writer lock. Under concurrent AI job submissions, write latency can spike. This is acceptable for single-operator deployments and low-volume research use. High-concurrency production deployments require PostgreSQL.
 
-**Fingerprint history is not yet used for alerting:** The `fingerprint_history` table is populated and queryable, but no automated alert fires when behavioral drift exceeds a threshold. Drift detection is a Phase 7 feature; Phase 6 only collects the longitudinal data.
+**Fingerprint history is not yet used for alerting:** The `fingerprint_history` table is populated and queryable, but no automated alert fires when behavioral drift exceeds a threshold. Drift alerting is Phase 7 Group A; Phase 6 only collects the longitudinal data.
 
-**Analyst review does not propagate:** A review decision (`analyst_confirmed` or `analyst_denied`) on an uncertain observation is stored but not surfaced to the clustering algorithm, the campaign confidence score, or any downstream consumer. Phase 7 may use these signals to adjust future similarity thresholds.
+**Analyst review does not propagate:** A review decision (`analyst_confirmed` or `analyst_denied`) on an uncertain observation is stored but not surfaced to the clustering algorithm, the campaign confidence score, or any downstream consumer. Phase 7 Group A uses these signals to adjust per-campaign similarity weight profiles.
 
 **`representative_fingerprint_json` and `behavioral_stability_json` require the analytics job:** These columns are populated by the behavioral stability scoring job. They are `NULL` for campaigns that have not yet had the job run against them. The job must be triggered manually or via the scheduled lifecycle job.
 
@@ -211,33 +211,33 @@ The following items were scoped, understood, and explicitly deferred from Phase 
 
 ## 10. Phase 7 Recommended Direction
 
-Phase 7 should be named **Actor Identity and Behavioral Federation**.
+Phase 7 is named **Actor Intelligence**.
 
-The work falls into two parallel tracks:
+The architectural review conducted before Phase 7 planning identified that two categories of Phase 6 output are not yet used: analyst review decisions on uncertain associations, and longitudinal fingerprint drift signals. Building actor identity before closing those feedback loops would produce attribution on uncalibrated data. Phase 7 addresses this by making Group A (feedback loop closure) a hard prerequisite for Group B (actor identity).
 
-**Track 1 — Actor Intelligence (builds on Phase 6 Group D foundations):**
+**Group A — Feedback Loop Closure (must ship before Group B):**
 
-1. Define `relationship_type` vocabulary for `campaign_lineage` (e.g., `primary_campaign`, `infrastructure_reuse`, `tactic_match`, `temporal_overlap`).
-2. Implement operator-facing API endpoints for actor profile CRUD (`POST /api/actors`, `GET /api/actors/{id}`, `PATCH /api/actors/{id}`).
-3. Implement `GET /api/actors/{id}/campaigns` to list campaigns linked to an actor.
-4. Add dashboard actor profile panel — read-only view of linked campaigns, stability trends, and analyst notes. No automatic attribution.
-5. Consider a deterministic actor-linking suggestion engine: surface campaigns with high representative fingerprint similarity as *candidates* for manual linking. No automatic assignment. Analyst confirms or denies.
+1. Review decision propagation: confirmed uncertain associations adjust per-campaign similarity weight profiles. The operator can inspect current effective weights and trace them to source review decisions. This does not eliminate clustering determinism — it makes the configurable weights respond to accumulated operator judgment rather than remaining permanently static.
+2. Drift alerting: configurable per-dimension thresholds on behavioral stability. Threshold crossings write to a `behavioral_alerts` table and surface in the dashboard. No automated response. The operator decides what a drift signal means.
+3. Sparse campaign surface: campaigns that accumulated insufficient evidence to confirm are surfaced with a distinct lifecycle status, separate from active, dormant, and historical.
 
-**Track 2 — Behavioral Federation (builds on Phase 4–6 fingerprint infrastructure):**
+**Group B — Actor Identity (builds on Group A and Phase 6 Group D foundations):**
 
-1. Define a standardized, privacy-safe fingerprint serialization format. Raw IPs must not appear in shared fingerprints; only behavioral feature vectors.
-2. Implement operator identity management: each deployment has a cryptographic keypair for signing contributed fingerprints.
-3. Build `POST /api/federation/contribute` — publishes a behavioral fingerprint to a trusted peer.
-4. Build `GET /api/federation/fingerprints` — imports fingerprints from trusted peers.
-5. Integrate received fingerprints into the local clustering algorithm as additional comparison targets (without writing to `behavioral_fingerprints` — separate `received_fingerprints` table).
+1. Define `relationship_type` vocabulary for `campaign_lineage` before writing any API: `primary_campaign`, `infrastructure_reuse`, `tactic_match`, `temporal_overlap`. Open strings are not accepted.
+2. Implement actor profile CRUD API: `POST /api/actors`, `GET /api/actors`, `GET /api/actors/{id}`, `PATCH /api/actors/{id}`.
+3. Implement `POST /api/actors/{id}/campaigns` and `GET /api/actors/{id}/campaigns` with relationship_type validation.
+4. Implement actor suggestion engine: `GET /api/actors/suggestions` surfaces campaign pairs whose representative fingerprints exceed a configurable similarity threshold and have no existing lineage. Read-only. Never writes automatically. Analyst confirms or denies.
+5. Implement actor-level stability view: `GET /api/actors/{id}/stability` aggregates behavioral stability across all campaigns linked to the actor.
+6. Add dashboard actor profile panel — read-only view of linked campaigns, similarity suggestions, and stability trends. No automatic attribution.
 
-**Prerequisite order:** Track 1 actor attribution APIs should be complete before Track 2 federation begins. Federation of actor identities (as opposed to raw fingerprints) is a Phase 8 concern.
+**Federation is deferred to Phase 8.** Federation is not a code prerequisite problem — the fingerprint model and privacy architecture are already designed. It is an operational prerequisite problem: building the protocol before two real operators are willing to exchange fingerprints produces infrastructure that cannot be validated. Phase 8 has explicit entry criteria; it begins when those criteria are confirmed, not on a timeline.
 
 **What must not happen in Phase 7:**
 - Automatic actor attribution from clustering (humans assign actors to campaigns)
 - AI actor naming (actor display names are operator-assigned)
 - Merging campaigns into a single canonical record (campaigns are immutable history; lineage records the relationship)
-- Any change to the clustering algorithm or similarity scoring
+- Any change to the clustering algorithm's core similarity logic
+- Any federation implementation (belongs to Phase 8)
 
 ---
 

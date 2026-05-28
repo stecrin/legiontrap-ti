@@ -171,7 +171,7 @@ Prerequisite reading: `AI_ROADMAP.md` Stage 0 checklist → `ROADMAP.md` Phase 1
 
 ### "I want to understand the federation design."
 
-Start: `FEDERATION_VISION.md` → `BEHAVIORAL_INTELLIGENCE.md` → `ROADMAP.md` Phase 7
+Start: `FEDERATION_VISION.md` → `BEHAVIORAL_INTELLIGENCE.md` → `ROADMAP.md` Phase 8
 
 ### "I am an autonomous agent about to make changes."
 
@@ -194,7 +194,8 @@ Required: `SECURITY_AUDIT.md` → `ARCHITECTURE.md` → `AUTONOMOUS_OPERATIONS.m
 | Phase 4 | ATT&CK / standard exports | `DATABASE_SCHEMA.md` | `BEHAVIORAL_INTELLIGENCE.md` |
 | Phase 5 | First AI integration | `AI_REASONING_ARCHITECTURE.md` | `AI_ROADMAP.md`, `ROADMAP.md` |
 | Phase 6 | Behavioral memory | `BEHAVIORAL_INTELLIGENCE.md` | `AI_ROADMAP.md` |
-| Phase 7 | Federation | `FEDERATION_VISION.md` | `BEHAVIORAL_INTELLIGENCE.md` |
+| Phase 7 | Actor Intelligence | `ROADMAP.md` | `BEHAVIORAL_INTELLIGENCE.md` |
+| Phase 8 | Behavioral Federation | `FEDERATION_VISION.md` | `BEHAVIORAL_INTELLIGENCE.md` |
 
 ---
 

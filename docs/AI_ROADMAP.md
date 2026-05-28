@@ -211,7 +211,7 @@ This is a background task, not a synchronous API operation. It must not block th
 
 **Goal:** Specialized AI agents operating as a coordinated pipeline for complex threat analysis.
 
-This stage requires the federation layer (Phase 7 of main roadmap) to be meaningful at scale. It is a long-term architectural direction, not a near-term implementation plan.
+This stage requires the federation layer (Phase 8 of main roadmap) to be meaningful at scale. It is a long-term architectural direction, not a near-term implementation plan.
 
 ### Agent roles in the pipeline:
 

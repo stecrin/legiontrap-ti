@@ -318,7 +318,7 @@ These are directional, not commitments. They represent the infrastructure that w
 | SQLite | Phase 1 | In use — WAL mode, FK enforcement, indexed |
 | Alembic migrations | Phase 1 | In use — `alembic upgrade head` manages schema |
 | Background task worker | Phase 5 (AI) | FastAPI BackgroundTasks initially |
-| Redis (optional) | Phase 7 (Federation) | Session store, rate limiting, pub/sub |
+| Redis (optional) | Phase 8 (Federation) | Session store, rate limiting, pub/sub |
 | PostgreSQL | High-volume scale-out | When SQLite limits are reached |
 | Reverse proxy (Caddy/nginx) | Production deployment | TLS termination, rate limiting |
 | Object storage (MinIO/S3) | Long-term | PCAP storage, large artifact storage |

@@ -330,7 +330,7 @@ The compounding advantage that makes LegionTrap's position durable once achieved
 
 **Behavioral memory is not purchasable.** An operator's attack history is specific to their exposure profile and accumulates only through continuous observation. No competitor can sell a substitute. The operator who has been running LegionTrap for three years has a behavioral history that a deployment started today cannot replicate.
 
-**Federation amplifies the moat.** When the privacy-preserving federation network reaches sufficient scale `[planned: Phase 7]`, collective behavioral memory across the operator community creates network effects that individual operators cannot access outside the network. The value of participation grows with network scale.
+**Federation amplifies the moat.** When the privacy-preserving federation network reaches sufficient scale `[planned: Phase 8]`, collective behavioral memory across the operator community creates network effects that individual operators cannot access outside the network. The value of participation grows with network scale.
 
 **Community trust is slow to build and fast to destroy.** A platform that has never violated its sovereignty principles and has always been honest about its capabilities builds trust with the sovereign operator segment that a well-funded competitor cannot quickly replicate. Trust is the prerequisite for adoption in this segment; it is not purchased.
 

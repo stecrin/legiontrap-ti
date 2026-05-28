@@ -125,11 +125,13 @@ Known limitations: the actor identity schema is present but has no attribution l
 
 ## Direction
 
-Phase 7 addresses two architectural problems that Phase 6 prepared for. The first is actor identity: campaigns currently represent coordinated activity without linking to an explicit actor record. Phase 7 introduces operator-assigned actor profiles, connecting campaigns to inferred actor identities through explicit relationship types and confidence values. Attribution is always operator-confirmed; no automated assignment is planned. The Phase 6 foundations — `actor_profiles` and `campaign_lineage` schema, `ActorRepository` — are the prepared substrate for this work.
+Phase 7 addresses three architectural problems that Phase 6 left open. The first is that operator judgment — encoded in months of analyst review decisions on uncertain clustering associations — is being collected and discarded. No consumer reads those decisions. Phase 7 closes the feedback loop: confirmed associations adjust per-campaign similarity weight profiles, making the clustering algorithm responsive to the operator's own judgment over time.
 
-The second problem is the boundary of the behavioral record. A single deployment's fingerprint history is specific to its own attack surface, which is both its strength and its limit. An actor targeting multiple operators will be independently discovered by each one. Federation is the mechanism for sharing behavioral patterns across deployments without sharing the observation data those patterns were derived from. A fingerprint encodes behavioral characteristics — timing distributions, probe sequences, protocol behavior — not IP addresses. The pattern can be shared without sharing the source.
+The second is behavioral drift. Fingerprint history is accumulating. Phase 7 activates it with configurable per-dimension alerting: when behavioral stability crosses a threshold, the operator is surfaced a signal. Drift detection does not replace operator judgment — it gives the operator something to judge.
 
-Privacy-preserving behavioral federation is the logical continuation of the thesis: if behavioral patterns are more durable than indicators, then a network of operators sharing behavioral patterns gains intelligence that no individual deployment can produce alone. A campaign fingerprint observed for the first time in one deployment may match a fingerprint another operator has been tracking for months. The match is made without either operator revealing their observation infrastructure to the other. No timelines. The foundation is built.
+The third is actor identity. Campaigns currently represent coordinated activity without linking to an explicit actor record. Phase 7 introduces operator-assigned actor profiles, connecting campaigns to inferred actor identities through explicit relationship types and confidence values. A suggestion engine surfaces campaign pairs whose representative fingerprints are sufficiently similar as candidates for manual linking. Attribution is always operator-confirmed; no automated assignment runs. The Phase 6 foundations — `actor_profiles` and `campaign_lineage` schema, `ActorRepository` — are the prepared substrate.
+
+Phase 8 addresses the boundary of the behavioral record. A single deployment's fingerprint history is specific to its own attack surface, which is both its strength and its limit. Federation is the mechanism for sharing behavioral patterns across independent deployments without sharing the observation data those patterns were derived from. A fingerprint encodes behavioral characteristics — timing distributions, probe sequences, protocol behavior — not IP addresses. The pattern can be shared without sharing the source. Phase 8 begins when two real operators are willing to participate in a pilot exchange and the fingerprint serialization format has been validated against both deployments' data. The foundation is built.
 
 ---
 
@@ -144,7 +146,8 @@ Privacy-preserving behavioral federation is the logical continuation of the thes
 | **Phase 4** | Campaign Intelligence & Export Maturity | ✅ Complete |
 | **Phase 5** | AI Integration | ✅ Complete |
 | **Phase 6** | Async AI, Output Persistence & Brief UI | ✅ Complete |
-| **Phase 7** | Actor Identity and Behavioral Federation | ⏳ Next |
+| **Phase 7** | Actor Intelligence | ⏳ Next |
+| **Phase 8** | Behavioral Federation | ○ Conditional on operational prerequisites |
 
 Each phase builds on the previous. See [docs/ROADMAP.md](docs/ROADMAP.md) for full detail.
 
