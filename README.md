@@ -8,6 +8,8 @@
 - [Tech Stack](#-tech-stack)
 - [Architecture Overview](#architecture-overview)
 - [Sovereignty Model](#sovereignty-model)
+- [Current State](#current-state)
+- [Direction](#direction)
 - [Quick Start](#quick-start-local)
 - [API Endpoints](#api-endpoints)
 - [Database Operations](#database-operations)
@@ -30,8 +32,8 @@
 | **Phase 3** | GeoIP Enrichment & Intelligence Exports | ✅ Complete |
 | **Phase 4** | Campaign Intelligence & Export Maturity | ✅ Complete |
 | **Phase 5** | AI Integration | ✅ Complete |
-| **Phase 6** | Async AI, Output Persistence & Brief UI | ⏳ Next |
-| **Phase 7** | Privacy-Preserving Federation | ⏳ Planned |
+| **Phase 6** | Async AI, Output Persistence & Brief UI | ✅ Complete |
+| **Phase 7** | Actor Identity and Behavioral Federation | ⏳ Next |
 
 Each phase builds on the previous. See [docs/ROADMAP.md](docs/ROADMAP.md) for full detail.
 
@@ -135,6 +137,28 @@ The clustering algorithm, fingerprint builder, and stability scorer are determin
 The AI reasoning layer is disabled by default. When enabled, it supports fully local inference; a cloud backend is an operator configuration choice, not a dependency. Every AI request is logged with metadata — operation type, byte counts, latency — without storing prompt content or response text. Every AI output is stored immutably with its data sources and safety validation results. The audit trail answers the operational question "what analysis was performed and on what data" without reconstructing the analysis.
 
 No decision in LegionTrap is made automatically. Campaign membership is computed deterministically; uncertain cases are surfaced for operator review. AI analysis is generated on request; it does not trigger action. The operator is not a step in an automated pipeline. The operator is the decision layer.
+
+---
+
+## Current State
+
+Through Phase 6, LegionTrap supports the complete behavioral intelligence pipeline: event ingestion, behavioral fingerprinting, campaign clustering, longitudinal fingerprint history, behavioral stability scoring, and AI-assisted reasoning on operator request. An operator with a Phase 6 deployment can ingest adversarial traffic from their sensors, build behavioral fingerprints per source IP, track campaigns as they accumulate observations across multiple IPs over time, and request natural-language analysis of any campaign or time-bounded event set.
+
+The intelligence pipeline from ingest to campaign assignment is deterministic and requires no AI backend. Behavioral fingerprints build automatically on each ingest cycle. Campaigns transition through lifecycle states — active, dormant, historical — on configurable time thresholds. Uncertain clustering associations are surfaced as a review queue; the operator confirms or denies each one. The full path produces no external API calls and generates no output until the operator requests it.
+
+The AI reasoning layer, when configured, does not alter the deterministic outputs. Campaign similarity scores, fingerprint confidence values, and behavioral stability metrics are produced by algorithms that are unaffected by the AI configuration. What AI adds is natural-language interpretation on demand: a summary that translates a confidence score and reactivation count into a paragraph an analyst can read, or a multi-campaign brief filtered to a specific time window. Every output is stored immutably alongside its data sources, prompt hash, and safety validation results. The AI layer never writes to campaign or fingerprint tables.
+
+Known limitations: the actor identity schema is present but has no attribution logic — `actor_profiles` and `campaign_lineage` exist with full repository support, but no API endpoints expose them and no automatic assignment runs. Fingerprint history is being collected but no drift-threshold alerting exists. Analyst review decisions on uncertain associations are stored but not yet used to influence similarity thresholds.
+
+---
+
+## Direction
+
+Phase 7 addresses two architectural problems that Phase 6 prepared for. The first is actor identity: campaigns currently represent coordinated activity without linking to an explicit actor record. Phase 7 introduces operator-assigned actor profiles, connecting campaigns to inferred actor identities through explicit relationship types and confidence values. Attribution is always operator-confirmed; no automated assignment is planned. The Phase 6 foundations — `actor_profiles` and `campaign_lineage` schema, `ActorRepository` — are the prepared substrate for this work.
+
+The second problem is the boundary of the behavioral record. A single deployment's fingerprint history is specific to its own attack surface, which is both its strength and its limit. An actor targeting multiple operators will be independently discovered by each one. Federation is the mechanism for sharing behavioral patterns across deployments without sharing the observation data those patterns were derived from. A fingerprint encodes behavioral characteristics — timing distributions, probe sequences, protocol behavior — not IP addresses. The pattern can be shared without sharing the source.
+
+Privacy-preserving behavioral federation is the logical continuation of the thesis: if behavioral patterns are more durable than indicators, then a network of operators sharing behavioral patterns gains intelligence that no individual deployment can produce alone. A campaign fingerprint observed for the first time in one deployment may match a fingerprint another operator has been tracking for months. The match is made without either operator revealing their observation infrastructure to the other. No timelines. The foundation is built.
 
 ---
 
