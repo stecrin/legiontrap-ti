@@ -3,6 +3,7 @@
 ## Table of Contents
 - [Thesis](#thesis)
 - [What This Is](#what-this-is)
+- [The Intelligence Model](#the-intelligence-model)
 - [Roadmap](#-roadmap)
 - [Tech Stack](#-tech-stack)
 - [Architecture Overview](#-architecture-overview)
@@ -51,6 +52,23 @@ LegionTrap runs on a single operator's infrastructure, analyzing adversarial tra
 
 The architecture follows from that operational context. Storage is local SQLite, compatible with PostgreSQL when scale requires migration. The AI reasoning layer supports fully local inference; cloud-based backends are available as an operator choice, not a dependency. PRIVACY_MODE is a first-class configuration option, not an afterthought. Every constraint in the design reflects the same underlying principle: the operator should own their intelligence entirely — not access to it through a subscription or a feed, but the data, the analysis pipeline, and the conclusions drawn from it.
 
+---
+
+## The Intelligence Model
+
+LegionTrap does not treat events as isolated log entries. Each event contributes to a behavioral record for its source: a fingerprint that accumulates timing patterns, probe sequences, protocol behavior, credential choices, and target selection across all observed activity. The fingerprint is the unit of intelligence. The event is raw material.
+
+A fingerprint is built across five dimensions. Timing captures inter-probe intervals and their distribution — the characteristic rhythm of specific tooling. Sequence captures the order in which ports and services are probed, which remains stable across infrastructure changes. Protocol captures behavior within sessions: authentication order, banner handling, handshake patterns. Credential captures the sets and strategies used in login attempts. Target captures which of the operator's services consistently attract attention. Each dimension is scored independently; a fingerprint is considered confident when multiple dimensions are populated and the event volume is sufficient.
+
+Campaign clustering assigns fingerprints to campaigns using a weighted similarity algorithm. The algorithm is deterministic: the same fingerprint always produces the same result. A new fingerprint is compared against all active campaigns; if similarity exceeds a threshold, the source joins the existing campaign. If similarity is borderline, the association is flagged as uncertain and queued for analyst review. No machine learning is involved. The decision and its per-dimension similarity scores are stored with every observation, so the reasoning is always auditable.
+
+Every time a fingerprint is recomputed, a snapshot is appended to that source's history. Over time this becomes longitudinal memory: a record of how observed behavior has changed, or not changed, across months of activity. A campaign that has been continuously observed for six months has a behavioral record that no feed purchase can replicate. The intelligence accumulates with time.
+
+Behavioral stability measures how consistently a campaign has behaved across its fingerprint history. High stability indicates the campaign's tooling, timing, and targets have remained recognizable across all observed snapshots. Declining stability across recent snapshots may indicate adaptation. A sparse designation means the history is too short to compute meaningful stability metrics. Stability is a signal, not a verdict; the operator decides what a given stability profile means in their specific context.
+
+The AI reasoning layer operates on this structured, deterministic data — fingerprints, campaign records, stability scores — and produces natural-language analysis on operator request. AI is not the source of the intelligence. It explains and contextualizes data that was produced entirely by deterministic algorithms. Every conclusion the AI layer draws is traceable to specific behavioral dimensions and similarity scores. The operator remains the final interpreter; no action is taken automatically.
+
+---
 
 ## 🧠 Tech Stack
 
