@@ -55,6 +55,25 @@ export async function postCampaignSummary(campaignId) {
   return { status: r.status, data: body };
 }
 
+export async function postCampaignBrief({
+  max_campaigns = 10,
+  time_window_start = null,
+  time_window_end = null,
+} = {}) {
+  const body = { max_campaigns };
+  if (time_window_start && time_window_end) {
+    body.time_window_start = time_window_start;
+    body.time_window_end = time_window_end;
+  }
+  const r = await fetch('/api/campaigns/brief', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': 'dev-123' },
+    body: JSON.stringify(body),
+  });
+  const data = await r.json();
+  return { status: r.status, data };
+}
+
 export async function getCampaignAiOutputs(campaignId, { limit = 20 } = {}) {
   const r = await fetch(`/api/campaigns/${encodeURIComponent(campaignId)}/ai-outputs?limit=${limit}`, { headers: { 'x-api-key': 'dev-123' } });
   if (!r.ok) throw new Error(`ai-outputs ${r.status}`);
@@ -68,7 +87,9 @@ export async function getAiOutput(outputId) {
 }
 
 export async function getJob(jobId) {
-  const r = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, { headers: { 'x-api-key': 'dev-123' } });
+  const r = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, {
+    headers: { 'x-api-key': 'dev-123' },
+  });
   if (!r.ok) throw new Error(`jobs/${jobId} ${r.status}`);
   return r.json();
 }

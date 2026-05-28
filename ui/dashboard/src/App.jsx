@@ -6,6 +6,7 @@ import IntelligenceIPs from "./components/IntelligenceIPs";
 import TopCountries from "./components/TopCountries";
 import TopASNs from "./components/TopASNs";
 import Campaigns from "./components/Campaigns";
+import CampaignBriefPanel from "./components/CampaignBriefPanel";
 
 
 // keep <body> background in sync with dashboard theme
@@ -222,6 +223,12 @@ export default function App() {
         }}>
           <TopCountries dark={dark} />
           <TopASNs dark={dark} />
+        </div>
+
+        {/* 📋 AI Threat Brief */}
+        <div style={{ marginTop: 36 }}>
+          <h3 style={{ marginBottom: 10, fontSize: 18, opacity: 0.9 }}>AI Threat Brief</h3>
+          <CampaignBriefPanel dark={dark} />
         </div>
 
         {/* 🎯 Campaigns */}

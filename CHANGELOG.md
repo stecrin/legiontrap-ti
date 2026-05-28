@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.27.0](https://github.com/stecrin/legiontrap-ti/compare/v0.26.0...v0.27.0) (2026-05-28)
+
+### Features
+
+* **ai:** add time-window campaign briefs and dashboard brief panel ([5744a74](https://github.com/stecrin/legiontrap-ti/commit/5744a745bff6daab1f631acc2521e2398704a253))
+
 ## [0.26.0](https://github.com/stecrin/legiontrap-ti/compare/v0.25.0...v0.26.0) (2026-05-27)
 
 ### Features
