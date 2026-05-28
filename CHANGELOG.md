@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.28.0](https://github.com/stecrin/legiontrap-ti/compare/v0.27.0...v0.28.0) (2026-05-28)
+
+### Features
+
+* **ui:** add campaign AI output history panel ([b4b6fb3](https://github.com/stecrin/legiontrap-ti/commit/b4b6fb394d7021305bf4e1a4a30485d084a125bb))
+
 ## [0.27.0](https://github.com/stecrin/legiontrap-ti/compare/v0.26.0...v0.27.0) (2026-05-28)
 
 ### Features
