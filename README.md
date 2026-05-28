@@ -328,7 +328,13 @@ Each time a commit is pushed to `main`:
 
 ## Contributing
 
-PRs welcome. Run linters and tests locally before pushing:
+External contributions are welcome through Pull Requests.
+
+All changes are reviewed manually before acceptance and must pass project quality checks.
+
+Please open an issue before proposing significant architectural or intelligence-model changes.
+
+Before submitting a Pull Request, run:
 
 ```bash
 ruff check --fix .
