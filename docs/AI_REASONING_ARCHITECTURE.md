@@ -456,7 +456,7 @@ WHERE c.status IN ('active', 'dormant')
 ORDER BY c.last_seen DESC;
 ```
 
-### Federation fingerprint matching (Phase 7+)
+### Federation fingerprint matching (Phase 8+)
 
 ```sql
 SELECT

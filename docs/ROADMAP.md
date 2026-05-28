@@ -218,26 +218,81 @@ Phase 6 delivered in four groups. Group A shipped the async job infrastructure a
 
 ---
 
-## Phase 7 — Actor Identity and Behavioral Federation
+## Phase 7 — Actor Intelligence
 
-**Duration:** 6–10 weeks
-**Goal:** Build on Phase 6 actor identity foundations to enable campaign-to-actor assignment, then enable consenting operators to share behavioral fingerprints without exposing raw telemetry.
+**Duration:** 6–9 weeks
+**Goal:** Close the behavioral feedback loops that Phase 6 opened, then activate the actor identity foundations Phase 6 prepared.
 
-Phase 6 Group D created the `actor_profiles` and `campaign_lineage` tables and repository layer. Phase 7 activates them with API endpoints, operator tooling, and a federation protocol.
+Phase 6 collected two categories of operator intelligence that are not yet used: analyst review decisions on uncertain clustering associations, and longitudinal fingerprint drift signals. Phase 7 Group A closes those loops — making operator judgment a real input to the clustering model and making behavioral drift a surfaced signal. Group B builds actor identity on top of that calibrated foundation. Actor profiles built before feedback loops are closed are labels. Actor profiles built after are intelligence.
 
-See [FEDERATION_VISION.md](FEDERATION_VISION.md) for detailed federation design. See [PHASE_6_CLOSEOUT.md](PHASE_6_CLOSEOUT.md) §10 for the recommended Phase 7 direction.
+Phase 6 Group D created the `actor_profiles` and `campaign_lineage` tables and repository layer. Phase 7 Group B activates them with API endpoints, an operator-facing suggestion engine, and a dashboard panel.
 
-| Task | Track | Notes |
-|------|-------|-------|
-| Actor profile CRUD API | 1 | `POST /api/actors`, `GET /api/actors/{id}`, `PATCH /api/actors/{id}` |
-| Campaign-to-actor linking API | 1 | `POST /api/actors/{id}/campaigns`, `GET /api/actors/{id}/campaigns` |
-| Actor profile dashboard panel | 1 | Read-only; no automatic attribution |
-| Behavioral fingerprint serialization format | 2 | Standardized, privacy-safe representation; no raw IPs |
-| Operator identity management | 2 | Cryptographic keypair per deployment for signing |
-| Federation push/pull API | 2 | `POST /api/federation/contribute`, `GET /api/federation/fingerprints` |
-| Received intelligence integration | 2 | Imported fingerprints enrich local campaign detection |
+**Group A — Feedback Loop Closure (prerequisite; must ship before Group B begins):**
 
-**Exit criteria:** An operator can assign campaigns to actor profiles via API. Two independent LegionTrap deployments can exchange behavioral fingerprints. Each deployment's campaign detection improves measurably from the shared data.
+| Task | Notes |
+|------|-------|
+| Review decision propagation | Confirmed uncertain associations adjust per-campaign similarity weight profiles. Operator can inspect current effective weights and trace them to source review decisions. |
+| Drift alerting | Configurable per-dimension thresholds on behavioral stability; threshold crossings write to a `behavioral_alerts` table and surface in the dashboard. No automated response. |
+| Sparse campaign surface | Campaigns that have accumulated insufficient evidence to confirm are surfaced with a distinct lifecycle status, separate from active, dormant, and historical. |
+
+**Group B — Actor Identity:**
+
+| Task | Notes |
+|------|-------|
+| Relationship type vocabulary | Define valid `relationship_type` values before any API is built: `primary_campaign`, `infrastructure_reuse`, `tactic_match`, `temporal_overlap`. Open strings are not accepted. |
+| Actor profile CRUD API | `POST /api/actors`, `GET /api/actors`, `GET /api/actors/{id}`, `PATCH /api/actors/{id}` |
+| Campaign-to-actor linking API | `POST /api/actors/{id}/campaigns`, `GET /api/actors/{id}/campaigns` with relationship_type validation |
+| Actor suggestion engine | `GET /api/actors/suggestions` — campaign pairs whose representative fingerprints exceed a configurable similarity threshold and have no existing lineage. Read-only. Never writes automatically. |
+| Actor-level stability view | `GET /api/actors/{id}/stability` — aggregated behavioral stability across all campaigns linked to the actor. |
+| Actor profile dashboard panel | Read-only view of linked campaigns, similarity suggestions, and stability trends. No automatic attribution. |
+
+**Exit criteria (all satisfied by a single operator; no external dependencies):**
+
+- Analyst review confirmations demonstrably affect per-campaign similarity weight profiles; weight lineage is auditable.
+- Drift threshold crossings produce surfaced alerts within one analytics job cycle.
+- Operator can create an actor profile, link campaigns to it via a defined relationship type, and view or dismiss similarity suggestions.
+- No path exists by which the system writes to `actor_profiles` or `campaign_lineage` without explicit operator action.
+- Actor identity UI does not auto-generate names, does not auto-link campaigns, and does not surface AI-derived attribution.
+
+See [PHASE_6_CLOSEOUT.md](PHASE_6_CLOSEOUT.md) §10 for the Phase 6 handoff context.
+
+---
+
+## Phase 8 — Behavioral Federation
+
+**Status:** Conditional — does not begin until all operational prerequisites are confirmed.
+**Goal:** Enable consenting operators to share behavioral fingerprints across independent deployments without exposing raw telemetry, source IPs, or observation context.
+
+Federation is not a code prerequisite problem — the fingerprint model, privacy architecture, and separation of local and received intelligence are already designed. It is an operational prerequisite problem. Building the federation protocol before the operational prerequisites exist produces unvalidated infrastructure with no users.
+
+**Entry criteria (all must be confirmed before Phase 8 begins):**
+
+1. At least two independent LegionTrap deployments are willing to participate in a pilot bilateral exchange.
+2. The behavioral fingerprint serialization format has been validated against real data from both deployments and confirmed compatible.
+3. A key management runbook — covering keypair generation, public key distribution to peers, key rotation, and revocation — has been documented and tested against a real deployment.
+
+**Duration:** 8–12 weeks after entry criteria are confirmed.
+
+**Scope:**
+
+| Task | Notes |
+|------|-------|
+| Fingerprint serialization format | Standardized, privacy-safe format: no source IPs, no raw event content, behavioral feature vectors only. Schema versioned. |
+| Operator identity management | Ed25519 keypair per deployment. Pseudonymous deployment identifier. Signature generation and verification. |
+| Federation push/pull API | `POST /api/federation/contribute`, `GET /api/federation/fingerprints`, `GET /api/federation/status` |
+| Received fingerprint validation | Schema check, signature verification, plausibility filter. Invalid fingerprints rejected and logged before storage. |
+| Received intelligence storage | Separate `federation_fingerprints` table, distinct from `behavioral_fingerprints`. Two populations are never conflated. |
+| Local clustering integration | Received fingerprints used as additional comparison targets in campaign detection. Never written to local fingerprint tables. |
+
+**Exit criteria:**
+
+- Two deployments exchange behavioral fingerprints via the REST federation API.
+- At least one cross-deployment campaign match is detected and surfaced to both operators.
+- Received fingerprints contain no source IPs, destination IPs, operator identifiers, or raw event content.
+- Federation can be completely disabled without affecting the local intelligence pipeline.
+- Received fingerprints and locally derived fingerprints are stored and queried from separate tables at all times.
+
+See [FEDERATION_VISION.md](FEDERATION_VISION.md) for the full federation design and privacy analysis.
 
 ---
 
@@ -264,7 +319,8 @@ Phase 3:  Raw events → enriched events + intelligence API + standard exports (
 Phase 4:  Events → campaign clusters + export maturity (memory layer foundation)
 Phase 5:  Data → AI-reasoned intelligence (reasoning layer addition)
 Phase 6:  Events → behavioral memory + campaigns (memory layer maturation)
-Phase 7:  Local memory → federated collective intelligence (network layer addition)
+Phase 7:  Behavioral memory → operator-calibrated actor intelligence (feedback loop closure + attribution layer)
+Phase 8:  Local actor intelligence → federated collective intelligence (network layer; conditional on operational prerequisites)
 ```
 
 Each arrow represents a step that builds on the previous. No step can be safely skipped.

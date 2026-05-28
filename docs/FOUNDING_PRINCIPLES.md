@@ -245,7 +245,7 @@ The architectural decision that determines LegionTrap's long-term strategic posi
 
 This is the endgame: not a platform that one operator uses, but a protocol that many operators participate in, each benefiting from the collective intelligence of all participants without any participant sacrificing the sovereignty that defines why they chose a self-hosted platform.
 
-**Current status:** The federation design is fully specified (see FEDERATION_VISION.md). Implementation is planned for Phase 7, following the behavioral memory layer (Phase 6) on which it depends.
+**Current status:** The federation design is fully specified (see FEDERATION_VISION.md). Implementation is planned for Phase 8, following the actor intelligence layer (Phase 7) on which it depends.
 
 ### Governance must match the principles
 

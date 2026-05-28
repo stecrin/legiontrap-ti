@@ -225,7 +225,7 @@ Operators maintain direct peer relationships. Each deployment is a node in the n
 
 For large trust circles, a gossip protocol (similar to how distributed databases synchronize state) enables fingerprint propagation without each operator needing to maintain N explicit peer connections. A fingerprint contributed by one node propagates through the network within a configurable number of hops.
 
-Gossip protocol implementation is a Phase 7+ concern. The initial implementation uses explicit peer configuration.
+Gossip protocol implementation is a Phase 8+ concern. The initial implementation uses explicit peer configuration.
 
 ---
 

@@ -369,7 +369,7 @@ app/db/migrations/versions/
   0002_phase2_intelligence_indexes.py    -- Phase 2E: intelligence query indexes (live)
   0003_ai_analysis_table.py             -- Phase 5: adds ai_analyses (future)
   0004_behavioral_tables.py             -- Phase 6: adds fingerprints, campaigns, campaign_id FK (future)
-  0005_federation_table.py              -- Phase 7: adds federation_fingerprints (future)
+  0005_federation_table.py              -- Phase 8: adds federation_fingerprints (future)
 ```
 
 **Rule:** Never manually ALTER a table that Alembic manages. All schema changes go through a new migration file.
@@ -388,7 +388,7 @@ app/db/migrations/versions/
 | `campaigns` | Phase 6 | Permanent | No (outlives events) |
 | `campaign_events` | Phase 6 | With `events` | Yes (CASCADE) |
 | `ai_analyses` | Phase 5 | Separate (90d default) | Yes |
-| `federation_fingerprints` | Phase 7 | Separate configurable | Yes |
+| `federation_fingerprints` | Phase 8 | Separate configurable | Yes |
 | `audit_log` | Phase 1 | Separate (90d default) | Yes |
 
 ---
