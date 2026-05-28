@@ -29,6 +29,7 @@ No FastAPI, router, or application imports belong in the sub-modules.
 
 from __future__ import annotations
 
+from app.db.repositories.actor import ActorRepository
 from app.db.repositories.ai_audit_log import AiAuditLogRepository
 from app.db.repositories.ai_outputs import AiOutputRepository
 from app.db.repositories.campaign import CampaignRepository
@@ -50,9 +51,10 @@ class EventRepository(
     AiOutputRepository,
     AiAuditLogRepository,
     FingerprintHistoryRepository,
+    ActorRepository,
 ):
     """
-    Unified repository class. Inherits all SQL methods from the nine concern
+    Unified repository class. Inherits all SQL methods from the ten concern
     mixins. Callers see a single object with the full method surface; the
     internal split is an organisation detail invisible to callers.
 
@@ -60,5 +62,6 @@ class EventRepository(
                 IntelligenceRepository → FingerprintRepository →
                 CampaignRepository → JobRepository →
                 AiOutputRepository → AiAuditLogRepository →
-                FingerprintHistoryRepository → RepositoryBase → object
+                FingerprintHistoryRepository → ActorRepository →
+                RepositoryBase → object
     """
