@@ -784,6 +784,174 @@ class CampaignRepository(RepositoryBase):
             )
         return result
 
+    def list_sparse_campaigns(self, *, limit: int = 200) -> list[dict[str, Any]]:
+        """Return campaigns that have no representative fingerprint, newest first.
+
+        These campaigns are sparse: the analytics job has not yet produced a
+        representative fingerprint, so behavioral stability and clustering
+        candidate comparisons are not available.  Returns full campaign rows
+        for operator visibility.  No schema changes — this is a query-time label.
+        """
+        rows = self._session.execute(
+            text("""
+                SELECT id, name, status, confidence,
+                       first_seen, last_seen, dormant_since,
+                       reactivation_count, member_ip_count,
+                       attack_tactic_dist, top_target_ports, notes,
+                       created_at, updated_at, behavioral_stability_json
+                FROM campaigns
+                WHERE representative_fingerprint_json IS NULL
+                ORDER BY last_seen DESC
+                LIMIT :limit
+            """),
+            {"limit": limit},
+        ).fetchall()
+        return [
+            {
+                "id": r[0],
+                "name": r[1],
+                "status": r[2],
+                "confidence": r[3],
+                "first_seen": r[4],
+                "last_seen": r[5],
+                "dormant_since": r[6],
+                "reactivation_count": r[7],
+                "member_ip_count": r[8],
+                "attack_tactic_dist": r[9],
+                "top_target_ports": r[10],
+                "notes": r[11],
+                "created_at": r[12],
+                "updated_at": r[13],
+                "behavioral_stability_json": r[14],
+                "has_fingerprint": False,
+            }
+            for r in rows
+        ]
+
+    def get_campaign_observation_counts(self, campaign_id: str) -> dict[str, int]:
+        """Return observation_count and review_count for a single campaign."""
+        row = self._session.execute(
+            text("""
+                SELECT COUNT(*) AS obs_count,
+                       COUNT(analyst_review_json) AS review_count
+                FROM campaign_observations
+                WHERE campaign_id = :campaign_id
+            """),
+            {"campaign_id": campaign_id},
+        ).fetchone()
+        if row is None:
+            return {"observation_count": 0, "review_count": 0}
+        return {"observation_count": int(row[0]), "review_count": int(row[1])}
+
+    def get_bulk_observation_counts(self, campaign_ids: list[str]) -> dict[str, dict[str, int]]:
+        """Return {campaign_id: {observation_count, review_count}} in one query.
+
+        Campaigns not present in campaign_observations are returned with counts
+        of zero.  Used to attach density data to list endpoints without N+1 queries.
+        """
+        if not campaign_ids:
+            return {}
+        placeholders = ", ".join(f":p{i}" for i in range(len(campaign_ids)))
+        params = {f"p{i}": cid for i, cid in enumerate(campaign_ids)}
+        rows = self._session.execute(
+            text(f"""
+                SELECT campaign_id,
+                       COUNT(*) AS obs_count,
+                       COUNT(analyst_review_json) AS review_count
+                FROM campaign_observations
+                WHERE campaign_id IN ({placeholders})
+                GROUP BY campaign_id
+            """),
+            params,
+        ).fetchall()
+        result: dict[str, dict[str, int]] = {
+            cid: {"observation_count": 0, "review_count": 0} for cid in campaign_ids
+        }
+        for cid, obs, rev in rows:
+            result[cid] = {"observation_count": int(obs), "review_count": int(rev)}
+        return result
+
+    def get_campaign_with_fingerprint(self, campaign_id: str) -> dict[str, Any] | None:
+        """Return full campaign row including representative_fingerprint_json.
+
+        Used by the density endpoint where fingerprint presence must be known.
+        """
+        row = self._session.execute(
+            text("""
+                SELECT id, name, status, confidence,
+                       first_seen, last_seen, dormant_since,
+                       reactivation_count, member_ip_count,
+                       attack_tactic_dist, top_target_ports, notes,
+                       created_at, updated_at, behavioral_stability_json,
+                       representative_fingerprint_json
+                FROM campaigns WHERE id = :id
+            """),
+            {"id": campaign_id},
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "id": row[0],
+            "name": row[1],
+            "status": row[2],
+            "confidence": row[3],
+            "first_seen": row[4],
+            "last_seen": row[5],
+            "dormant_since": row[6],
+            "reactivation_count": row[7],
+            "member_ip_count": row[8],
+            "attack_tactic_dist": row[9],
+            "top_target_ports": row[10],
+            "notes": row[11],
+            "created_at": row[12],
+            "updated_at": row[13],
+            "behavioral_stability_json": row[14],
+            "representative_fingerprint_json": row[15],
+        }
+
+    def list_campaigns_with_fingerprint_status(self, limit: int = 100) -> list[dict[str, Any]]:
+        """Return campaigns sorted by last_seen DESC with has_fingerprint bool.
+
+        Extends list_campaigns() with a lightweight fingerprint presence flag
+        without returning the full fingerprint JSON.  Used by the list endpoint
+        to attach evidence_quality without a second round-trip.
+        """
+        rows = self._session.execute(
+            text("""
+                SELECT id, name, status, confidence,
+                       first_seen, last_seen, dormant_since,
+                       reactivation_count, member_ip_count,
+                       attack_tactic_dist, top_target_ports, notes,
+                       created_at, updated_at, behavioral_stability_json,
+                       (representative_fingerprint_json IS NOT NULL) AS has_fingerprint
+                FROM campaigns
+                ORDER BY last_seen DESC
+                LIMIT :limit
+            """),
+            {"limit": limit},
+        ).fetchall()
+        return [
+            {
+                "id": r[0],
+                "name": r[1],
+                "status": r[2],
+                "confidence": r[3],
+                "first_seen": r[4],
+                "last_seen": r[5],
+                "dormant_since": r[6],
+                "reactivation_count": r[7],
+                "member_ip_count": r[8],
+                "attack_tactic_dist": r[9],
+                "top_target_ports": r[10],
+                "notes": r[11],
+                "created_at": r[12],
+                "updated_at": r[13],
+                "behavioral_stability_json": r[14],
+                "has_fingerprint": bool(r[15]),
+            }
+            for r in rows
+        ]
+
     def annotate_campaign_observation(
         self,
         observation_id: str,

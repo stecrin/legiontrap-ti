@@ -63,6 +63,15 @@ class Settings(BaseSettings):
     DRIFT_ALERT_CREDENTIAL_THRESHOLD: float = 0.55
     DRIFT_ALERT_TARGET_THRESHOLD: float = 0.60
 
+    # ---------------------------------------------------------------------------
+    # Phase 7 — sparse campaign surface and evidence quality (A3)
+    # ---------------------------------------------------------------------------
+    SPARSE_OBS_MATURE: int = 20  # observations for a mature density score
+    SPARSE_OBS_ESTABLISHED: int = 8  # observations for an established density score
+    SPARSE_IP_MATURE: int = 5  # unique source IPs for a mature density score
+    SPARSE_AGE_HOURS_MATURE: float = 168.0  # age span (hours) for a mature score (1 week)
+    SPARSE_AGE_HOURS_ESTABLISHED: float = 24.0  # age span (hours) for established (1 day)
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @field_validator(
@@ -141,6 +150,20 @@ class Settings(BaseSettings):
     def drift_threshold_in_range(cls, v: float) -> float:
         if not (0 < v < 1):
             raise ValueError(f"Drift alert threshold must be in (0, 1); got {v}")
+        return v
+
+    @field_validator("SPARSE_OBS_MATURE", "SPARSE_OBS_ESTABLISHED", "SPARSE_IP_MATURE")
+    @classmethod
+    def sparse_positive_int(cls, v: int) -> int:
+        if v < 1:
+            raise ValueError(f"Value must be >= 1; got {v}")
+        return v
+
+    @field_validator("SPARSE_AGE_HOURS_MATURE", "SPARSE_AGE_HOURS_ESTABLISHED")
+    @classmethod
+    def sparse_positive_float(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError(f"Age span threshold must be > 0; got {v}")
         return v
 
     @model_validator(mode="after")
