@@ -105,3 +105,35 @@ export async function getJob(jobId) {
   if (!r.ok) throw new Error(`jobs/${jobId} ${r.status}`);
   return r.json();
 }
+
+export async function getActors({ status, limit } = {}) {
+  const p = new URLSearchParams();
+  if (status != null) p.set('status', status);
+  if (limit != null) p.set('limit', limit);
+  const qs = p.toString();
+  const r = await fetch(`/api/actors${qs ? '?' + qs : ''}`, { headers: { 'x-api-key': 'dev-123' } });
+  if (!r.ok) throw new Error(`actors ${r.status}`);
+  return r.json();
+}
+
+export async function getActor(actorId) {
+  const r = await fetch(`/api/actors/${encodeURIComponent(actorId)}`, { headers: { 'x-api-key': 'dev-123' } });
+  if (!r.ok) throw new Error(`actors/${actorId} ${r.status}`);
+  return r.json();
+}
+
+export async function getActorStability(actorId) {
+  const r = await fetch(`/api/actors/${encodeURIComponent(actorId)}/stability`, { headers: { 'x-api-key': 'dev-123' } });
+  if (!r.ok) throw new Error(`actors/${actorId}/stability ${r.status}`);
+  return r.json();
+}
+
+export async function getActorSuggestions({ minScore, limit } = {}) {
+  const p = new URLSearchParams();
+  if (minScore != null) p.set('min_score', minScore);
+  if (limit != null) p.set('limit', limit);
+  const qs = p.toString();
+  const r = await fetch(`/api/actors/suggestions${qs ? '?' + qs : ''}`, { headers: { 'x-api-key': 'dev-123' } });
+  if (!r.ok) throw new Error(`actors/suggestions ${r.status}`);
+  return r.json();
+}

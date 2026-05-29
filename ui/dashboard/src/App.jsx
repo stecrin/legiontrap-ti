@@ -7,6 +7,7 @@ import TopCountries from "./components/TopCountries";
 import TopASNs from "./components/TopASNs";
 import Campaigns from "./components/Campaigns";
 import CampaignBriefPanel from "./components/CampaignBriefPanel";
+import ActorPanel from "./components/ActorPanel";
 
 
 // keep <body> background in sync with dashboard theme
@@ -234,6 +235,11 @@ export default function App() {
         {/* 🎯 Campaigns */}
         <div style={{ marginTop: 36 }}>
           <Campaigns dark={dark} />
+        </div>
+
+        {/* 🕵️ Actor Profiles & Review Candidates */}
+        <div style={{ marginTop: 36 }}>
+          <ActorPanel dark={dark} />
         </div>
       </div>
     </div>
