@@ -113,23 +113,19 @@ No decision in LegionTrap is made automatically. Campaign membership is computed
 
 ## Current State
 
-Through Phase 6, LegionTrap supports the complete behavioral intelligence pipeline: event ingestion, behavioral fingerprinting, campaign clustering, longitudinal fingerprint history, behavioral stability scoring, and AI-assisted reasoning on operator request. An operator with a Phase 6 deployment can ingest adversarial traffic from their sensors, build behavioral fingerprints per source IP, track campaigns as they accumulate observations across multiple IPs over time, and request natural-language analysis of any campaign or time-bounded event set.
+Through Phase 7, LegionTrap supports the complete behavioral intelligence pipeline plus actor-level intelligence: event ingestion, behavioral fingerprinting, campaign clustering, longitudinal fingerprint history, behavioral stability scoring, AI-assisted reasoning on operator request, and operator-assigned actor profiles with a suggestion engine and stability aggregation.
 
-The intelligence pipeline from ingest to campaign assignment is deterministic and requires no AI backend. Behavioral fingerprints build automatically on each ingest cycle. Campaigns transition through lifecycle states — active, dormant, historical — on configurable time thresholds. Uncertain clustering associations are surfaced as a review queue; the operator confirms or denies each one. The full path produces no external API calls and generates no output until the operator requests it.
+The intelligence pipeline from ingest to campaign assignment is deterministic and requires no AI backend. Behavioral fingerprints build automatically on each ingest cycle. Campaigns transition through lifecycle states — active, dormant, historical — on configurable time thresholds. Uncertain clustering associations are surfaced as a review queue; confirmed or denied decisions accumulate into per-campaign weight profiles that make the clustering algorithm responsive to operator judgment over time. Behavioral drift alerts fire when stability scores cross configurable thresholds.
 
-The AI reasoning layer, when configured, does not alter the deterministic outputs. Campaign similarity scores, fingerprint confidence values, and behavioral stability metrics are produced by algorithms that are unaffected by the AI configuration. What AI adds is natural-language interpretation on demand: a summary that translates a confidence score and reactivation count into a paragraph an analyst can read, or a multi-campaign brief filtered to a specific time window. Every output is stored immutably alongside its data sources, prompt hash, and safety validation results. The AI layer never writes to campaign or fingerprint tables.
+Operators can create actor profiles, view candidate campaign pairs whose representative fingerprints exceed a configurable similarity threshold, and inspect aggregated behavioral stability across all campaigns linked to an actor. The suggestion engine is read-only — no attribution is automatic. Actor names are operator-assigned; relationship types are selected from a defined vocabulary.
 
-Known limitations: the actor identity schema is present but has no attribution logic — `actor_profiles` and `campaign_lineage` exist with full repository support, but no API endpoints expose them and no automatic assignment runs. Fingerprint history is being collected but no drift-threshold alerting exists. Analyst review decisions on uncertain associations are stored but not yet used to influence similarity thresholds.
+The AI reasoning layer, when configured, does not alter deterministic outputs. Campaign similarity scores, fingerprint confidence values, behavioral stability metrics, and actor suggestions are produced by algorithms entirely unaffected by the AI configuration. Every AI output is stored immutably alongside its data sources, prompt hash, and safety validation results. The AI layer never writes to campaign, fingerprint, or actor tables.
 
 ---
 
 ## Direction
 
-Phase 7 addresses three architectural problems that Phase 6 left open. The first is that operator judgment — encoded in months of analyst review decisions on uncertain clustering associations — is being collected and discarded. No consumer reads those decisions. Phase 7 closes the feedback loop: confirmed associations adjust per-campaign similarity weight profiles, making the clustering algorithm responsive to the operator's own judgment over time.
-
-The second is behavioral drift. Fingerprint history is accumulating. Phase 7 activates it with configurable per-dimension alerting: when behavioral stability crosses a threshold, the operator is surfaced a signal. Drift detection does not replace operator judgment — it gives the operator something to judge.
-
-The third is actor identity. Campaigns currently represent coordinated activity without linking to an explicit actor record. Phase 7 introduces operator-assigned actor profiles, connecting campaigns to inferred actor identities through explicit relationship types and confidence values. A suggestion engine surfaces campaign pairs whose representative fingerprints are sufficiently similar as candidates for manual linking. Attribution is always operator-confirmed; no automated assignment runs. The Phase 6 foundations — `actor_profiles` and `campaign_lineage` schema, `ActorRepository` — are the prepared substrate.
+Phase 7 closed three architectural gaps that Phase 6 left open. Analyst review decisions accumulated in the uncertain association queue now adjust per-campaign similarity weight profiles, making the clustering algorithm responsive to operator judgment over time. Behavioral drift signals accumulated in `fingerprint_history` and `behavioral_stability_json` now surface as configurable alerts. Actor profiles — prepared as empty schema in Phase 6 — are now accessible through a full CRUD and linking API, queryable via a read-only suggestion engine, and surfaced in the dashboard. Operators can link campaigns to actors explicitly, view all campaigns linked to an actor, and query all actors linked to a campaign.
 
 Phase 8 addresses the boundary of the behavioral record. A single deployment's fingerprint history is specific to its own attack surface, which is both its strength and its limit. Federation is the mechanism for sharing behavioral patterns across independent deployments without sharing the observation data those patterns were derived from. A fingerprint encodes behavioral characteristics — timing distributions, probe sequences, protocol behavior — not IP addresses. The pattern can be shared without sharing the source. Phase 8 begins when two real operators are willing to participate in a pilot exchange and the fingerprint serialization format has been validated against both deployments' data. The foundation is built.
 
@@ -146,7 +142,7 @@ Phase 8 addresses the boundary of the behavioral record. A single deployment's f
 | **Phase 4** | Campaign Intelligence & Export Maturity | ✅ Complete |
 | **Phase 5** | AI Integration | ✅ Complete |
 | **Phase 6** | Async AI, Output Persistence & Brief UI | ✅ Complete |
-| **Phase 7** | Actor Intelligence | ⏳ Next |
+| **Phase 7** | Actor Intelligence | ✅ Complete |
 | **Phase 8** | Behavioral Federation | ○ Conditional on operational prerequisites |
 
 Each phase builds on the previous. See [docs/ROADMAP.md](docs/ROADMAP.md) for full detail.
