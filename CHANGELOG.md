@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.34.1](https://github.com/stecrin/legiontrap-ti/compare/v0.34.0...v0.34.1) (2026-05-29)
+
+### Bug Fixes
+
+* **phase7:** restore actor linking endpoints and suggestion breakdown ([808aa65](https://github.com/stecrin/legiontrap-ti/commit/808aa65cb5771706935ca0ee293111371a1e38bd))
+
 ## [0.34.0](https://github.com/stecrin/legiontrap-ti/compare/v0.33.0...v0.34.0) (2026-05-29)
 
 ### Features
