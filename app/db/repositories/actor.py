@@ -23,6 +23,9 @@ from typing import Any
 from sqlalchemy import text
 
 from app.db.repositories._base import RepositoryBase
+from app.intelligence.actor_constants import VALID_RELATIONSHIP_TYPES
+
+_UNSET = object()
 
 
 def _actor_row_to_dict(row) -> dict[str, Any]:
@@ -154,6 +157,46 @@ class ActorRepository(RepositoryBase):
         ).fetchall()
         return [_actor_row_to_dict(r) for r in rows]
 
+    def update_actor_profile(
+        self,
+        actor_id: str,
+        *,
+        display_name: str | None = None,
+        notes: str | None = _UNSET,
+        confidence: float | None = None,
+        status: str | None = None,
+        updated_at: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Apply a partial update to an actor_profile row.
+
+        Only non-None / non-sentinel fields are written.  Returns the updated
+        row, or None if actor_id is not found.
+        """
+        now = updated_at or datetime.now(UTC).isoformat()
+        assignments: list[str] = ["updated_at = :updated_at"]
+        params: dict[str, Any] = {"id": actor_id, "updated_at": now}
+
+        if display_name is not None:
+            assignments.append("display_name = :display_name")
+            params["display_name"] = display_name
+        if notes is not _UNSET:
+            assignments.append("notes = :notes")
+            params["notes"] = notes
+        if confidence is not None:
+            assignments.append("confidence = :confidence")
+            params["confidence"] = confidence
+        if status is not None:
+            assignments.append("status = :status")
+            params["status"] = status
+
+        self._session.execute(
+            text(
+                f"UPDATE actor_profiles SET {', '.join(assignments)} WHERE id = :id"
+            ),  # noqa: S608
+            params,
+        )
+        return self.get_actor_profile(actor_id)
+
     def link_campaign_to_actor(
         self,
         *,
@@ -169,7 +212,14 @@ class ActorRepository(RepositoryBase):
 
         Does not modify campaign membership, clustering decisions, or any
         existing table outside campaign_lineage.
+
+        Raises ValueError for unrecognized relationship_type values.
         """
+        if relationship_type not in VALID_RELATIONSHIP_TYPES:
+            raise ValueError(
+                f"Invalid relationship_type {relationship_type!r}. "
+                f"Must be one of: {sorted(VALID_RELATIONSHIP_TYPES)}"
+            )
         lid = lineage_id or str(uuid.uuid4())
         now = created_at or datetime.now(UTC).isoformat()
         ev_str = json.dumps(evidence_json) if isinstance(evidence_json, dict) else evidence_json
