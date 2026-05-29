@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.34.0](https://github.com/stecrin/legiontrap-ti/compare/v0.33.0...v0.34.0) (2026-05-29)
+
+### Features
+
+* **phase7:** add actor dashboard panel ([5a2b649](https://github.com/stecrin/legiontrap-ti/commit/5a2b649aafed64d6a97d6d0221b5b5dfc6a3a478))
+
 ## [0.33.0](https://github.com/stecrin/legiontrap-ti/compare/v0.32.0...v0.33.0) (2026-05-29)
 
 ### Features
