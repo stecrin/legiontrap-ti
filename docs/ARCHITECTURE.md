@@ -2,7 +2,7 @@
 
 **Document type:** Technical architecture reference
 **Audience:** Engineers, autonomous agents, contributors
-**Last reviewed:** 2026-05-28 (Phase 6)
+**Last reviewed:** 2026-05-29 (Phase 7)
 
 ---
 
@@ -29,7 +29,10 @@ Browser (React 19 + Vite)
   │     ├── POST /api/campaigns/{id}/summary                 → CampaignAiPanel (operator-triggered, 202)
   │     ├── POST /api/campaigns/brief                        → CampaignBriefPanel (operator-triggered, 202)
   │     ├── GET /api/jobs/{job_id}                           → async polling for AI job status
-  │     └── GET /api/campaigns/{id}/ai-outputs              → CampaignAiOutputHistory panel
+  │     ├── GET /api/campaigns/{id}/ai-outputs              → CampaignAiOutputHistory panel
+  │     ├── GET /api/actors                                  → ActorPanel — actor profiles list
+  │     ├── GET /api/actors/{id}/stability                   → ActorPanel — expanded actor stability detail
+  │     └── GET /api/actors/suggestions                      → ActorPanel — review candidates section
   │
   └── Auto-refresh: 10–30s interval per component
 
@@ -47,6 +50,18 @@ FastAPI Backend (app/)
   │     ├── campaigns.py        GET /api/campaigns, /api/campaigns/{id}, /api/campaigns/{id}/observations
   │     │                       GET /api/campaigns/uncertain-associations
   │     │                       POST /api/campaigns/uncertain-associations/{id}/review
+  │     │                       GET /api/campaigns/sparse
+  │     │                       GET /api/campaigns/{id}/weight-profile
+  │     │                       GET /api/campaigns/{id}/density
+  │     │                       GET /api/campaigns/{id}/actors
+  │     ├── actors.py           POST /api/actors, GET /api/actors, GET /api/actors/{id}, PATCH /api/actors/{id}
+  │     │                       GET /api/actors/suggestions (read-only; never writes)
+  │     │                       GET /api/actors/{id}/stability (read-only; never writes)
+  │     │                       POST /api/actors/{id}/campaigns (201; validates actor+campaign+rel_type; 409 on dup)
+  │     │                       GET /api/actors/{id}/campaigns
+  │     │                       DELETE /api/actors/{id}/campaigns/{lineage_id} (204; hard delete; actor ownership check)
+  │     ├── alerts.py           GET /api/alerts, POST /api/alerts/{id}/acknowledge
+  │     │                       GET /api/campaigns/{id}/alerts
   │     ├── analyze.py          POST /api/campaigns/{id}/summary (202), POST /api/campaigns/brief (202)
   │     ├── jobs.py             GET /api/jobs/{job_id}, GET /api/jobs
   │     └── ai_outputs.py       GET /api/ai/outputs/{id}, GET /api/campaigns/{id}/ai-outputs
@@ -60,7 +75,12 @@ FastAPI Backend (app/)
   │                              contains_ip_pattern(), redact_ip_patterns()
   ├── app/intelligence/
   │     ├── fingerprint.py       build_behavioral_fingerprint() — 5-dimension feature extraction
-  │     └── clustering.py        assign_or_create_campaign() — similarity clustering, reactivation detection
+  │     ├── clustering.py        assign_or_create_campaign() — similarity clustering, reactivation detection
+  │     ├── actor_constants.py   VALID_RELATIONSHIP_TYPES, VALID_ACTOR_STATUSES — vocabulary constants
+  │     ├── actor_suggestions.py build_actor_suggestions() — pure pairwise similarity, no I/O
+  │     ├── actor_stability.py   aggregate_actor_stability() — pure aggregation, no I/O
+  │     ├── weight_profiles.py   process_campaign_weight_profile() — analyst-review-driven weight adjustments
+  │     └── drift_alerts.py      check_campaign_drift_alerts() — stability threshold alert generation
   ├── app/exports/
   │     ├── attack_navigator.py  Pure transform: technique counts → Navigator layer dict
   │     └── stix.py              Pure transform: IP records + campaigns → STIX 2.1 bundle dict
@@ -78,7 +98,9 @@ FastAPI Backend (app/)
   │           ├── jobs.py                JobRepository — processing_jobs CRUD, dedup, TTL enforcement
   │           ├── ai_outputs.py          AiOutputRepository — write-once AI output records
   │           ├── ai_audit_log.py        AiAuditLogRepository — AI call metadata audit records
-  │           └── actor.py               ActorRepository — actor_profiles and campaign_lineage (Phase 7 foundations)
+  │           ├── actor.py               ActorRepository — actor_profiles, campaign_lineage, suggestions, stability queries
+  │           ├── weight_profiles.py     WeightProfileRepository — campaign_weight_profiles CRUD and adjustment log
+  │           └── alerts.py              AlertRepository — behavioral_alerts CRUD and acknowledgement
   ├── app/schemas/
   │     └── models.py           RawEvent, HoneypotEvent, IngestRequest, IngestReceipt
   ├── app/utils/
@@ -177,9 +199,12 @@ ui/dashboard/
       CampaignAiPanel.jsx         Operator-triggered AI summary panel; warning always visible; never auto-generates
       CampaignBriefPanel.jsx      Multi-campaign threat brief panel; time-window inputs; async 202 polling
       CampaignAiOutputHistory.jsx Persisted AI output history per campaign; regenerate button; historical warning
+      ActorPanel.jsx              Actor profiles list (expandable stability detail) + Review Candidates section;
+                                  read-only; no automatic linking; dismiss is session-only
     lib/
       api.js               Authenticated fetch helpers (stats, events, intelligence, exports, campaigns,
-                           AI summary/brief, job polling, AI output history)
+                           AI summary/brief, job polling, AI output history, actors, actor stability,
+                           actor suggestions)
     utils/
       format.js          Date/time formatting utilities
     index.css            Global styles + dark/light mode variables

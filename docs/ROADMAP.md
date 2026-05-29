@@ -2,7 +2,7 @@
 
 **Document type:** Phased development plan and architectural evolution order
 **Audience:** Engineers, autonomous agents, contributors
-**Last reviewed:** 2026-05-28
+**Last reviewed:** 2026-05-29
 
 ---
 
@@ -14,7 +14,7 @@ The order of this roadmap is not arbitrary. Each phase is a prerequisite for the
 
 ---
 
-## Current State (as of Phase 6)
+## Current State (as of Phase 7)
 
 | Capability | Status | Notes |
 |---|---|---|
@@ -29,17 +29,20 @@ The order of this roadmap is not arbitrary. Each phase is a prerequisite for the
 | JWT + API key auth | Working | bcrypt password verification; hardcoded defaults removed |
 | Audit logging | Working | `audit_log` table; one row per ingest batch |
 | Data retention | Working | `delete_events_before()` + `make db-prune` |
-| React dashboard | Working | KPI cards, event chart, recent events, intelligence panels, campaign panel, AI summary panel, brief panel, AI output history panel |
+| React dashboard | Working | KPI cards, event chart, recent events, intelligence panels, campaign panel, AI panels, actor panel |
 | CI/CD | Working | Lint, test, semantic release; Black 26.5.1 pinned |
 | Docker Compose | Working | Edge deployment profile |
 | Behavioral fingerprinting | Working | 5-dimension behavioral fingerprint per source IP; stored in `behavioral_fingerprints` |
-| Fingerprint history | Working | Append-only longitudinal snapshots in `fingerprint_history`; enables Phase 7 drift detection |
+| Fingerprint history | Working | Append-only longitudinal snapshots in `fingerprint_history` |
 | Representative fingerprints | Working | Cluster centroid fingerprint stored per campaign in `representative_fingerprint_json` |
 | Behavioral stability scoring | Working | Longitudinal stability metrics stored per campaign in `behavioral_stability_json` |
 | Campaign clustering | Working | Deterministic similarity clustering; reactivation detection; `app/intelligence/clustering.py` |
 | Campaign lifecycle | Working | Automatic active→dormant→historical transitions; manual trigger via `POST /api/admin/run-lifecycle-job` |
 | Campaign analytics | Working | `attack_tactic_dist` and `top_target_ports` populated per campaign by analytics job |
 | Configurable weights | Working | Similarity weights and lifecycle thresholds are environment variables with sane defaults |
+| Per-campaign weight profiles | Working | `campaign_weight_profiles` table; analyst reviews adjust per-dimension weights; `GET /api/campaigns/{id}/weight-profile` |
+| Behavioral drift alerting | Working | `behavioral_alerts` table; configurable thresholds; `GET /api/alerts`; `POST /api/alerts/{id}/acknowledge` |
+| Sparse campaign surface | Working | `GET /api/campaigns/sparse`; campaigns without sufficient data for analytics |
 | Campaign API | Working | `GET /api/campaigns`, `GET /api/campaigns/{id}`, `GET /api/campaigns/{id}/observations` |
 | Uncertain association review | Working | `GET /api/campaigns/uncertain-associations`, `POST /api/campaigns/uncertain-associations/{id}/review` |
 | AI backend abstraction | Working | `DisabledAIBackend` (default), `OllamaAIBackend`, `ClaudeAIBackend`; swapped via `AI_BACKEND` env var |
@@ -52,7 +55,11 @@ The order of this roadmap is not arbitrary. Each phase is a prerequisite for the
 | Multi-campaign brief | Working | `POST /api/campaigns/brief`; 202 Accepted; optional time-window filter; persisted to `ai_outputs` |
 | Campaign AI output history | Working | `GET /api/campaigns/{id}/ai-outputs`; newest-first; `CampaignAiOutputHistory` dashboard panel |
 | Dashboard AI brief panel | Working | `CampaignBriefPanel` — time-window inputs, async polling, plain text, warning always visible |
-| Actor identity foundations | Schema only | `actor_profiles` + `campaign_lineage` tables; `ActorRepository`; no attribution logic yet |
+| Actor profile CRUD | Working | `POST /api/actors`, `GET /api/actors`, `GET /api/actors/{id}`, `PATCH /api/actors/{id}`; operator-only creation |
+| Actor suggestion engine | Working | `GET /api/actors/suggestions`; pairwise fingerprint similarity; read-only; advisory hints only |
+| Actor stability view | Working | `GET /api/actors/{id}/stability`; aggregated composite and per-dimension stability across linked campaigns |
+| Actor dashboard panel | Working | `ActorPanel.jsx` — actor profiles, expandable stability detail, review candidates section |
+| Campaign-to-actor linking API | Working | `POST/GET/DELETE /api/actors/{id}/campaigns`, `GET /api/campaigns/{id}/actors`; operator-only; 409 on duplicate; hard delete of lineage only |
 
 ---
 
@@ -218,43 +225,32 @@ Phase 6 delivered in four groups. Group A shipped the async job infrastructure a
 
 ---
 
-## Phase 7 — Actor Intelligence
+## Phase 7 — Actor Intelligence — **Complete**
 
-**Duration:** 6–9 weeks
 **Goal:** Close the behavioral feedback loops that Phase 6 opened, then activate the actor identity foundations Phase 6 prepared.
 
-Phase 6 collected two categories of operator intelligence that are not yet used: analyst review decisions on uncertain clustering associations, and longitudinal fingerprint drift signals. Phase 7 Group A closes those loops — making operator judgment a real input to the clustering model and making behavioral drift a surfaced signal. Group B builds actor identity on top of that calibrated foundation. Actor profiles built before feedback loops are closed are labels. Actor profiles built after are intelligence.
+Phase 6 collected two categories of operator intelligence that were not consumed: analyst review decisions on uncertain clustering associations, and longitudinal fingerprint drift signals. Phase 7 Group A closed those loops. Group B activated the `actor_profiles` and `campaign_lineage` tables with API endpoints, a read-only suggestion engine, and a dashboard panel.
 
-Phase 6 Group D created the `actor_profiles` and `campaign_lineage` tables and repository layer. Phase 7 Group B activates them with API endpoints, an operator-facing suggestion engine, and a dashboard panel.
+**Group A — Feedback Loop Closure:**
 
-**Group A — Feedback Loop Closure (prerequisite; must ship before Group B begins):**
-
-| Task | Notes |
-|------|-------|
-| Review decision propagation | Confirmed uncertain associations adjust per-campaign similarity weight profiles. Operator can inspect current effective weights and trace them to source review decisions. |
-| Drift alerting | Configurable per-dimension thresholds on behavioral stability; threshold crossings write to a `behavioral_alerts` table and surface in the dashboard. No automated response. |
-| Sparse campaign surface | Campaigns that have accumulated insufficient evidence to confirm are surfaced with a distinct lifecycle status, separate from active, dormant, and historical. |
+| Task | Status | Notes |
+|------|--------|-------|
+| Review decision propagation | ✅ | Per-campaign weight profiles; `GET /api/campaigns/{id}/weight-profile`; full adjustment audit log |
+| Drift alerting | ✅ | `behavioral_alerts` table; `GET /api/alerts`; `POST /api/alerts/{id}/acknowledge`; configurable thresholds |
+| Sparse campaign surface | ✅ | `GET /api/campaigns/sparse`; query-time label, not a lifecycle state |
 
 **Group B — Actor Identity:**
 
-| Task | Notes |
-|------|-------|
-| Relationship type vocabulary | Define valid `relationship_type` values before any API is built: `primary_campaign`, `infrastructure_reuse`, `tactic_match`, `temporal_overlap`. Open strings are not accepted. |
-| Actor profile CRUD API | `POST /api/actors`, `GET /api/actors`, `GET /api/actors/{id}`, `PATCH /api/actors/{id}` |
-| Campaign-to-actor linking API | `POST /api/actors/{id}/campaigns`, `GET /api/actors/{id}/campaigns` with relationship_type validation |
-| Actor suggestion engine | `GET /api/actors/suggestions` — campaign pairs whose representative fingerprints exceed a configurable similarity threshold and have no existing lineage. Read-only. Never writes automatically. |
-| Actor-level stability view | `GET /api/actors/{id}/stability` — aggregated behavioral stability across all campaigns linked to the actor. |
-| Actor profile dashboard panel | Read-only view of linked campaigns, similarity suggestions, and stability trends. No automatic attribution. |
+| Task | Status | Notes |
+|------|--------|-------|
+| Relationship type vocabulary | ✅ | `actor_constants.py`; four defined types; enforced in repository and router |
+| Actor profile CRUD API | ✅ | `POST /api/actors`, `GET /api/actors`, `GET /api/actors/{id}`, `PATCH /api/actors/{id}` |
+| Campaign-to-actor linking API | ✅ | `POST/GET/DELETE /api/actors/{id}/campaigns`, `GET /api/campaigns/{id}/actors`; PR #75 |
+| Actor suggestion engine | ✅ | `GET /api/actors/suggestions`; pairwise fingerprint similarity; read-only |
+| Actor-level stability view | ✅ | `GET /api/actors/{id}/stability`; aggregated composite and per-dimension stability |
+| Actor profile dashboard panel | ✅ | `ActorPanel.jsx`; actor profiles, expandable stability, review candidates |
 
-**Exit criteria (all satisfied by a single operator; no external dependencies):**
-
-- Analyst review confirmations demonstrably affect per-campaign similarity weight profiles; weight lineage is auditable.
-- Drift threshold crossings produce surfaced alerts within one analytics job cycle.
-- Operator can create an actor profile, link campaigns to it via a defined relationship type, and view or dismiss similarity suggestions.
-- No path exists by which the system writes to `actor_profiles` or `campaign_lineage` without explicit operator action.
-- Actor identity UI does not auto-generate names, does not auto-link campaigns, and does not surface AI-derived attribution.
-
-See [PHASE_6_CLOSEOUT.md](PHASE_6_CLOSEOUT.md) §10 for the Phase 6 handoff context.
+**Delivered:** See [PHASE_7_CLOSEOUT.md](PHASE_7_CLOSEOUT.md) for the complete delivery record, safety boundaries, known limitations, and Phase 8 direction.
 
 ---
 
@@ -319,7 +315,7 @@ Phase 3:  Raw events → enriched events + intelligence API + standard exports (
 Phase 4:  Events → campaign clusters + export maturity (memory layer foundation)
 Phase 5:  Data → AI-reasoned intelligence (reasoning layer addition)
 Phase 6:  Events → behavioral memory + campaigns (memory layer maturation)
-Phase 7:  Behavioral memory → operator-calibrated actor intelligence (feedback loop closure + attribution layer)
+Phase 7:  Behavioral memory → operator-calibrated actor intelligence (feedback loop closure + attribution layer) ✅
 Phase 8:  Local actor intelligence → federated collective intelligence (network layer; conditional on operational prerequisites)
 ```
 
