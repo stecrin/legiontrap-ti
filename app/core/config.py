@@ -72,6 +72,12 @@ class Settings(BaseSettings):
     SPARSE_AGE_HOURS_MATURE: float = 168.0  # age span (hours) for a mature score (1 week)
     SPARSE_AGE_HOURS_ESTABLISHED: float = 24.0  # age span (hours) for established (1 day)
 
+    # ---------------------------------------------------------------------------
+    # Phase 7 — actor suggestion engine (B3)
+    # ---------------------------------------------------------------------------
+    ACTOR_SUGGESTION_MIN_SCORE: float = 0.85
+    ACTOR_SUGGESTION_LIMIT: int = 20
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @field_validator(
@@ -92,6 +98,7 @@ class Settings(BaseSettings):
         "SIMILARITY_UNCERTAIN_LOW",
         "TEMPORAL_THRESHOLD_6M",
         "TEMPORAL_THRESHOLD_12M",
+        "ACTOR_SUGGESTION_MIN_SCORE",
     )
     @classmethod
     def threshold_in_range(cls, v: float) -> float:
@@ -99,7 +106,12 @@ class Settings(BaseSettings):
             raise ValueError(f"Similarity threshold must be in (0, 1]; got {v}")
         return v
 
-    @field_validator("MIN_EVENTS_FOR_CLUSTERING", "CAMPAIGN_ACTIVE_DAYS", "CAMPAIGN_DORMANT_DAYS")
+    @field_validator(
+        "MIN_EVENTS_FOR_CLUSTERING",
+        "CAMPAIGN_ACTIVE_DAYS",
+        "CAMPAIGN_DORMANT_DAYS",
+        "ACTOR_SUGGESTION_LIMIT",
+    )
     @classmethod
     def positive_int(cls, v: int) -> int:
         if v < 1:

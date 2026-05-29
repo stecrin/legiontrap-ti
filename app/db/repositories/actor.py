@@ -275,3 +275,75 @@ class ActorRepository(RepositoryBase):
             params,
         ).fetchall()
         return [_lineage_row_to_dict(r) for r in rows]
+
+    def list_campaigns_for_suggestions(self, *, limit: int = 500) -> list[dict[str, Any]]:
+        """Return campaigns eligible for actor suggestion comparison.
+
+        Only campaigns with a non-NULL representative_fingerprint_json and
+        status in (active, dormant, reactivated) are returned.  The feature
+        columns are extracted from the fingerprint JSON so callers can pass
+        the result directly to compute_weighted_similarity.
+
+        Campaigns whose fingerprint JSON cannot be parsed are silently skipped.
+        """
+        rows = self._session.execute(
+            text("""
+                SELECT id, name, status, last_seen, member_ip_count,
+                       representative_fingerprint_json
+                FROM campaigns
+                WHERE representative_fingerprint_json IS NOT NULL
+                  AND status IN ('active', 'dormant', 'reactivated')
+                ORDER BY last_seen DESC
+                LIMIT :limit
+            """),
+            {"limit": limit},
+        ).fetchall()
+
+        results: list[dict[str, Any]] = []
+        for row in rows:
+            cid, name, status, last_seen, member_ip_count, rep_fp_json = row
+            try:
+                fp_data = json.loads(rep_fp_json)
+            except (json.JSONDecodeError, TypeError, AttributeError):
+                continue
+            results.append(
+                {
+                    "id": cid,
+                    "name": name,
+                    "status": status,
+                    "last_seen": last_seen,
+                    "member_ip_count": member_ip_count,
+                    "timing_features": fp_data.get("timing_features"),
+                    "sequence_features": fp_data.get("sequence_features"),
+                    "protocol_features": fp_data.get("protocol_features"),
+                    "credential_features": fp_data.get("credential_features"),
+                    "target_features": fp_data.get("target_features"),
+                }
+            )
+        return results
+
+    def get_coattributed_campaign_pairs(self) -> set[frozenset[str]]:
+        """Return campaign pairs already linked through a common actor.
+
+        Two campaigns are co-attributed when both appear in campaign_lineage
+        under the same actor_profile_id — regardless of relationship_type.
+        These pairs are excluded from actor suggestions.
+        """
+        rows = self._session.execute(
+            text(
+                "SELECT actor_profile_id, campaign_id"
+                " FROM campaign_lineage ORDER BY actor_profile_id"
+            ),
+        ).fetchall()
+
+        actor_campaigns: dict[str, list[str]] = {}
+        for actor_id, campaign_id in rows:
+            actor_campaigns.setdefault(actor_id, []).append(campaign_id)
+
+        pairs: set[frozenset[str]] = set()
+        for cids in actor_campaigns.values():
+            if len(cids) >= 2:
+                for i in range(len(cids)):
+                    for j in range(i + 1, len(cids)):
+                        pairs.add(frozenset({cids[i], cids[j]}))
+        return pairs

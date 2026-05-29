@@ -1,7 +1,8 @@
-"""Actor profile CRUD endpoints — Phase 7 Group B1.
+"""Actor profile CRUD and suggestion endpoints — Phase 7 Group B1/B3.
 
 POST   /api/actors              — create actor profile (201)
 GET    /api/actors              — list actor profiles
+GET    /api/actors/suggestions  — candidate campaign pairs for attribution review (read-only)
 GET    /api/actors/{id}         — get actor profile detail (404 if not found)
 PATCH  /api/actors/{id}         — partial update (display_name, notes, confidence, status)
 
@@ -20,9 +21,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, field_validator
 
+from app.core.config import settings as _settings
 from app.db.connection import get_session
 from app.db.repository import EventRepository
 from app.intelligence.actor_constants import VALID_ACTOR_STATUSES
+from app.intelligence.actor_suggestions import build_actor_suggestions
 from app.utils.auth import require_jwt_or_api_key
 
 router = APIRouter(prefix="/api/actors", tags=["actors"])
@@ -126,6 +129,51 @@ def list_actors(
     with get_session() as session:
         items = EventRepository(session).list_actor_profiles(status=status, limit=limit)
     return {"items": items, "count": len(items)}
+
+
+@router.get("/suggestions")
+def get_actor_suggestions(
+    min_score: float | None = Query(default=None, ge=0.0, le=1.0),
+    limit: int | None = Query(default=None, ge=1, le=100),
+    _: dict = Depends(require_jwt_or_api_key),
+):
+    """Return candidate campaign pairs for actor attribution review.
+
+    Compares representative fingerprints of active/dormant/reactivated
+    campaigns pairwise.  Pairs already co-attributed to the same actor
+    via campaign_lineage are excluded.
+
+    Results are sorted by similarity_score DESC and capped at limit.
+    suggested_relationship_type is advisory only — it is never written
+    to any table automatically.  Campaigns without a representative
+    fingerprint are excluded from comparison.
+
+    Read-only.  No writes to actor_profiles, campaign_lineage, or campaigns.
+    """
+    effective_min_score = (
+        min_score if min_score is not None else _settings.ACTOR_SUGGESTION_MIN_SCORE
+    )
+    effective_limit = limit if limit is not None else _settings.ACTOR_SUGGESTION_LIMIT
+
+    with get_session() as session:
+        repo = EventRepository(session)
+        campaigns = repo.list_campaigns_for_suggestions()
+        coattributed_pairs = repo.get_coattributed_campaign_pairs()
+
+    suggestions, total_evaluated = build_actor_suggestions(
+        campaigns,
+        coattributed_pairs,
+        min_score=effective_min_score,
+        limit=effective_limit,
+    )
+
+    return {
+        "suggestions": suggestions,
+        "count": len(suggestions),
+        "total_pairs_evaluated": total_evaluated,
+        "min_score_applied": effective_min_score,
+        "campaigns_evaluated": len(campaigns),
+    }
 
 
 @router.get("/{actor_id}")
