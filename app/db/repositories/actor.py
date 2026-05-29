@@ -1,16 +1,12 @@
-"""Actor identity repository — Phase 6 Group D schema foundations.
+"""Actor identity repository — Phase 6 Group D foundations, Phase 7 B1/B2 activation.
 
 Read/write methods for actor_profiles and campaign_lineage tables.
-
-These tables are empty scaffolding created in Phase 6 to prepare Phase 7
-actor-level intelligence without implementing actor attribution yet.
 
 Invariants:
   - No method here performs automatic actor attribution.
   - No method here merges or splits campaigns.
   - No method here reads from or writes to the clustering path.
-  - campaign_lineage records are created only by explicit operator or future
-    Phase 7 automation — never by clustering.py or any existing job runner.
+  - campaign_lineage records are created only by explicit operator API calls.
 """
 
 from __future__ import annotations
@@ -51,6 +47,38 @@ def _lineage_row_to_dict(row) -> dict[str, Any]:
         "confidence": row[4],
         "evidence_json": row[5],
         "created_at": row[6],
+    }
+
+
+def _lineage_with_campaign_to_dict(row) -> dict[str, Any]:
+    return {
+        "id": row[0],
+        "actor_profile_id": row[1],
+        "campaign_id": row[2],
+        "relationship_type": row[3],
+        "confidence": row[4],
+        "evidence_json": row[5],
+        "created_at": row[6],
+        "campaign_name": row[7],
+        "campaign_status": row[8],
+        "campaign_last_seen": row[9],
+        "campaign_member_ip_count": row[10],
+        "campaign_has_fingerprint": bool(row[11]) if row[11] is not None else False,
+    }
+
+
+def _lineage_with_actor_to_dict(row) -> dict[str, Any]:
+    return {
+        "id": row[0],
+        "actor_profile_id": row[1],
+        "campaign_id": row[2],
+        "relationship_type": row[3],
+        "confidence": row[4],
+        "evidence_json": row[5],
+        "created_at": row[6],
+        "actor_display_name": row[7],
+        "actor_confidence": row[8],
+        "actor_status": row[9],
     }
 
 
@@ -275,3 +303,94 @@ class ActorRepository(RepositoryBase):
             params,
         ).fetchall()
         return [_lineage_row_to_dict(r) for r in rows]
+
+    def get_lineage_record(self, lineage_id: str) -> dict[str, Any] | None:
+        """Return a single campaign_lineage row by id, or None if not found."""
+        row = self._session.execute(
+            text(_LINEAGE_SELECT + "WHERE id = :id"),
+            {"id": lineage_id},
+        ).fetchone()
+        return _lineage_row_to_dict(row) if row is not None else None
+
+    def find_duplicate_lineage(
+        self, actor_profile_id: str, campaign_id: str
+    ) -> dict[str, Any] | None:
+        """Return the existing lineage row for (actor_profile_id, campaign_id), or None.
+
+        Used for 409 duplicate-link detection before inserting a new record.
+        The check is on the (actor, campaign) pair regardless of relationship_type —
+        an actor may only be linked to a given campaign once.
+        """
+        row = self._session.execute(
+            text(_LINEAGE_SELECT + "WHERE actor_profile_id = :apid AND campaign_id = :cid LIMIT 1"),
+            {"apid": actor_profile_id, "cid": campaign_id},
+        ).fetchone()
+        return _lineage_row_to_dict(row) if row is not None else None
+
+    def delete_lineage_record(self, lineage_id: str) -> bool:
+        """Hard-delete a campaign_lineage row by id.
+
+        Returns True if a row was deleted, False if the id was not found.
+        Does not modify campaigns, actor_profiles, or any other table.
+        """
+        result = self._session.execute(
+            text("DELETE FROM campaign_lineage WHERE id = :id"),
+            {"id": lineage_id},
+        )
+        return result.rowcount > 0
+
+    def list_actor_campaigns_with_metadata(
+        self,
+        actor_profile_id: str,
+        *,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Return lineage rows for an actor, enriched with basic campaign metadata.
+
+        Each row contains the full lineage record plus: campaign_name,
+        campaign_status, campaign_last_seen, campaign_member_ip_count,
+        campaign_has_fingerprint.  Ordered newest-first by lineage.created_at.
+        """
+        rows = self._session.execute(
+            text("""
+                SELECT
+                    cl.id, cl.actor_profile_id, cl.campaign_id,
+                    cl.relationship_type, cl.confidence, cl.evidence_json, cl.created_at,
+                    c.name, c.status, c.last_seen, c.member_ip_count,
+                    (c.representative_fingerprint_json IS NOT NULL)
+                FROM campaign_lineage cl
+                LEFT JOIN campaigns c ON cl.campaign_id = c.id
+                WHERE cl.actor_profile_id = :actor_id
+                ORDER BY cl.created_at DESC
+                LIMIT :limit
+            """),
+            {"actor_id": actor_profile_id, "limit": limit},
+        ).fetchall()
+        return [_lineage_with_campaign_to_dict(r) for r in rows]
+
+    def list_campaign_actors_with_metadata(
+        self,
+        campaign_id: str,
+        *,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Return lineage rows for a campaign, enriched with basic actor metadata.
+
+        Each row contains the full lineage record plus: actor_display_name,
+        actor_confidence, actor_status.  Ordered newest-first by lineage.created_at.
+        """
+        rows = self._session.execute(
+            text("""
+                SELECT
+                    cl.id, cl.actor_profile_id, cl.campaign_id,
+                    cl.relationship_type, cl.confidence, cl.evidence_json, cl.created_at,
+                    ap.display_name, ap.confidence, ap.status
+                FROM campaign_lineage cl
+                LEFT JOIN actor_profiles ap ON cl.actor_profile_id = ap.id
+                WHERE cl.campaign_id = :campaign_id
+                ORDER BY cl.created_at DESC
+                LIMIT :limit
+            """),
+            {"campaign_id": campaign_id, "limit": limit},
+        ).fetchall()
+        return [_lineage_with_actor_to_dict(r) for r in rows]
