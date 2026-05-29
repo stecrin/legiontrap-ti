@@ -276,6 +276,99 @@ class ActorRepository(RepositoryBase):
         ).fetchall()
         return [_lineage_row_to_dict(r) for r in rows]
 
+    def get_lineage_row(self, lineage_id: str) -> dict[str, Any] | None:
+        """Return a single campaign_lineage row by id, or None if not found."""
+        row = self._session.execute(
+            text(_LINEAGE_SELECT + "WHERE id = :id"),
+            {"id": lineage_id},
+        ).fetchone()
+        return _lineage_row_to_dict(row) if row is not None else None
+
+    def delete_lineage_row(self, lineage_id: str) -> None:
+        """Hard-delete a single campaign_lineage row by id.
+
+        Raises no error if the row does not exist — callers should check
+        get_lineage_row() first to enforce 404 semantics at the router layer.
+        Campaigns and actor_profiles are never touched.
+        """
+        self._session.execute(
+            text("DELETE FROM campaign_lineage WHERE id = :id"),
+            {"id": lineage_id},
+        )
+
+    def list_actor_campaigns_with_metadata(
+        self,
+        actor_profile_id: str,
+        *,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Return campaigns linked to an actor with campaign metadata.
+
+        JOINs campaign_lineage with campaigns for each linked campaign.
+        Ordered by lineage created_at DESC.  Campaigns absent from the
+        campaigns table appear with NULL name/status/last_seen fields.
+        """
+        rows = self._session.execute(
+            text("""
+                SELECT cl.id, cl.campaign_id, cl.relationship_type, cl.confidence,
+                       cl.evidence_json, cl.created_at,
+                       c.name, c.status, c.last_seen
+                FROM campaign_lineage cl
+                LEFT JOIN campaigns c ON cl.campaign_id = c.id
+                WHERE cl.actor_profile_id = :actor_profile_id
+                ORDER BY cl.created_at DESC
+                LIMIT :limit
+            """),
+            {"actor_profile_id": actor_profile_id, "limit": limit},
+        ).fetchall()
+        return [
+            {
+                "lineage_id": row[0],
+                "campaign_id": row[1],
+                "relationship_type": row[2],
+                "confidence": row[3],
+                "evidence_json": row[4],
+                "linked_at": row[5],
+                "campaign_name": row[6],
+                "campaign_status": row[7],
+                "campaign_last_seen": row[8],
+            }
+            for row in rows
+        ]
+
+    def list_actors_for_campaign(self, campaign_id: str) -> list[dict[str, Any]]:
+        """Return actors linked to a campaign with actor profile metadata.
+
+        JOINs campaign_lineage with actor_profiles.
+        Ordered by lineage created_at DESC.
+        """
+        rows = self._session.execute(
+            text("""
+                SELECT cl.id, cl.actor_profile_id, cl.relationship_type, cl.confidence,
+                       cl.evidence_json, cl.created_at,
+                       ap.display_name, ap.status, ap.confidence AS actor_confidence
+                FROM campaign_lineage cl
+                LEFT JOIN actor_profiles ap ON cl.actor_profile_id = ap.id
+                WHERE cl.campaign_id = :campaign_id
+                ORDER BY cl.created_at DESC
+            """),
+            {"campaign_id": campaign_id},
+        ).fetchall()
+        return [
+            {
+                "lineage_id": row[0],
+                "actor_profile_id": row[1],
+                "relationship_type": row[2],
+                "confidence": row[3],
+                "evidence_json": row[4],
+                "linked_at": row[5],
+                "actor_display_name": row[6],
+                "actor_status": row[7],
+                "actor_confidence": row[8],
+            }
+            for row in rows
+        ]
+
     def list_campaigns_for_suggestions(self, *, limit: int = 500) -> list[dict[str, Any]]:
         """Return campaigns eligible for actor suggestion comparison.
 

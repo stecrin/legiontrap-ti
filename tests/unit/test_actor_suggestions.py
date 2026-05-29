@@ -210,7 +210,7 @@ def test_build_pair_above_min_score_included():
     assert s["similarity_score"] == 0.90
     assert s["campaign_a"]["id"] == "c1"
     assert s["campaign_b"]["id"] == "c2"
-    assert "breakdown" in s
+    assert "score_breakdown" in s
     assert "suggested_relationship_type" in s
 
 
@@ -230,7 +230,7 @@ def test_build_suggestion_fields_complete():
         "campaign_a",
         "campaign_b",
         "similarity_score",
-        "breakdown",
+        "score_breakdown",
         "suggested_relationship_type",
     }
     for key in ("id", "name", "status", "last_seen", "member_ip_count"):

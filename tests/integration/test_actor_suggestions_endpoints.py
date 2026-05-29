@@ -267,7 +267,7 @@ def test_suggestion_item_has_expected_keys():
         "campaign_a",
         "campaign_b",
         "similarity_score",
-        "breakdown",
+        "score_breakdown",
         "suggested_relationship_type",
     }
 
@@ -296,7 +296,7 @@ def test_suggestion_breakdown_has_dimension_scores():
         headers=_HEADERS,
     )
     data = resp.json()
-    breakdown = data["suggestions"][0]["breakdown"]
+    breakdown = data["suggestions"][0]["score_breakdown"]
     for key in (
         "timing_similarity",
         "sequence_similarity",
