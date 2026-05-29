@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.29.0](https://github.com/stecrin/legiontrap-ti/compare/v0.28.0...v0.29.0) (2026-05-29)
+
+### Features
+
+* **phase7:** implement feedback loop foundation ([47b6d6b](https://github.com/stecrin/legiontrap-ti/commit/47b6d6b419f26e4f8447e6d7c4f9dcde5e5a3407))
+
 ## [0.28.0](https://github.com/stecrin/legiontrap-ti/compare/v0.27.0...v0.28.0) (2026-05-28)
 
 ### Features
