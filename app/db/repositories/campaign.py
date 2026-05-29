@@ -177,6 +177,37 @@ class CampaignRepository(RepositoryBase):
                 }
             )
 
+        if not results:
+            return results
+
+        # Batch-fetch weight profiles for all candidate campaigns and attach them.
+        # weight_profile is None when no calibrated profile exists (uses global defaults).
+        cids = [r["campaign_id"] for r in results]
+        placeholders = ", ".join(f":p{i}" for i in range(len(cids)))
+        params = {f"p{i}": cid for i, cid in enumerate(cids)}
+        wp_rows = self._session.execute(
+            text(f"""
+                SELECT campaign_id,
+                       weight_timing, weight_sequence, weight_protocol,
+                       weight_credential, weight_target
+                FROM campaign_weight_profiles
+                WHERE campaign_id IN ({placeholders})
+            """),
+            params,
+        ).fetchall()
+        weight_map: dict[str, dict[str, float]] = {
+            row[0]: {
+                "timing": row[1],
+                "sequence": row[2],
+                "protocol": row[3],
+                "credential": row[4],
+                "target": row[5],
+            }
+            for row in wp_rows
+        }
+        for r in results:
+            r["weight_profile"] = weight_map.get(r["campaign_id"])
+
         return results
 
     def update_representative_fingerprint(

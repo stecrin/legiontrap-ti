@@ -362,6 +362,8 @@ def target_similarity(
 def compute_weighted_similarity(
     fp1: dict[str, Any],
     fp2: dict[str, Any],
+    *,
+    weights: dict[str, float] | None = None,
 ) -> SimilarityResult:
     """Weighted fingerprint similarity per §8.1 and §3.2.
 
@@ -373,6 +375,11 @@ def compute_weighted_similarity(
 
     Infrastructure features (ASN, geography) are intentionally absent from
     the similarity computation per §12.4.
+
+    weights, if provided, must be a dict with keys:
+      timing, sequence, protocol, credential, target
+    Values must be positive and sum to ~1.0.  When None, global constants are
+    used.  Same fingerprints + same weights = same result (deterministic).
     """
 
     def _parse(s: str | None) -> dict | None:
@@ -396,12 +403,13 @@ def compute_weighted_similarity(
     )
     tgs = target_similarity(_parse(fp1.get("target_features")), _parse(fp2.get("target_features")))
 
+    _w = weights or {}
     _WEIGHTS: dict[str, tuple[float | None, float]] = {
-        "timing": (ts, WEIGHT_TIMING),
-        "sequence": (ss, WEIGHT_SEQUENCE),
-        "protocol": (ps, WEIGHT_PROTOCOL),
-        "credential": (cs, WEIGHT_CREDENTIAL),
-        "target": (tgs, WEIGHT_TARGET),
+        "timing": (ts, _w.get("timing", WEIGHT_TIMING)),
+        "sequence": (ss, _w.get("sequence", WEIGHT_SEQUENCE)),
+        "protocol": (ps, _w.get("protocol", WEIGHT_PROTOCOL)),
+        "credential": (cs, _w.get("credential", WEIGHT_CREDENTIAL)),
+        "target": (tgs, _w.get("target", WEIGHT_TARGET)),
     }
 
     numerator = 0.0

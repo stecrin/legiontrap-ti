@@ -403,6 +403,7 @@ def test_get_campaigns_for_clustering_returned_keys(db_session):
         "credential_features",
         "target_features",
         "confidence",
+        "weight_profile",  # Phase 7: per-campaign weights, None when no profile exists
     }
 
 

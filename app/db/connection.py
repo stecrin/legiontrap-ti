@@ -345,6 +345,45 @@ def create_all_tables(engine: Engine) -> None:
                 "FOREIGN KEY (campaign_id) REFERENCES campaigns(id))"
             )
         )
+
+        # Phase 7 Group A — per-campaign similarity weight profiles.
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS campaign_weight_profiles ("
+                "campaign_id TEXT PRIMARY KEY, "
+                "weight_timing REAL NOT NULL, "
+                "weight_sequence REAL NOT NULL, "
+                "weight_protocol REAL NOT NULL, "
+                "weight_credential REAL NOT NULL, "
+                "weight_target REAL NOT NULL, "
+                "review_count INTEGER NOT NULL DEFAULT 0, "
+                "confirmed_count INTEGER NOT NULL DEFAULT 0, "
+                "denied_count INTEGER NOT NULL DEFAULT 0, "
+                "adjustment_log_json TEXT NOT NULL DEFAULT '[]', "
+                "computed_at TEXT NOT NULL, "
+                "updated_at TEXT NOT NULL, "
+                "FOREIGN KEY (campaign_id) REFERENCES campaigns(id))"
+            )
+        )
+
+        # Phase 7 Group A — behavioral drift alerts.
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS behavioral_alerts ("
+                "id TEXT PRIMARY KEY, "
+                "campaign_id TEXT NOT NULL, "
+                "alert_type TEXT NOT NULL, "
+                "dimension TEXT, "
+                "threshold_configured REAL NOT NULL, "
+                "observed_value REAL NOT NULL, "
+                "stability_snapshot_json TEXT NOT NULL, "
+                "triggered_at TEXT NOT NULL, "
+                "acknowledged_at TEXT, "
+                "acknowledged_notes TEXT, "
+                "FOREIGN KEY (campaign_id) REFERENCES campaigns(id))"
+            )
+        )
+
         conn.commit()
 
 

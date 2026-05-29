@@ -13,6 +13,8 @@ Internal structure (by concern):
     repositories/fingerprint.py         — behavioral fingerprint reads and writes
     repositories/campaign.py            — campaign CRUD and clustering query methods
     repositories/fingerprint_history.py — append-only longitudinal fingerprint history
+    repositories/weight_profiles.py     — per-campaign similarity weight profiles (Phase 7)
+    repositories/alerts.py              — behavioral drift alerts (Phase 7)
 
 The caller owns the session and therefore the transaction boundary.
 
@@ -32,12 +34,14 @@ from __future__ import annotations
 from app.db.repositories.actor import ActorRepository
 from app.db.repositories.ai_audit_log import AiAuditLogRepository
 from app.db.repositories.ai_outputs import AiOutputRepository
+from app.db.repositories.alerts import AlertRepository
 from app.db.repositories.campaign import CampaignRepository
 from app.db.repositories.fingerprint import FingerprintRepository
 from app.db.repositories.fingerprint_history import FingerprintHistoryRepository
 from app.db.repositories.intelligence import IntelligenceRepository
 from app.db.repositories.jobs import JobRepository
 from app.db.repositories.read import ReadRepository
+from app.db.repositories.weight_profiles import WeightProfileRepository
 from app.db.repositories.write import WriteRepository
 
 
@@ -52,9 +56,11 @@ class EventRepository(
     AiAuditLogRepository,
     FingerprintHistoryRepository,
     ActorRepository,
+    WeightProfileRepository,
+    AlertRepository,
 ):
     """
-    Unified repository class. Inherits all SQL methods from the ten concern
+    Unified repository class. Inherits all SQL methods from the twelve concern
     mixins. Callers see a single object with the full method surface; the
     internal split is an organisation detail invisible to callers.
 
@@ -63,5 +69,6 @@ class EventRepository(
                 CampaignRepository → JobRepository →
                 AiOutputRepository → AiAuditLogRepository →
                 FingerprintHistoryRepository → ActorRepository →
+                WeightProfileRepository → AlertRepository →
                 RepositoryBase → object
     """
