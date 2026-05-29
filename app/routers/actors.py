@@ -1,11 +1,15 @@
-"""Actor profile CRUD, suggestion, and stability endpoints — Phase 7 B1/B3/B4.
+"""Actor profile CRUD, suggestion, and stability endpoints — Phase 7 B1/B2/B3/B4.
 
-POST   /api/actors                   — create actor profile (201)
-GET    /api/actors                   — list actor profiles
-GET    /api/actors/suggestions       — candidate campaign pairs (read-only)
-GET    /api/actors/{id}              — get actor profile detail (404 if not found)
-GET    /api/actors/{id}/stability    — aggregated stability view (read-only)
-PATCH  /api/actors/{id}              — partial update (display_name, notes, confidence, status)
+POST   /api/actors                              — create actor profile (201)
+GET    /api/actors                              — list actor profiles
+GET    /api/actors/suggestions                  — candidate campaign pairs (read-only)
+GET    /api/actors/{id}                         — get actor profile detail (404 if not found)
+GET    /api/actors/{id}/stability               — aggregated stability view (read-only)
+PATCH  /api/actors/{id}                         — partial update (display_name, notes, confidence,
+                                                  status)
+POST   /api/actors/{id}/campaigns               — link a campaign to an actor (201)
+GET    /api/actors/{id}/campaigns               — list campaigns linked to an actor
+DELETE /api/actors/{id}/campaigns/{lineage_id}  — remove a campaign-actor link (204)
 
 All endpoints require API key or JWT authentication via require_jwt_or_api_key.
 No SQL belongs here — all queries go through EventRepository.
@@ -25,7 +29,7 @@ from pydantic import BaseModel, field_validator
 from app.core.config import settings as _settings
 from app.db.connection import get_session
 from app.db.repository import EventRepository
-from app.intelligence.actor_constants import VALID_ACTOR_STATUSES
+from app.intelligence.actor_constants import VALID_ACTOR_STATUSES, VALID_RELATIONSHIP_TYPES
 from app.intelligence.actor_stability import aggregate_actor_stability
 from app.intelligence.actor_suggestions import build_actor_suggestions
 from app.utils.auth import require_jwt_or_api_key
@@ -60,6 +64,37 @@ class ActorCreateRequest(BaseModel):
             raise ValueError(
                 f"Invalid status {v!r}. Must be one of: {sorted(VALID_ACTOR_STATUSES)}"
             )
+        return v
+
+
+class CampaignLinkRequest(BaseModel):
+    campaign_id: str
+    relationship_type: str
+    confidence: float = 0.5
+    evidence: dict | None = None
+
+    @field_validator("campaign_id")
+    @classmethod
+    def campaign_id_nonempty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("campaign_id must not be blank")
+        return v
+
+    @field_validator("relationship_type")
+    @classmethod
+    def rel_type_valid(cls, v: str) -> str:
+        if v not in VALID_RELATIONSHIP_TYPES:
+            raise ValueError(
+                f"Invalid relationship_type {v!r}. "
+                f"Must be one of: {sorted(VALID_RELATIONSHIP_TYPES)}"
+            )
+        return v
+
+    @field_validator("confidence")
+    @classmethod
+    def confidence_range(cls, v: float) -> float:
+        if not (0.0 <= v <= 1.0):
+            raise ValueError("confidence must be between 0.0 and 1.0")
         return v
 
 
@@ -269,3 +304,101 @@ def patch_actor(
             kwargs["status"] = body.status
         updated = repo.update_actor_profile(actor_id, **kwargs)
     return updated
+
+
+@router.post("/{actor_id}/campaigns", status_code=status.HTTP_201_CREATED)
+def link_campaign_to_actor(
+    actor_id: str,
+    body: CampaignLinkRequest,
+    _: dict = Depends(require_jwt_or_api_key),
+):
+    """Link a campaign to an actor via a campaign_lineage record.
+
+    Validates that both the actor and campaign exist before inserting.
+    Returns 409 if the same actor/campaign pair is already linked.
+    relationship_type must be one of VALID_RELATIONSHIP_TYPES.
+
+    No automatic attribution occurs — this is an explicit operator action.
+    Campaigns and actor_profiles are not modified; only campaign_lineage is written.
+    """
+    with get_session() as session:
+        repo = EventRepository(session)
+
+        if repo.get_actor_profile(actor_id) is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Actor {actor_id!r} not found",
+            )
+
+        if repo.get_campaign(body.campaign_id) is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Campaign {body.campaign_id!r} not found",
+            )
+
+        existing = repo.list_campaign_lineage(
+            actor_profile_id=actor_id,
+            campaign_id=body.campaign_id,
+        )
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"Campaign {body.campaign_id!r} is already linked to " f"actor {actor_id!r}"
+                ),
+            )
+
+        row = repo.link_campaign_to_actor(
+            actor_profile_id=actor_id,
+            campaign_id=body.campaign_id,
+            relationship_type=body.relationship_type,
+            confidence=body.confidence,
+            evidence_json=body.evidence,
+        )
+    return row
+
+
+@router.get("/{actor_id}/campaigns")
+def list_actor_campaigns(
+    actor_id: str,
+    limit: int = Query(default=100, ge=1, le=500),
+    _: dict = Depends(require_jwt_or_api_key),
+):
+    """Return campaigns linked to an actor with campaign metadata.
+
+    Each item includes lineage_id, campaign_id, relationship_type, confidence,
+    evidence_json, linked_at, and campaign name/status/last_seen from the
+    campaigns table.  404 if the actor does not exist.
+    """
+    with get_session() as session:
+        repo = EventRepository(session)
+        if repo.get_actor_profile(actor_id) is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Actor {actor_id!r} not found",
+            )
+        items = repo.list_actor_campaigns_with_metadata(actor_id, limit=limit)
+    return {"actor_id": actor_id, "items": items, "count": len(items)}
+
+
+@router.delete("/{actor_id}/campaigns/{lineage_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_actor_campaign_link(
+    actor_id: str,
+    lineage_id: str,
+    _: dict = Depends(require_jwt_or_api_key),
+):
+    """Remove a campaign-actor link by lineage_id.
+
+    Returns 404 if the lineage record does not exist or does not belong to
+    this actor.  Only the campaign_lineage row is deleted; campaigns and
+    actor_profiles are not modified.
+    """
+    with get_session() as session:
+        repo = EventRepository(session)
+        row = repo.get_lineage_row(lineage_id)
+        if row is None or row["actor_profile_id"] != actor_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Lineage record {lineage_id!r} not found for actor {actor_id!r}",
+            )
+        repo.delete_lineage_row(lineage_id)

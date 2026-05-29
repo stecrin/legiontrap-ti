@@ -91,7 +91,7 @@ def build_actor_suggestions(
                 "campaign_a": _campaign_summary(c_a),
                 "campaign_b": _campaign_summary(c_b),
                 "similarity_score": result.weighted_total,
-                "breakdown": result.as_dict(),
+                "score_breakdown": result.as_dict(),
                 "suggested_relationship_type": _derive_relationship_type(result),
             }
         )

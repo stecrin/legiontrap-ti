@@ -8,6 +8,7 @@ GET  /api/campaigns/{campaign_id}                             — campaign detai
 GET  /api/campaigns/{campaign_id}/observations                — observation list
 GET  /api/campaigns/{campaign_id}/weight-profile              — per-campaign weight profile
 GET  /api/campaigns/{campaign_id}/density                     — full campaign density metrics
+GET  /api/campaigns/{campaign_id}/actors                      — actors linked to this campaign
 
 All endpoints require API key or JWT authentication via require_jwt_or_api_key.
 No SQL belongs here — all queries go through EventRepository.
@@ -284,6 +285,28 @@ def get_campaign_weight_profile(
         "global_defaults": global_defaults,
         "status": "calibrated",
     }
+
+
+@router.get("/{campaign_id}/actors")
+def list_campaign_actors(
+    campaign_id: str,
+    _: dict = Depends(require_jwt_or_api_key),
+):
+    """Return actors linked to a campaign via campaign_lineage.
+
+    Each item includes lineage_id, actor_profile_id, relationship_type,
+    confidence, evidence_json, linked_at, and actor display_name/status/confidence.
+    404 if the campaign does not exist.  Read-only.
+    """
+    with get_session() as session:
+        repo = EventRepository(session)
+        if repo.get_campaign(campaign_id) is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Campaign {campaign_id!r} not found",
+            )
+        items = repo.list_actors_for_campaign(campaign_id)
+    return {"campaign_id": campaign_id, "items": items, "count": len(items)}
 
 
 @router.get("/{campaign_id}/density")
