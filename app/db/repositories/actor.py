@@ -322,6 +322,44 @@ class ActorRepository(RepositoryBase):
             )
         return results
 
+    def list_actor_campaign_stability(
+        self,
+        actor_profile_id: str,
+    ) -> list[dict[str, Any]]:
+        """Return stability data for campaigns linked to an actor.
+
+        JOINs campaign_lineage with campaigns to fetch behavioral_stability_json
+        alongside lineage metadata.  Campaigns missing from the campaigns table
+        (orphaned lineage rows) are included with NULL stability fields — callers
+        must handle None values.
+
+        Ordered by lineage created_at ASC so the oldest link appears first.
+        """
+        rows = self._session.execute(
+            text("""
+                SELECT cl.campaign_id, cl.relationship_type, cl.confidence,
+                       c.name, c.status, c.last_seen,
+                       c.behavioral_stability_json
+                FROM campaign_lineage cl
+                LEFT JOIN campaigns c ON cl.campaign_id = c.id
+                WHERE cl.actor_profile_id = :actor_profile_id
+                ORDER BY cl.created_at ASC
+            """),
+            {"actor_profile_id": actor_profile_id},
+        ).fetchall()
+        return [
+            {
+                "campaign_id": row[0],
+                "relationship_type": row[1],
+                "confidence": row[2],
+                "campaign_name": row[3],
+                "campaign_status": row[4],
+                "last_seen": row[5],
+                "behavioral_stability_json": row[6],
+            }
+            for row in rows
+        ]
+
     def get_coattributed_campaign_pairs(self) -> set[frozenset[str]]:
         """Return campaign pairs already linked through a common actor.
 

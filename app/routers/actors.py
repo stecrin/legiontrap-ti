@@ -1,10 +1,11 @@
-"""Actor profile CRUD and suggestion endpoints — Phase 7 Group B1/B3.
+"""Actor profile CRUD, suggestion, and stability endpoints — Phase 7 B1/B3/B4.
 
-POST   /api/actors              — create actor profile (201)
-GET    /api/actors              — list actor profiles
-GET    /api/actors/suggestions  — candidate campaign pairs for attribution review (read-only)
-GET    /api/actors/{id}         — get actor profile detail (404 if not found)
-PATCH  /api/actors/{id}         — partial update (display_name, notes, confidence, status)
+POST   /api/actors                   — create actor profile (201)
+GET    /api/actors                   — list actor profiles
+GET    /api/actors/suggestions       — candidate campaign pairs (read-only)
+GET    /api/actors/{id}              — get actor profile detail (404 if not found)
+GET    /api/actors/{id}/stability    — aggregated stability view (read-only)
+PATCH  /api/actors/{id}              — partial update (display_name, notes, confidence, status)
 
 All endpoints require API key or JWT authentication via require_jwt_or_api_key.
 No SQL belongs here — all queries go through EventRepository.
@@ -25,6 +26,7 @@ from app.core.config import settings as _settings
 from app.db.connection import get_session
 from app.db.repository import EventRepository
 from app.intelligence.actor_constants import VALID_ACTOR_STATUSES
+from app.intelligence.actor_stability import aggregate_actor_stability
 from app.intelligence.actor_suggestions import build_actor_suggestions
 from app.utils.auth import require_jwt_or_api_key
 
@@ -190,6 +192,47 @@ def get_actor(
             detail=f"Actor {actor_id!r} not found",
         )
     return actor
+
+
+@router.get("/{actor_id}/stability")
+def get_actor_stability(
+    actor_id: str,
+    _: dict = Depends(require_jwt_or_api_key),
+):
+    """Return aggregated behavioral stability for campaigns linked to an actor.
+
+    Reads campaign_lineage for the actor, fetches behavioral_stability_json
+    from each linked campaign, and aggregates across all contributors.
+
+    Campaigns with NULL behavioral_stability_json or status 'insufficient_data'
+    are counted in campaigns_missing_stability but excluded from aggregate scores.
+    They still appear in contributors with composite_score=null.
+
+    status values:
+      ok                 — all linked campaigns have stability data
+      no_linked_campaigns — actor has no campaign_lineage rows
+      no_stability_data  — linked campaigns exist but none have stability
+      partial_data       — some campaigns have stability, some do not
+
+    Read-only.  No writes to actor_profiles, campaign_lineage, or campaigns.
+    404 if the actor does not exist.
+    """
+    with get_session() as session:
+        repo = EventRepository(session)
+        actor = repo.get_actor_profile(actor_id)
+        if actor is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Actor {actor_id!r} not found",
+            )
+        campaign_rows = repo.list_actor_campaign_stability(actor_id)
+
+    agg = aggregate_actor_stability(campaign_rows)
+    return {
+        "actor_id": actor_id,
+        "actor_display_name": actor["display_name"],
+        **agg,
+    }
 
 
 @router.patch("/{actor_id}")
