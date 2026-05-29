@@ -74,6 +74,18 @@ export async function postCampaignBrief({
   return { status: r.status, data };
 }
 
+export async function getSparseCampaigns({ limit = 200 } = {}) {
+  const r = await fetch(`/api/campaigns/sparse?limit=${limit}`, { headers: { 'x-api-key': 'dev-123' } });
+  if (!r.ok) throw new Error(`campaigns/sparse ${r.status}`);
+  return r.json();
+}
+
+export async function getCampaignDensity(campaignId) {
+  const r = await fetch(`/api/campaigns/${encodeURIComponent(campaignId)}/density`, { headers: { 'x-api-key': 'dev-123' } });
+  if (!r.ok) throw new Error(`campaigns/${campaignId}/density ${r.status}`);
+  return r.json();
+}
+
 export async function getCampaignAiOutputs(campaignId, { limit = 20 } = {}) {
   const r = await fetch(`/api/campaigns/${encodeURIComponent(campaignId)}/ai-outputs?limit=${limit}`, { headers: { 'x-api-key': 'dev-123' } });
   if (!r.ok) throw new Error(`ai-outputs ${r.status}`);

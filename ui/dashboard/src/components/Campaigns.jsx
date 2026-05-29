@@ -61,6 +61,35 @@ function ConfidenceBar({ value, dark }) {
   );
 }
 
+function evidenceQualityColor(q) {
+  switch (q) {
+    case "mature": return "#22c55e";
+    case "established": return "#60a5fa";
+    case "emerging": return "#f59e0b";
+    case "sparse": return "#6b7280";
+    default: return "#9ca3af";
+  }
+}
+
+function EvidenceQualityBadge({ quality }) {
+  if (!quality) return null;
+  const color = evidenceQualityColor(quality);
+  return (
+    <span style={{
+      padding: "2px 7px",
+      borderRadius: 9999,
+      fontSize: 10,
+      fontWeight: 600,
+      background: `${color}22`,
+      color,
+      textTransform: "uppercase",
+      letterSpacing: "0.04em",
+    }}>
+      {quality}
+    </span>
+  );
+}
+
 function ExplainSummary({ notes, dark }) {
   if (!notes) return null;
   let parsed;
@@ -303,6 +332,7 @@ export default function Campaigns({ dark }) {
             <tr style={{ background: dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)" }}>
               <th style={th}>Name</th>
               <th style={th}>Status</th>
+              <th style={th}>Quality</th>
               <th style={th}>Confidence</th>
               <th style={th}>Members</th>
               <th style={th}>Last Seen</th>
@@ -312,7 +342,7 @@ export default function Campaigns({ dark }) {
           <tbody>
             {items.length === 0 && !loading && (
               <tr>
-                <td colSpan={6} style={{ ...td, textAlign: "center", opacity: 0.5 }}>
+                <td colSpan={7} style={{ ...td, textAlign: "center", opacity: 0.5 }}>
                   No campaigns detected yet.
                 </td>
               </tr>
@@ -344,6 +374,7 @@ export default function Campaigns({ dark }) {
                       </span>
                     </td>
                     <td style={td}><StatusBadge status={item.status} /></td>
+                    <td style={td}><EvidenceQualityBadge quality={item.evidence_quality} /></td>
                     <td style={td}><ConfidenceBar value={item.confidence} dark={dark} /></td>
                     <td style={{ ...td, fontFamily: "monospace" }}>{item.member_ip_count ?? "—"}</td>
                     <td style={{ ...td, fontFamily: "monospace", fontSize: 12 }}>
@@ -358,7 +389,7 @@ export default function Campaigns({ dark }) {
                   </tr>
                   {isExpanded && (
                     <tr style={{ borderTop: `1px solid ${border}` }}>
-                      <td colSpan={6} style={{
+                      <td colSpan={7} style={{
                         padding: "14px 16px",
                         background: dark ? "rgba(99,102,241,0.06)" : "rgba(99,102,241,0.03)",
                         borderBottom: `1px solid ${border}`,
