@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.32.0](https://github.com/stecrin/legiontrap-ti/compare/v0.31.0...v0.32.0) (2026-05-29)
+
+### Features
+
+* **phase7:** implement actor suggestion engine ([4551dc9](https://github.com/stecrin/legiontrap-ti/commit/4551dc9720a35df36b4cf2e6b61e5df09ebc7731))
+
 ## [0.31.0](https://github.com/stecrin/legiontrap-ti/compare/v0.30.0...v0.31.0) (2026-05-29)
 
 ### Features
