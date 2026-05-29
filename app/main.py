@@ -27,6 +27,7 @@ from app.routers import (
 )
 from app.routers.admin import router as admin_router  # POST /api/admin/*
 from app.routers.ai_outputs import router as ai_outputs_router  # GET /api/ai/outputs/*
+from app.routers.alerts import router as alerts_router  # GET/POST /api/alerts/*
 from app.routers.analyze import router as analyze_router  # POST /api/campaigns/*/summary
 from app.routers.campaigns import router as campaigns_router  # GET /api/campaigns/*
 from app.routers.exports import router as exports_router  # GET /api/exports/*
@@ -64,6 +65,7 @@ app.include_router(ingest_router)  # /api/ingest
 app.include_router(intelligence_router)  # /api/intelligence/*
 app.include_router(campaigns_router)  # /api/campaigns/*
 app.include_router(analyze_router)  # /api/campaigns/*/summary|brief
+app.include_router(alerts_router)  # /api/alerts/* + /api/campaigns/*/alerts
 app.include_router(jobs_router)  # /api/jobs/*
 app.include_router(ai_outputs_router)  # /api/ai/outputs/* + /api/campaigns/*/ai-outputs
 app.include_router(exports_router)  # /api/exports/*

@@ -184,7 +184,8 @@ def assign_to_campaign(
     best_status: str | None = None
 
     for candidate in candidates:
-        sim = compute_weighted_similarity(fp, candidate)
+        campaign_weights = candidate.get("weight_profile")  # None → global defaults
+        sim = compute_weighted_similarity(fp, candidate, weights=campaign_weights)
         score = sim.weighted_total
 
         effective_auto = _get_effective_auto_threshold(candidate["last_seen"], now)

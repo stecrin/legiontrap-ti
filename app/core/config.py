@@ -44,6 +44,25 @@ class Settings(BaseSettings):
     AI_TIMEOUT_SECONDS: int = 30
     AI_MAX_REQUESTS_PER_MINUTE: int = 10
 
+    # ---------------------------------------------------------------------------
+    # Phase 7 — per-campaign weight profile adjustment (A1)
+    # ---------------------------------------------------------------------------
+    WEIGHT_REVIEW_NUDGE: float = 0.02
+    WEIGHT_FLOOR: float = 0.05
+    WEIGHT_CEILING: float = 0.60
+    WEIGHT_PROFILE_MIN_REVIEWS: int = 3
+    WEIGHT_HIGH_SCORE_GATE: float = 0.70
+
+    # ---------------------------------------------------------------------------
+    # Phase 7 — behavioral drift alert thresholds (A2)
+    # ---------------------------------------------------------------------------
+    DRIFT_ALERT_COMPOSITE_THRESHOLD: float = 0.65
+    DRIFT_ALERT_TIMING_THRESHOLD: float = 0.60
+    DRIFT_ALERT_SEQUENCE_THRESHOLD: float = 0.55
+    DRIFT_ALERT_PROTOCOL_THRESHOLD: float = 0.60
+    DRIFT_ALERT_CREDENTIAL_THRESHOLD: float = 0.55
+    DRIFT_ALERT_TARGET_THRESHOLD: float = 0.60
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @field_validator(
@@ -92,6 +111,36 @@ class Settings(BaseSettings):
     def positive_ai_int(cls, v: int) -> int:
         if v < 1:
             raise ValueError(f"Value must be >= 1; got {v}")
+        return v
+
+    @field_validator(
+        "WEIGHT_REVIEW_NUDGE", "WEIGHT_FLOOR", "WEIGHT_CEILING", "WEIGHT_HIGH_SCORE_GATE"
+    )
+    @classmethod
+    def weight_profile_float_in_range(cls, v: float) -> float:
+        if not (0 < v < 1):
+            raise ValueError(f"Value must be in (0, 1); got {v}")
+        return v
+
+    @field_validator("WEIGHT_PROFILE_MIN_REVIEWS")
+    @classmethod
+    def weight_profile_min_reviews_positive(cls, v: int) -> int:
+        if v < 1:
+            raise ValueError(f"Value must be >= 1; got {v}")
+        return v
+
+    @field_validator(
+        "DRIFT_ALERT_COMPOSITE_THRESHOLD",
+        "DRIFT_ALERT_TIMING_THRESHOLD",
+        "DRIFT_ALERT_SEQUENCE_THRESHOLD",
+        "DRIFT_ALERT_PROTOCOL_THRESHOLD",
+        "DRIFT_ALERT_CREDENTIAL_THRESHOLD",
+        "DRIFT_ALERT_TARGET_THRESHOLD",
+    )
+    @classmethod
+    def drift_threshold_in_range(cls, v: float) -> float:
+        if not (0 < v < 1):
+            raise ValueError(f"Drift alert threshold must be in (0, 1); got {v}")
         return v
 
     @model_validator(mode="after")

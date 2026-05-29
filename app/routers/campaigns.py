@@ -5,6 +5,7 @@ GET  /api/campaigns/uncertain-associations                    — pending review
 POST /api/campaigns/uncertain-associations/{id}/review        — submit analyst review
 GET  /api/campaigns/{campaign_id}                             — campaign detail
 GET  /api/campaigns/{campaign_id}/observations                — observation list
+GET  /api/campaigns/{campaign_id}/weight-profile              — per-campaign weight profile
 
 All endpoints require API key or JWT authentication via require_jwt_or_api_key.
 No SQL belongs here — all queries go through EventRepository.
@@ -166,3 +167,53 @@ def get_campaign_observations(
             )
         observations = repo.get_campaign_observations(campaign_id)
     return {"items": observations, "count": len(observations)}
+
+
+@router.get("/{campaign_id}/weight-profile")
+def get_campaign_weight_profile(
+    campaign_id: str,
+    _: dict = Depends(require_jwt_or_api_key),
+):
+    """Return the per-campaign similarity weight profile.
+
+    When no calibrated profile exists the global default weights are returned
+    with status='using_global_defaults'.  The profile is built by the weight
+    profile job from analyst review decisions; it is never set automatically.
+    """
+    from app.core.config import settings as _settings
+
+    global_defaults = {
+        "timing": _settings.WEIGHT_TIMING,
+        "sequence": _settings.WEIGHT_SEQUENCE,
+        "protocol": _settings.WEIGHT_PROTOCOL,
+        "credential": _settings.WEIGHT_CREDENTIAL,
+        "target": _settings.WEIGHT_TARGET,
+    }
+
+    with get_session() as session:
+        repo = EventRepository(session)
+        if repo.get_campaign(campaign_id) is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Campaign {campaign_id!r} not found",
+            )
+        profile = repo.get_weight_profile(campaign_id)
+
+    if profile is None:
+        return {
+            "campaign_id": campaign_id,
+            "weights": global_defaults,
+            "global_defaults": global_defaults,
+            "review_count": 0,
+            "confirmed_count": 0,
+            "denied_count": 0,
+            "adjustment_log": [],
+            "computed_at": None,
+            "status": "using_global_defaults",
+        }
+
+    return {
+        **profile,
+        "global_defaults": global_defaults,
+        "status": "calibrated",
+    }
