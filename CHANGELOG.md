@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.30.0](https://github.com/stecrin/legiontrap-ti/compare/v0.29.0...v0.30.0) (2026-05-29)
+
+### Features
+
+* **phase7:** implement sparse campaign surface ([2262ac9](https://github.com/stecrin/legiontrap-ti/commit/2262ac9382c2b5664fc4a08de0253a82b67a9a73))
+
 ## [0.29.0](https://github.com/stecrin/legiontrap-ti/compare/v0.28.0...v0.29.0) (2026-05-29)
 
 ### Features
