@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.31.0](https://github.com/stecrin/legiontrap-ti/compare/v0.30.0...v0.31.0) (2026-05-29)
+
+### Features
+
+* **phase7:** implement actor foundation ([5575b02](https://github.com/stecrin/legiontrap-ti/commit/5575b0298028ba06d787863d1da7ab73a99c26db))
+
 ## [0.30.0](https://github.com/stecrin/legiontrap-ti/compare/v0.29.0...v0.30.0) (2026-05-29)
 
 ### Features
