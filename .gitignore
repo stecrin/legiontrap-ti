@@ -31,9 +31,7 @@ artifacts/
 # Local AI workflow instructions (internal-only, not for public repo)
 CLAUDE.md
 docs/strategic-intelligence-layer
-=======
 
 # Runtime-generated event and database files (must not be committed)
 *.jsonl
 *.db
-main
