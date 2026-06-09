@@ -84,6 +84,75 @@ def _add_full_indexes_and_revision(engine) -> None:
             )
         )
 
+        # 0004_phase6_processing_jobs
+        conn.execute(text("CREATE INDEX idx_processing_jobs_status ON processing_jobs (status)"))
+        conn.execute(
+            text(
+                "CREATE INDEX idx_processing_jobs_dedup_key ON processing_jobs (deduplication_key)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX idx_processing_jobs_resource "
+                "ON processing_jobs (resource_type, resource_id)"
+            )
+        )
+        conn.execute(
+            text("CREATE INDEX idx_processing_jobs_created_at ON processing_jobs (created_at)")
+        )
+
+        # 0005_phase6_ai_outputs
+        conn.execute(text("CREATE INDEX idx_ai_outputs_job_id ON ai_outputs (job_id)"))
+        conn.execute(
+            text("CREATE INDEX idx_ai_outputs_resource ON ai_outputs (resource_type, resource_id)")
+        )
+        conn.execute(text("CREATE INDEX idx_ai_outputs_generated_at ON ai_outputs (generated_at)"))
+        conn.execute(text("CREATE INDEX idx_ai_outputs_model_name ON ai_outputs (model_name)"))
+
+        # 0006_phase6_ai_audit_log
+        conn.execute(text("CREATE INDEX idx_ai_audit_log_created_at ON ai_audit_log (created_at)"))
+        conn.execute(text("CREATE INDEX idx_ai_audit_log_job_id ON ai_audit_log (job_id)"))
+        conn.execute(
+            text("CREATE INDEX idx_ai_audit_log_triggered_by ON ai_audit_log (triggered_by)")
+        )
+        conn.execute(text("CREATE INDEX idx_ai_audit_log_status ON ai_audit_log (status)"))
+
+        # 0007_phase6b_fingerprint_history
+        conn.execute(
+            text(
+                "CREATE INDEX idx_fingerprint_history_source_ip ON fingerprint_history (source_ip)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX idx_fingerprint_history_campaign_id "
+                "ON fingerprint_history (campaign_id)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX idx_fingerprint_history_computed_at "
+                "ON fingerprint_history (computed_at)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX idx_fingerprint_history_fingerprint_id "
+                "ON fingerprint_history (fingerprint_id)"
+            )
+        )
+
+        # 0012_phase7a_behavioral_alerts
+        conn.execute(text("CREATE INDEX idx_alerts_campaign ON behavioral_alerts (campaign_id)"))
+        conn.execute(text("CREATE INDEX idx_alerts_triggered ON behavioral_alerts (triggered_at)"))
+        conn.execute(
+            text("CREATE INDEX idx_alerts_acknowledged ON behavioral_alerts (acknowledged_at)")
+        )
+
+        # 0013_phase7b1_lineage_indexes
+        conn.execute(text("CREATE INDEX idx_lineage_actor ON campaign_lineage (actor_profile_id)"))
+        conn.execute(text("CREATE INDEX idx_lineage_campaign ON campaign_lineage (campaign_id)"))
+
         # Alembic version table (mirrors what Alembic creates)
         conn.execute(
             text(
@@ -224,6 +293,69 @@ def test_validate_missing_alembic_version_is_invalid(tmp_path):
                 "ON campaign_observations(campaign_id, observed_at)"
             )
         )
+        # 0004_phase6_processing_jobs
+        conn.execute(text("CREATE INDEX idx_processing_jobs_status ON processing_jobs (status)"))
+        conn.execute(
+            text(
+                "CREATE INDEX idx_processing_jobs_dedup_key ON processing_jobs (deduplication_key)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX idx_processing_jobs_resource "
+                "ON processing_jobs (resource_type, resource_id)"
+            )
+        )
+        conn.execute(
+            text("CREATE INDEX idx_processing_jobs_created_at ON processing_jobs (created_at)")
+        )
+        # 0005_phase6_ai_outputs
+        conn.execute(text("CREATE INDEX idx_ai_outputs_job_id ON ai_outputs (job_id)"))
+        conn.execute(
+            text("CREATE INDEX idx_ai_outputs_resource ON ai_outputs (resource_type, resource_id)")
+        )
+        conn.execute(text("CREATE INDEX idx_ai_outputs_generated_at ON ai_outputs (generated_at)"))
+        conn.execute(text("CREATE INDEX idx_ai_outputs_model_name ON ai_outputs (model_name)"))
+        # 0006_phase6_ai_audit_log
+        conn.execute(text("CREATE INDEX idx_ai_audit_log_created_at ON ai_audit_log (created_at)"))
+        conn.execute(text("CREATE INDEX idx_ai_audit_log_job_id ON ai_audit_log (job_id)"))
+        conn.execute(
+            text("CREATE INDEX idx_ai_audit_log_triggered_by ON ai_audit_log (triggered_by)")
+        )
+        conn.execute(text("CREATE INDEX idx_ai_audit_log_status ON ai_audit_log (status)"))
+        # 0007_phase6b_fingerprint_history
+        conn.execute(
+            text(
+                "CREATE INDEX idx_fingerprint_history_source_ip ON fingerprint_history (source_ip)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX idx_fingerprint_history_campaign_id "
+                "ON fingerprint_history (campaign_id)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX idx_fingerprint_history_computed_at "
+                "ON fingerprint_history (computed_at)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX idx_fingerprint_history_fingerprint_id "
+                "ON fingerprint_history (fingerprint_id)"
+            )
+        )
+        # 0012_phase7a_behavioral_alerts
+        conn.execute(text("CREATE INDEX idx_alerts_campaign ON behavioral_alerts (campaign_id)"))
+        conn.execute(text("CREATE INDEX idx_alerts_triggered ON behavioral_alerts (triggered_at)"))
+        conn.execute(
+            text("CREATE INDEX idx_alerts_acknowledged ON behavioral_alerts (acknowledged_at)")
+        )
+        # 0013_phase7b1_lineage_indexes
+        conn.execute(text("CREATE INDEX idx_lineage_actor ON campaign_lineage (actor_profile_id)"))
+        conn.execute(text("CREATE INDEX idx_lineage_campaign ON campaign_lineage (campaign_id)"))
         conn.commit()
 
     result = validate_database(engine)
