@@ -177,16 +177,22 @@ make db-migrate
 # 4. Start the API
 make run
 
-# 5. Health check
+# 5. Start the dashboard (separate terminal, from project root)
+cd ui/dashboard && npm install  # first time only
+npm run dev                     # dashboard at http://localhost:5173, proxies /api to :8088
+
+# 6. Health check
 curl -s http://127.0.0.1:8088/api/health | python -m json.tool
 
-# 6. Ingest a test event
+# 7. Ingest a test event
+# NOTE: This writes a synthetic event to the selected database.
+# Skip this step if the database already contains real sensor data.
 H='x-api-key: <your-API_KEY>'
 curl -s -H "$H" -H 'Content-Type: application/json' \
   -d '{"events":[{"ts":"2025-10-28T18:31:08+00:00","source":"cowrie","type":"cowrie.login.failed","data":{"ip":"1.2.3.4","username":"root","password":"bad"}}]}' \
   http://127.0.0.1:8088/api/ingest | python -m json.tool
 
-# 7. Stats and IOC exports
+# 8. Stats and IOC exports
 curl -s -H "$H" http://127.0.0.1:8088/api/stats | python -m json.tool
 curl -s -H "$H" http://127.0.0.1:8088/api/iocs/ufw.txt
 curl -s -H "$H" http://127.0.0.1:8088/api/iocs/pf.conf
@@ -222,6 +228,7 @@ make db-prune PRUNE_BEFORE=2025-01-01T00:00:00+00:00
 make import-jsonl JSONL_FILES="storage/events.jsonl"
 
 # Verify migration correctness (tables, indexes, revision)
+# Validates against the expected head revision (currently 0013). Re-run after each migration cycle.
 make db-validate
 ```
 
