@@ -125,13 +125,13 @@ sqlite3 storage/legiontrap.db ".tables"
 ### Step 3: Import existing JSONL data
 
 ```bash
-python -m app.tools.import_jsonl storage/events.jsonl
+PYTHONPATH=. python scripts/import_jsonl.py storage/events.jsonl
 ```
 
 If additional archived JSONL files exist (e.g., `storage/events-20251028-183613.jsonl`), import each:
 ```bash
-python -m app.tools.import_jsonl storage/events-20251028-183613.jsonl
-python -m app.tools.import_jsonl storage/events-20251028-181245.jsonl
+PYTHONPATH=. python scripts/import_jsonl.py storage/events-20251028-183613.jsonl
+PYTHONPATH=. python scripts/import_jsonl.py storage/events-20251028-181245.jsonl
 ```
 
 The import tool:
@@ -154,12 +154,12 @@ Import complete. Database: storage/legiontrap.db
 
 ### Step 4: Verify import correctness
 
-Run the verification query:
+Verify the database schema and migration state:
 ```bash
-python -m app.tools.verify_migration storage/events-20251028-183613.jsonl
+make db-validate
 ```
 
-The verify tool counts lines in the JSONL file and rows in SQLite and asserts they match. It also checks that `unique_ips` in SQLite matches the count from `iocs_pf.py`'s recursive IP extraction.
+`make db-validate` checks that all expected tables and indexes are present and that the Alembic revision matches the installed head. It does not compare row counts against the JSONL source file — use the post-migration SQL queries in the section below for count verification.
 
 ### Step 5: Switch read endpoints to SQLite
 
@@ -190,19 +190,19 @@ After confirming the migrated endpoints work correctly, enable the write-through
 
 ## Import Tool Specification
 
-`app/tools/import_jsonl.py` is a command-line tool, not a library. It must not be imported by application code.
+`scripts/import_jsonl.py` is a command-line tool, not a library. It must not be imported by application code.
 
 ```
-usage: python -m app.tools.import_jsonl <path> [--dry-run] [--batch-size N]
+usage: PYTHONPATH=. python scripts/import_jsonl.py <file> [<file> ...] [--db-path PATH]
 
 positional arguments:
-  path              Path to JSONL file to import
+  file              One or more JSONL files to import
 
 options:
-  --dry-run         Parse and validate without inserting (shows what would be imported)
-  --batch-size N    Rows per SQLite transaction (default: 500)
-  --errors-file F   Path for import error log (default: storage/import_errors.jsonl)
+  --db-path PATH    SQLite DB path (overrides DB_PATH env var / settings)
 ```
+
+Alternatively: `make import-jsonl JSONL_FILES="storage/events.jsonl"`
 
 **Idempotency:** The import tool uses `INSERT OR IGNORE` on `raw_events` (primary key is the event `id`). Running the same file twice produces the same database state. This means JSONL files can be re-imported after schema changes without risk of duplication.
 
@@ -270,8 +270,8 @@ For operators upgrading from a JSONL-only deployment to the SQLite-backed versio
 3. **Update the application** (git pull or image pull)
 4. **Install new dependencies:** `pip install -r requirements.txt`
 5. **Run the migration:** `alembic upgrade head`
-6. **Import existing events:** `python -m app.tools.import_jsonl storage/events.jsonl`
-7. **Verify the import:** `python -m app.tools.verify_migration storage/events.jsonl`
+6. **Import existing events:** `PYTHONPATH=. python scripts/import_jsonl.py storage/events.jsonl`
+7. **Verify the migration:** `make db-validate`
 8. **Start the application**
 9. **Smoke test** the API endpoints
 10. **Monitor `storage/import_errors.jsonl`** for any events that failed validation

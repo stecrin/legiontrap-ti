@@ -44,6 +44,8 @@ db-prune:
 	@test -n "$(PRUNE_BEFORE)" || { echo "Error: PRUNE_BEFORE is required. Usage: make db-prune PRUNE_BEFORE=2025-01-01T00:00:00+00:00" >&2; exit 1; }
 	PYTHONPATH=. python scripts/db_prune.py --before "$(PRUNE_BEFORE)"
 
+# WARNING: smoke includes POST /api/ingest, which writes a synthetic test event to the database.
+# Do NOT run this target against a database containing real sensor data.
 smoke:
 	@echo "[health]"; curl -s http://127.0.0.1:$(PORT)/api/health | python3 -m json.tool
 	@echo "[ingest]"; curl -s -H "$(H)" -H 'Content-Type: application/json' \

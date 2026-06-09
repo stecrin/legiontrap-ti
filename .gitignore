@@ -35,3 +35,6 @@ docs/strategic-intelligence-layer
 # Runtime-generated event and database files (must not be committed)
 *.jsonl
 *.db
+
+# Dashboard screenshot / thumbnail (binary asset, not version-controlled)
+Thumbnail.png
