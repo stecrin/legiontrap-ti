@@ -35,6 +35,21 @@ EXPECTED_TABLES: list[str] = [
     "campaign_members",
     "campaign_observations",
     "campaign_tags",
+    # 0004_phase6_processing_jobs
+    "processing_jobs",
+    # 0005_phase6_ai_outputs
+    "ai_outputs",
+    # 0006_phase6_ai_audit_log
+    "ai_audit_log",
+    # 0007_phase6b_fingerprint_history
+    "fingerprint_history",
+    # 0010_phase6d_actor_identity
+    "actor_profiles",
+    "campaign_lineage",
+    # 0011_phase7a_weight_profiles
+    "campaign_weight_profiles",
+    # 0012_phase7a_behavioral_alerts
+    "behavioral_alerts",
 ]
 
 # All indexes created by Alembic migrations up to the current head.
@@ -68,9 +83,36 @@ EXPECTED_INDEXES: list[str] = [
     "idx_campaigns_last_seen",
     "idx_campaign_members_source_ip",
     "idx_campaign_observations_campaign",
+    # 0004_phase6_processing_jobs
+    "idx_processing_jobs_status",
+    "idx_processing_jobs_dedup_key",
+    "idx_processing_jobs_resource",
+    "idx_processing_jobs_created_at",
+    # 0005_phase6_ai_outputs
+    "idx_ai_outputs_job_id",
+    "idx_ai_outputs_resource",
+    "idx_ai_outputs_generated_at",
+    "idx_ai_outputs_model_name",
+    # 0006_phase6_ai_audit_log
+    "idx_ai_audit_log_created_at",
+    "idx_ai_audit_log_job_id",
+    "idx_ai_audit_log_triggered_by",
+    "idx_ai_audit_log_status",
+    # 0007_phase6b_fingerprint_history
+    "idx_fingerprint_history_source_ip",
+    "idx_fingerprint_history_campaign_id",
+    "idx_fingerprint_history_computed_at",
+    "idx_fingerprint_history_fingerprint_id",
+    # 0012_phase7a_behavioral_alerts
+    "idx_alerts_campaign",
+    "idx_alerts_triggered",
+    "idx_alerts_acknowledged",
+    # 0013_phase7b1_lineage_indexes
+    "idx_lineage_actor",
+    "idx_lineage_campaign",
 ]
 
-EXPECTED_ALEMBIC_REVISION = "0003"
+EXPECTED_ALEMBIC_REVISION = "0013"
 
 
 @dataclass
