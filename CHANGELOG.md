@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 
 
+## [0.34.2](https://github.com/stecrin/legiontrap-ti/compare/v0.34.1...v0.34.2) (2026-06-09)
+
+### Bug Fixes
+
+* replace sa.Real with sa.REAL for SQLAlchemy 2.x compatibility ([99fee74](https://github.com/stecrin/legiontrap-ti/commit/99fee7455485eda108f6b7abc3e11b317c755b26))
+* update migration validator for revision 0013 ([7c6c9f6](https://github.com/stecrin/legiontrap-ti/commit/7c6c9f63e42ec74bc68e26730461c332e9ffc26f))
+* update validate_migration tests for revision 0013 ([ba552fb](https://github.com/stecrin/legiontrap-ti/commit/ba552fb4ab98fb1bc185fb72a648e0b8d1b8cae4))
+
 ## [0.34.1](https://github.com/stecrin/legiontrap-ti/compare/v0.34.0...v0.34.1) (2026-05-29)
 
 ### Bug Fixes
