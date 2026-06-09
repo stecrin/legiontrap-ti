@@ -66,7 +66,7 @@ def upgrade() -> None:
         sa.Column("rejected", sa.Integer, nullable=False, server_default="0"),
         sa.Column("rejection_reason", sa.Text, nullable=True),
         sa.Column("truncated", sa.Integer, nullable=False, server_default="0"),
-        sa.Column("data_quality_score", sa.Real, nullable=True),
+        sa.Column("data_quality_score", sa.REAL, nullable=True),
         sa.Column("generated_at", sa.Text, nullable=False),
         sa.Column("triggered_by", sa.Text, nullable=True),
     )

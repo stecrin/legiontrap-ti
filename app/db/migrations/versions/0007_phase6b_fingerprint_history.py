@@ -71,7 +71,7 @@ def upgrade() -> None:
         sa.Column("fingerprint_version", sa.Integer, nullable=False),
         sa.Column("computed_at", sa.Text, nullable=False),
         sa.Column("event_count_at_computation", sa.Integer, nullable=False),
-        sa.Column("confidence", sa.Real, nullable=False),
+        sa.Column("confidence", sa.REAL, nullable=False),
         sa.Column("timing_features", sa.Text, nullable=True),
         sa.Column("sequence_features", sa.Text, nullable=True),
         sa.Column("protocol_features", sa.Text, nullable=True),
