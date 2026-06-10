@@ -1,8 +1,7 @@
 # PROJECT BACKLOG — LegionTrap TI
 
-_Last updated: 2026-05-30 by Claude (onboarding run)_
+_Last updated: 2026-06-10_
 
-> Items discovered during initial onboarding. Not prioritized by the operator yet.
 > Owner: Stefan. Review and reprioritize before acting on any item.
 
 ---
@@ -10,23 +9,23 @@ _Last updated: 2026-05-30 by Claude (onboarding run)_
 ## Epic A — Hygiene & Safety
 
 ### A1 — Remove or gitignore committed `.bak` files
-**Priority:** medium
-**Why:** Multiple `.bak` files are tracked in git (`iocs_pf.py.bak.*`, `main.py.bak.*`, `test_privacy_and_auth.py.bak.*`, `docker-compose.edge.yml.bak`, etc.). These expose internal refactor history and add noise to diffs.
+**Status: COMPLETE** — PR #78 (2026-06-05): `.bak` files untracked and `.gitignore` updated.
+**Priority:** medium (resolved)
+**Why:** Multiple `.bak` files were tracked in git (`iocs_pf.py.bak.*`, `main.py.bak.*`, `test_privacy_and_auth.py.bak.*`, `docker-compose.edge.yml.bak`, etc.). These exposed internal refactor history and added noise to diffs.
 **Done when:** All `.bak` files are reviewed, then either kept intentionally or removed from tracking going forward and added to `.gitignore`.
-**Note:** Do not rewrite Git history unless sensitive data or secrets are confirmed.
-**Risk:** Low — these are backup files, not production code.
+**Note:** Git history was not rewritten — backup files removed from tracking only.
 
 ### A2 — Clean up root-level temp files
-**Priority:** low
-**Why:** `tmp.log` and `tmp_events_test.jsonl` exist in the repo root. These appear to be leftover artifacts from manual testing.
+**Status: COMPLETE** — PRs #78 and #79 (2026-06-05): temp files removed and gitignored.
+**Priority:** low (resolved)
+**Why:** `tmp.log` and `tmp_events_test.jsonl` existed in the repo root as leftover artifacts from manual testing.
 **Done when:** Files deleted or gitignored.
-**Risk:** Low.
 
 ### A3 — Ungate `bandit` and `pip-audit` in CI
-**Priority:** medium
-**Why:** Both security jobs run with `continue-on-error: true`, meaning findings never block a merge. The inline TODO confirms this is a known issue.
+**Status: COMPLETE** — PR #82 (2026-06-10): 5 verified B608 false positives suppressed with `# nosec B608`; `continue-on-error: true` removed from both security CI steps; both tools exit 0 as blocking gates.
+**Priority:** medium (resolved)
+**Why:** Both security jobs ran with `continue-on-error: true`, meaning findings never blocked a merge.
 **Done when:** Findings triaged; jobs run without `continue-on-error: true`.
-**Risk:** Medium — could reveal blocking findings that need fixes before ungating.
 
 ---
 
@@ -57,20 +56,23 @@ _Last updated: 2026-05-30 by Claude (onboarding run)_
 **Priority:** low
 **Why:** `scripts/smoke.sh` and `make smoke` exist locally but are not part of CI. A fast API smoke test after unit tests would catch startup/routing regressions.
 **Done when:** Smoke step added to `ci.yml`.
+**Note:** `make smoke` includes `POST /api/ingest` — writes a synthetic event. Any CI smoke step must use an isolated test database, not operational data.
 
 ---
 
 ## Epic D — Documentation
 
 ### D1 — Add frontend setup instructions to README
-**Priority:** low
-**Why:** README Quick Start covers the backend only. The React dashboard (`ui/dashboard/`) has no documented setup steps.
+**Status: COMPLETE** — PR #81 (2026-06-09): `npm install` + `npm run dev` steps added to README Quick Start.
+**Priority:** low (resolved)
+**Why:** README Quick Start covered the backend only. The React dashboard (`ui/dashboard/`) had no documented setup steps.
 **Done when:** README includes `npm install` + `npm run dev` steps for the frontend.
 
 ### D2 — Update LEGIONTRAP_EXPLAINED.md status
 **Priority:** low
-**Why:** The `docs/LEGIONTRAP_EXPLAINED.md` file was added in the most recent commit (`cfa92ea`). Confirm it accurately reflects Phase 7 state.
-**Done when:** File reviewed and confirmed current.
+**Why:** The `docs/LEGIONTRAP_EXPLAINED.md` file was added/updated in PR #77 (`f5a755b`, 2026-05-30). Confirm it accurately reflects Phase 7 state.
+**Done when:** File reviewed and confirmed current — **human verification of Phase 7 accuracy required before marking complete.**
+**Note:** PR #77 (`docs/legiontrap-explained`) likely addressed this item, but the done-when criterion is a human judgment call that has not been formally verified. Do not mark complete without explicit human sign-off.
 
 ---
 
