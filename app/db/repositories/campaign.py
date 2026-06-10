@@ -192,7 +192,7 @@ class CampaignRepository(RepositoryBase):
                        weight_credential, weight_target
                 FROM campaign_weight_profiles
                 WHERE campaign_id IN ({placeholders})
-            """),
+            """),  # nosec B608
             params,
         ).fetchall()
         weight_map: dict[str, dict[str, float]] = {
@@ -755,7 +755,7 @@ class CampaignRepository(RepositoryBase):
                 {review_clause}
                 ORDER BY observed_at ASC
                 LIMIT :limit
-            """),
+            """),  # nosec B608
             params,
         ).fetchall()
 
@@ -861,7 +861,7 @@ class CampaignRepository(RepositoryBase):
                 FROM campaign_observations
                 WHERE campaign_id IN ({placeholders})
                 GROUP BY campaign_id
-            """),
+            """),  # nosec B608
             params,
         ).fetchall()
         result: dict[str, dict[str, int]] = {

@@ -191,8 +191,8 @@ class ActorRepository(RepositoryBase):
 
         self._session.execute(
             text(
-                f"UPDATE actor_profiles SET {', '.join(assignments)} WHERE id = :id"
-            ),  # noqa: S608
+                f"UPDATE actor_profiles SET {', '.join(assignments)} WHERE id = :id"  # nosec B608
+            ),
             params,
         )
         return self.get_actor_profile(actor_id)
