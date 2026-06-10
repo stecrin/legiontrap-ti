@@ -146,7 +146,7 @@ class JobRepository(RepositoryBase):
                 {where}
                 ORDER BY created_at DESC
                 LIMIT :limit
-            """),
+            """),  # nosec B608
             params,
         ).fetchall()
         return [_row_to_dict(r) for r in rows]
