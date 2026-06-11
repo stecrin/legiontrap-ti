@@ -17,6 +17,8 @@ Coverage:
     - filters by status param
     - invalid status filter returns 422
     - respects limit param
+    - limit=0 returns 422
+    - limit=201 returns 422
     - requires authentication
 
   GET /api/actors/{id}:
@@ -27,6 +29,7 @@ Coverage:
   PATCH /api/actors/{id}:
     - updates display_name
     - updates status to archived
+    - reactivates from archived to active
     - updates confidence
     - clears notes (explicit null)
     - omitted fields are not changed
@@ -208,6 +211,16 @@ def test_list_actors_newest_first():
     assert ids.index(r2["id"]) < ids.index(r1["id"])
 
 
+def test_list_actors_limit_zero_returns_422():
+    resp = client.get("/api/actors?limit=0", headers=_HEADERS)
+    assert resp.status_code == 422
+
+
+def test_list_actors_limit_over_max_returns_422():
+    resp = client.get("/api/actors?limit=201", headers=_HEADERS)
+    assert resp.status_code == 422
+
+
 # ---------------------------------------------------------------------------
 # GET /api/actors/{id}
 # ---------------------------------------------------------------------------
@@ -257,6 +270,16 @@ def test_patch_actor_status_to_archived():
     )
     assert resp.status_code == 200
     assert resp.json()["status"] == "archived"
+
+
+def test_patch_actor_status_archived_to_active():
+    created = client.post(
+        "/api/actors", json={"display_name": "Reactivate Actor"}, headers=_HEADERS
+    ).json()
+    client.patch(f"/api/actors/{created['id']}", json={"status": "archived"}, headers=_HEADERS)
+    resp = client.patch(f"/api/actors/{created['id']}", json={"status": "active"}, headers=_HEADERS)
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "active"
 
 
 def test_patch_actor_confidence():
