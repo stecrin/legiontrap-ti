@@ -33,6 +33,7 @@ Coverage:
     - updates confidence
     - clears notes (explicit null)
     - omitted fields are not changed
+    - empty body is a no-op, returns 200
     - invalid status returns 422
     - blank display_name returns 422
     - returns 404 for unknown id
@@ -324,6 +325,22 @@ def test_patch_actor_omitted_fields_unchanged():
     data = resp.json()
     assert data["notes"] == "keep this"
     assert data["display_name"] == "Stable Actor"
+
+
+def test_patch_actor_empty_body_is_no_op():
+    created = client.post(
+        "/api/actors",
+        json={"display_name": "No Change", "confidence": 0.5, "notes": "keep this"},
+        headers=_HEADERS,
+    ).json()
+    resp = client.patch(f"/api/actors/{created['id']}", json={}, headers=_HEADERS)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == created["id"]
+    assert data["display_name"] == "No Change"
+    assert data["status"] == "active"
+    assert data["confidence"] == pytest.approx(0.5)
+    assert data["notes"] == "keep this"
 
 
 def test_patch_actor_invalid_status_returns_422():
