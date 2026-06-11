@@ -16,6 +16,8 @@ Coverage:
   GET /api/actors/{id}/campaigns:
     - returns empty list when actor has no links
     - returns linked campaigns with metadata
+    - limit=0 returns 422
+    - limit=501 returns 422
     - 404 if actor not found
     - requires authentication
 
@@ -252,6 +254,18 @@ def test_list_actor_campaigns_returns_linked():
     assert "linked_at" in item
     assert "campaign_name" in item
     assert "campaign_status" in item
+
+
+def test_list_actor_campaigns_limit_zero_returns_422():
+    actor = _create_actor()
+    resp = client.get(f"/api/actors/{actor['id']}/campaigns?limit=0", headers=_HEADERS)
+    assert resp.status_code == 422
+
+
+def test_list_actor_campaigns_limit_over_max_returns_422():
+    actor = _create_actor()
+    resp = client.get(f"/api/actors/{actor['id']}/campaigns?limit=501", headers=_HEADERS)
+    assert resp.status_code == 422
 
 
 def test_list_actor_campaigns_404_actor_not_found():
