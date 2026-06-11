@@ -1,6 +1,6 @@
 # PROJECT BACKLOG — LegionTrap TI
 
-_Last updated: 2026-06-11 (PR #87)_
+_Last updated: 2026-06-11 (C2 closed)_
 
 > Owner: Stefan. Review and reprioritize before acting on any item.
 
@@ -59,10 +59,12 @@ _Last updated: 2026-06-11 (PR #87)_
 - 114 actor integration tests pass across all four test files (CI run 27349314838).
 
 ### C2 — Add smoke test to CI
-**Priority:** low
+**Status: COMPLETE** — 2026-06-11: satisfied by existing pytest-based smoke coverage already running in CI.
+**Priority:** low (resolved)
 **Why:** `scripts/smoke.sh` and `make smoke` exist locally but are not part of CI. A fast API smoke test after unit tests would catch startup/routing regressions.
 **Done when:** Smoke step added to `ci.yml`.
-**Note:** `make smoke` includes `POST /api/ingest` — writes a synthetic event. Any CI smoke step must use an isolated test database, not operational data.
+**Resolution:** `tests/unit/test_api_smoke.py` is discovered and run by the CI `Tests` step (`pytest -q` in `.github/workflows/ci.yml`). It covers `GET /api/health`, authenticated and unauthenticated `/api/stats` and `/api/events`, and CORS enforcement. `pytest.ini` sets `DB_PATH=:memory:` — no live backend, production secret, or operational database is required. The practical intent of C2 is satisfied.
+**Note:** `make smoke` includes `POST /api/ingest` — writes a synthetic event and must not be used against operational data. `scripts/smoke.sh` is read-only but requires a running backend and API key; it is not wired into CI and is not required to close C2.
 
 ---
 

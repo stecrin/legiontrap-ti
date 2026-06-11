@@ -1,6 +1,6 @@
 # PROJECT STATUS — LegionTrap TI
 
-_Last updated: 2026-06-11 (PR #87)_
+_Last updated: 2026-06-11 (C2 closed)_
 
 ## Current phase
 Post-Phase 7 / maintenance and hygiene hardening complete. Phase 7 (Actor Intelligence) is closed. Phase 8 (Behavioral Federation) is conditional on operational prerequisites (two willing pilot operators + validated fingerprint serialization format).
@@ -21,19 +21,19 @@ Post-Phase 7 / maintenance and hygiene hardening complete. Phase 7 (Actor Intell
 
 ## Current Agile context
 - **Current epic:** Testing infrastructure hardening
-- **Current story:** C1 — COMPLETE (PR #84, PR #86, PR #87)
-- **Acceptance criteria:** Coverage report reviewed for all four actor test files (`test_actor_endpoints.py`, `test_actor_stability_endpoints.py`, `test_actor_suggestions_endpoints.py`, `test_actor_linking_endpoints.py`); all 8 identified gaps addressed.
+- **Current story:** C2 — COMPLETE; D2 — pending human verification
+- **Acceptance criteria:** C2: smoke-level API coverage running in CI via isolated in-memory SQLite — satisfied by `tests/unit/test_api_smoke.py` running under `pytest -q`. D2: `docs/LEGIONTRAP_EXPLAINED.md` accuracy confirmed against Phase 7 state — requires human sign-off.
 - **Backlog:** see `PROJECT_BACKLOG.md`
 
 ## Last completed task
-2026-06-11 — C1 actor endpoint test coverage complete. PR #87 added three final tests (PATCH empty body no-op, actor-campaigns limit boundaries), closing GAP-3 and GAP-8. Prior: PR #86 (GAP-4, GAP-5, GAP-7), PR #84 (GAP-1, GAP-2, GAP-6). All 8 gaps identified in Stage 14A now resolved across PRs #84, #86, and #87.
+2026-06-11 — C2 closed: smoke-level API coverage is satisfied by the existing `tests/unit/test_api_smoke.py`, which is discovered and run by `pytest -q` in CI. Tests cover health, authenticated and unauthenticated stats and events, and CORS enforcement using `DB_PATH=:memory:` (isolated, no operational data touched). No separate named CI step is required. `make smoke` remains unsuitable for CI without isolated DB design because it writes a synthetic event via `POST /api/ingest`. Prior: C1 completion documentation (PR #88, 2026-06-11).
 
 ## Next task
 
-* **Action:** C2 — Add smoke test to CI.
-* **Why it matters:** `scripts/smoke.sh` and `make smoke` exist locally but are not wired into CI. A fast API smoke check after unit tests would catch startup and routing regressions.
-* **Done when:** A smoke step is added to `ci.yml` using an isolated test database (not `storage/legiontrap.db`). Note: `make smoke` writes a synthetic event via `POST /api/ingest` — any CI smoke step requires an isolated DB design before implementation.
-* **Blocked by:** Design decision on test-DB isolation strategy for CI smoke.
+* **Action:** D2 — Verify `docs/LEGIONTRAP_EXPLAINED.md` accuracy against Phase 7 state.
+* **Why it matters:** The explanatory documentation was added in PR #77 (2026-05-30). It should accurately reflect Phase 7 (Actor Intelligence) before being treated as authoritative reference material.
+* **Done when:** File reviewed and confirmed current — human verification of Phase 7 accuracy required before closing.
+* **Owner:** Stefan (human sign-off required; cannot be closed by automated review alone).
 
 ## Commands / tests last run
 - **Command:** `pytest -q`, `black --check .`, `ruff check .`, `bandit -r app/ -ll`, `pip-audit`
