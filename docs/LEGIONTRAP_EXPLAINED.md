@@ -168,7 +168,7 @@
   - Export to standard threat intelligence formats (STIX, ATT&CK Navigator) for sharing with other tools
   - Produce AI-generated narrative summaries of campaigns and threat briefs, when the operator requests them, with full audit trail
   - Display everything in a web dashboard
-  - Audit every action
+  - Maintain audit trails for ingest and AI-assisted analysis actions
 
   It does this on a single machine, with no cloud dependency, no shared intelligence feed, and no subscription requirement.
 
@@ -239,33 +239,6 @@
   behavioral intelligence becomes the only kind that holds up. LegionTrap is a bet on that future.
 
   ---
-  The three explanations
-
-  One sentence: LegionTrap is a software platform that watches attackers hitting honeypot servers, records how each attacker operates, and builds long-term
-  intelligence about who is attacking — based on behavior patterns instead of throwaway IP addresses or domain names.
-
-  Thirty seconds: Most cybersecurity intelligence is organized around indicators — IP addresses, domain names, file fingerprints — which attackers can rotate
-  in minutes for almost no money. That makes traditional intelligence stale almost as fast as it's produced. LegionTrap takes a different approach: it watches
-   attackers hitting honeypots and records how they operate — their timing patterns, the order they probe things, the credentials they try, the targets they
-  prefer. That kind of behavioral information is much harder for attackers to change, so it stays useful much longer. Over months and years, a LegionTrap
-  deployment builds a long-term behavioral memory of its specific attackers, which a defender can use to recognize them across infrastructure changes.
-  Everything runs locally — there is no cloud service, no shared feed, no vendor. The operator owns the data, the analysis, and the conclusions.
-
-  Two minutes: LegionTrap is a self-hosted intelligence platform for honeypot operators. A honeypot is a deliberately exposed fake server whose only purpose
-  is to attract attackers so they can be studied safely. LegionTrap takes everything a honeypot sees and turns it into structured, long-term intelligence.
-
-  The platform was built because the dominant model of threat intelligence is breaking down. Most security tools rely on lists of bad IP addresses, bad domain
-   names, and bad file signatures. These lists go stale fast because attackers can change all of those things cheaply — and AI tooling is making the change
-  cheaper every year. Defenders end up on a treadmill of blocking what's already been rotated away.
-
-  LegionTrap tracks behavior instead. For every attacker it sees, it builds a profile across five dimensions: when they show up, in what order they try
-  things, which tools they use, what credentials they try, and which targets they consistently come back to. The combination is what the platform calls a
-  behavioral fingerprint. Behavioral fingerprints change much more slowly than infrastructure because they reflect the attacker's actual operational habits —
-  habits that take real time and effort to change. So while a list of bad IPs goes stale in days, a behavioral fingerprint stays useful for months or years.
-
-  When events come in, LegionTrap groups related activity into campaigns. Campaigns have lifecycles: they are active, then dormant, sometimes reactivated,
-  eventually marked historical. Operators can also create actor profiles — people, groups, or organizations they believe are responsible for one or more
-  campaigns. The platform suggests possible matches but never makes attribution decisions automatically. The operator stays in charge of every consequential
   The three explanations
 
   One sentence: LegionTrap is a software platform that watches attackers hitting honeypot servers, records how each attacker operates, and builds long-term
