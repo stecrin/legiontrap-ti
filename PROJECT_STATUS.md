@@ -1,6 +1,6 @@
 # PROJECT STATUS — LegionTrap TI
 
-_Last updated: 2026-06-11_
+_Last updated: 2026-06-11 (PR #87)_
 
 ## Current phase
 Post-Phase 7 / maintenance and hygiene hardening complete. Phase 7 (Actor Intelligence) is closed. Phase 8 (Behavioral Federation) is conditional on operational prerequisites (two willing pilot operators + validated fingerprint serialization format).
@@ -21,24 +21,25 @@ Post-Phase 7 / maintenance and hygiene hardening complete. Phase 7 (Actor Intell
 
 ## Current Agile context
 - **Current epic:** Testing infrastructure hardening
-- **Current story:** C1 — review and extend actor endpoint test coverage
-- **Acceptance criteria:** Coverage report reviewed for all four actor test files (`test_actor_endpoints.py`, `test_actor_stability_endpoints.py`, `test_actor_suggestions_endpoints.py`, `test_actor_linking_endpoints.py`); remaining gaps addressed or explicitly accepted.
+- **Current story:** C1 — COMPLETE (PR #84, PR #86, PR #87)
+- **Acceptance criteria:** Coverage report reviewed for all four actor test files (`test_actor_endpoints.py`, `test_actor_stability_endpoints.py`, `test_actor_suggestions_endpoints.py`, `test_actor_linking_endpoints.py`); all 8 identified gaps addressed.
 - **Backlog:** see `PROJECT_BACKLOG.md`
 
 ## Last completed task
-2026-06-11 — Actor endpoint test coverage extended (PR #84): five integration tests added covering list ordering, blank display_name PATCH validation, and suggestions campaign status filtering (dormant/reactivated included, historical excluded). Prior: project status update (PR #83, 2026-06-10), security CI gates enabled (PR #82, 2026-06-10).
+2026-06-11 — C1 actor endpoint test coverage complete. PR #87 added three final tests (PATCH empty body no-op, actor-campaigns limit boundaries), closing GAP-3 and GAP-8. Prior: PR #86 (GAP-4, GAP-5, GAP-7), PR #84 (GAP-1, GAP-2, GAP-6). All 8 gaps identified in Stage 14A now resolved across PRs #84, #86, and #87.
 
 ## Next task
 
-* **Action:** C1 (in progress) — Complete actor endpoint test coverage for remaining medium-priority gaps.
-* **Why it matters:** High-priority gaps resolved in PR #84 (GAP-1 list ordering, GAP-2 blank PATCH validation, GAP-6 suggestions status filtering). Medium-priority gaps remain: GAP-4 (`GET /api/actors` limit boundaries), GAP-5 (campaign-link evidence field round-trip), GAP-7 (`PATCH` archived→active reactivation).
-* **Done when:** All identified coverage gaps addressed or explicitly accepted across all four actor test files.
+* **Action:** C2 — Add smoke test to CI.
+* **Why it matters:** `scripts/smoke.sh` and `make smoke` exist locally but are not wired into CI. A fast API smoke check after unit tests would catch startup and routing regressions.
+* **Done when:** A smoke step is added to `ci.yml` using an isolated test database (not `storage/legiontrap.db`). Note: `make smoke` writes a synthetic event via `POST /api/ingest` — any CI smoke step requires an isolated DB design before implementation.
+* **Blocked by:** Design decision on test-DB isolation strategy for CI smoke.
 
 ## Commands / tests last run
 - **Command:** `pytest -q`, `black --check .`, `ruff check .`, `bandit -r app/ -ll`, `pip-audit`
-  **Result:** All pass (CI run 27329333937 on PR #84, 2026-06-11)
+  **Result:** All pass (CI run 27349314838 on PR #87, 2026-06-11)
   **Date:** 2026-06-11
-  **Notes:** 107 actor integration tests pass. Bandit and pip-audit blocking gates remain clean.
+  **Notes:** 114 actor integration tests pass across all four actor test files. Bandit and pip-audit blocking gates remain clean.
 
 ## Known risks
 - `storage/legiontrap.db` and `storage/events*.jsonl` contain real sensor data — must never be edited, exposed, or deleted.
