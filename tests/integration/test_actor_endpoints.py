@@ -31,6 +31,7 @@ Coverage:
     - clears notes (explicit null)
     - omitted fields are not changed
     - invalid status returns 422
+    - blank display_name returns 422
     - returns 404 for unknown id
     - requires authentication
 
@@ -198,6 +199,15 @@ def test_list_actors_requires_auth():
     assert resp.status_code == 401
 
 
+def test_list_actors_newest_first():
+    r1 = client.post("/api/actors", json={"display_name": "Older"}, headers=_HEADERS).json()
+    r2 = client.post("/api/actors", json={"display_name": "Newer"}, headers=_HEADERS).json()
+    resp = client.get("/api/actors", headers=_HEADERS)
+    assert resp.status_code == 200
+    ids = [a["id"] for a in resp.json()["items"]]
+    assert ids.index(r2["id"]) < ids.index(r1["id"])
+
+
 # ---------------------------------------------------------------------------
 # GET /api/actors/{id}
 # ---------------------------------------------------------------------------
@@ -308,6 +318,16 @@ def test_patch_actor_invalid_confidence_returns_422():
         "/api/actors", json={"display_name": "Conf Test"}, headers=_HEADERS
     ).json()
     resp = client.patch(f"/api/actors/{created['id']}", json={"confidence": 2.0}, headers=_HEADERS)
+    assert resp.status_code == 422
+
+
+def test_patch_actor_blank_display_name_returns_422():
+    created = client.post(
+        "/api/actors", json={"display_name": "Valid Name"}, headers=_HEADERS
+    ).json()
+    resp = client.patch(
+        f"/api/actors/{created['id']}", json={"display_name": "   "}, headers=_HEADERS
+    )
     assert resp.status_code == 422
 
 

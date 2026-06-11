@@ -16,6 +16,9 @@ Coverage:
     - min_score query param overrides config default
     - limit query param overrides config default
     - /suggestions route does not conflict with /{actor_id} route
+    - dormant campaigns are included in evaluation
+    - reactivated campaigns are included in evaluation
+    - historical campaigns are excluded from evaluation
 
   Invariants:
     - GET /suggestions never writes to actor_profiles
@@ -429,6 +432,56 @@ def test_min_score_out_of_range_returns_422():
         headers=_HEADERS,
     )
     assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# Campaign status filtering — eligible vs excluded statuses
+# ---------------------------------------------------------------------------
+
+
+def test_suggestions_includes_dormant_campaigns():
+    d1 = _create_campaign(status="dormant", representative_fingerprint_json=_REP_FP_A)
+    d2 = _create_campaign(status="dormant", representative_fingerprint_json=_REP_FP_B)
+    resp = client.get(
+        "/api/actors/suggestions",
+        params={"min_score": 0.0},
+        headers=_HEADERS,
+    )
+    data = resp.json()
+    pair_ids = {
+        frozenset({s["campaign_a"]["id"], s["campaign_b"]["id"]}) for s in data["suggestions"]
+    }
+    assert frozenset({d1, d2}) in pair_ids
+
+
+def test_suggestions_includes_reactivated_campaigns():
+    r1 = _create_campaign(status="reactivated", representative_fingerprint_json=_REP_FP_A)
+    r2 = _create_campaign(status="reactivated", representative_fingerprint_json=_REP_FP_B)
+    resp = client.get(
+        "/api/actors/suggestions",
+        params={"min_score": 0.0},
+        headers=_HEADERS,
+    )
+    data = resp.json()
+    pair_ids = {
+        frozenset({s["campaign_a"]["id"], s["campaign_b"]["id"]}) for s in data["suggestions"]
+    }
+    assert frozenset({r1, r2}) in pair_ids
+
+
+def test_suggestions_excludes_historical_campaigns():
+    h1 = _create_campaign(status="historical", representative_fingerprint_json=_REP_FP_A)
+    h2 = _create_campaign(status="historical", representative_fingerprint_json=_REP_FP_B)
+    resp = client.get(
+        "/api/actors/suggestions",
+        params={"min_score": 0.0},
+        headers=_HEADERS,
+    )
+    data = resp.json()
+    pair_ids = {
+        frozenset({s["campaign_a"]["id"], s["campaign_b"]["id"]}) for s in data["suggestions"]
+    }
+    assert frozenset({h1, h2}) not in pair_ids
 
 
 # ---------------------------------------------------------------------------
