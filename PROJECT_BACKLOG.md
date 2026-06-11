@@ -1,6 +1,6 @@
 # PROJECT BACKLOG — LegionTrap TI
 
-_Last updated: 2026-06-10_
+_Last updated: 2026-06-11_
 
 > Owner: Stefan. Review and reprioritize before acting on any item.
 
@@ -48,9 +48,10 @@ _Last updated: 2026-06-10_
 ## Epic C — Testing Infrastructure
 
 ### C1 — Review and extend test coverage for actor endpoints
-**Priority:** medium
-**Why:** Actor intelligence (Phase 7) is the most recently added subsystem. Integration tests exist (`tests/integration/test_actor_endpoints.py`, `test_actor_stability_endpoints.py`, `test_actor_suggestions_endpoints.py`) but coverage of edge cases is unknown.
+**Priority:** medium (in progress)
+**Why:** Actor intelligence (Phase 7) is the most recently added subsystem. Integration tests exist (`tests/integration/test_actor_endpoints.py`, `test_actor_stability_endpoints.py`, `test_actor_suggestions_endpoints.py`, `test_actor_linking_endpoints.py`) but coverage of edge cases is unknown.
 **Done when:** Coverage report reviewed; gaps identified and filled.
+**Progress:** Stage 14A (2026-06-11) identified 8 gaps across the four test files. PR #84 resolved three high-priority gaps: GAP-1 (list ordering), GAP-2 (blank PATCH display_name), GAP-6 (suggestions campaign status filtering). Remaining open gaps: GAP-3 (PATCH empty body, low), GAP-4 (GET /api/actors limit boundaries, medium), GAP-5 (campaign-link evidence round-trip, medium), GAP-7 (PATCH archived→active reactivation, medium), GAP-8 (GET /api/actors/{id}/campaigns limit boundary, low).
 
 ### C2 — Add smoke test to CI
 **Priority:** low

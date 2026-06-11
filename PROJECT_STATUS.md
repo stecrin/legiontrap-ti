@@ -1,6 +1,6 @@
 # PROJECT STATUS — LegionTrap TI
 
-_Last updated: 2026-06-10_
+_Last updated: 2026-06-11_
 
 ## Current phase
 Post-Phase 7 / maintenance and hygiene hardening complete. Phase 7 (Actor Intelligence) is closed. Phase 8 (Behavioral Federation) is conditional on operational prerequisites (two willing pilot operators + validated fingerprint serialization format).
@@ -11,7 +11,7 @@ Post-Phase 7 / maintenance and hygiene hardening complete. Phase 7 (Actor Intell
 
 ## Production risk level
 - **Level:** medium
-- **Why:** Live SQLite database (`storage/legiontrap.db`) and real event JSONL files are present in the repo root. Not publicly deployed, but data is operational. 15 Alembic migrations are in place — schema changes carry rollback risk.
+- **Why:** Live SQLite database (`storage/legiontrap.db`) and real event JSONL files are present in the repo root. Not publicly deployed, but data is operational. 13 Alembic migrations are in place — schema changes carry rollback risk.
 
 ## Active branch
 `main` (no active feature branch)
@@ -22,30 +22,30 @@ Post-Phase 7 / maintenance and hygiene hardening complete. Phase 7 (Actor Intell
 ## Current Agile context
 - **Current epic:** Testing infrastructure hardening
 - **Current story:** C1 — review and extend actor endpoint test coverage
-- **Acceptance criteria:** Coverage report reviewed for `tests/integration/test_actor_endpoints.py`, `test_actor_stability_endpoints.py`, `test_actor_suggestions_endpoints.py`; gaps identified and filled.
+- **Acceptance criteria:** Coverage report reviewed for all four actor test files (`test_actor_endpoints.py`, `test_actor_stability_endpoints.py`, `test_actor_suggestions_endpoints.py`, `test_actor_linking_endpoints.py`); remaining gaps addressed or explicitly accepted.
 - **Backlog:** see `PROJECT_BACKLOG.md`
 
 ## Last completed task
-2026-06-10 — Security CI gates enabled: `bandit` and `pip-audit` are now blocking CI steps (PR #82). Also completed: documentation hygiene pass (PR #81) and SQLAlchemy `sa.Real` → `sa.REAL` migration compatibility fix (PR #80).
+2026-06-11 — Actor endpoint test coverage extended (PR #84): five integration tests added covering list ordering, blank display_name PATCH validation, and suggestions campaign status filtering (dormant/reactivated included, historical excluded). Prior: project status update (PR #83, 2026-06-10), security CI gates enabled (PR #82, 2026-06-10).
 
 ## Next task
 
-* **Action:** C1 — Review and extend test coverage for actor endpoints.
-* **Why it matters:** Actor Intelligence (Phase 7) is the most recently shipped subsystem. Integration tests exist but edge-case coverage is unknown.
-* **Done when:** Coverage report reviewed; gaps identified and filled for `tests/integration/test_actor_endpoints.py`, `test_actor_stability_endpoints.py`, `test_actor_suggestions_endpoints.py`.
+* **Action:** C1 (in progress) — Complete actor endpoint test coverage for remaining medium-priority gaps.
+* **Why it matters:** High-priority gaps resolved in PR #84 (GAP-1 list ordering, GAP-2 blank PATCH validation, GAP-6 suggestions status filtering). Medium-priority gaps remain: GAP-4 (`GET /api/actors` limit boundaries), GAP-5 (campaign-link evidence field round-trip), GAP-7 (`PATCH` archived→active reactivation).
+* **Done when:** All identified coverage gaps addressed or explicitly accepted across all four actor test files.
 
 ## Commands / tests last run
 - **Command:** `pytest -q`, `black --check .`, `ruff check .`, `bandit -r app/ -ll`, `pip-audit`
-  **Result:** All pass (CI run 27300795938 on PR #82, 2026-06-10)
-  **Date:** 2026-06-10
-  **Notes:** Bandit and pip-audit are now blocking gates. 5 verified B608 false positives suppressed with `# nosec B608`. pip-audit clean.
+  **Result:** All pass (CI run 27329333937 on PR #84, 2026-06-11)
+  **Date:** 2026-06-11
+  **Notes:** 107 actor integration tests pass. Bandit and pip-audit blocking gates remain clean.
 
 ## Known risks
 - `storage/legiontrap.db` and `storage/events*.jsonl` contain real sensor data — must never be edited, exposed, or deleted.
 - Phase 8 (Behavioral Federation) has no timeline — blocked on finding two willing pilot operators.
 
 ## Test status
-Pass (CI 2026-06-10) — `pytest -q` on main. 3 test directories: `tests/unit/` (26 files), `tests/integration/` (26 files), `tests/db/` (10 files). Tests use in-memory SQLite (`DB_PATH=:memory:`) via pytest.ini env config.
+Pass (CI 2026-06-11) — `pytest -q` on main. 3 test directories: `tests/unit/` (26 files), `tests/integration/` (26 files), `tests/db/` (10 files). Tests use in-memory SQLite (`DB_PATH=:memory:`) via pytest.ini env config.
 
 ## Deployment status
 Not publicly deployed. Local only via `make run` (uvicorn :8088) or Docker Compose (`docker/docker-compose.edge.yml`). Current release: v0.34.2.
