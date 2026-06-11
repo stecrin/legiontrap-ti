@@ -5,6 +5,7 @@ Tests hit the full stack: FastAPI TestClient → routers → EventRepository →
 Coverage:
   POST /api/actors/{id}/campaigns:
     - creates lineage, returns 201 with lineage dict
+    - evidence dict is stored and returned in evidence_json
     - 404 if actor not found
     - 404 if campaign not found
     - 422 if relationship_type is invalid
@@ -38,6 +39,7 @@ Coverage:
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import UTC, datetime
 
@@ -120,6 +122,21 @@ def test_link_campaign_response_has_expected_fields():
     assert data["confidence"] == 0.75
     assert data["id"] is not None
     assert data["created_at"] is not None
+
+
+def test_link_campaign_evidence_round_trip():
+    actor = _create_actor()
+    cid = _create_campaign()
+    evidence = {"source": "manual_review", "score": 0.9}
+    resp = client.post(
+        f"/api/actors/{actor['id']}/campaigns",
+        json={"campaign_id": cid, "relationship_type": "tactic_match", "evidence": evidence},
+        headers=_HEADERS,
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["evidence_json"] is not None
+    assert json.loads(data["evidence_json"]) == evidence
 
 
 def test_link_campaign_all_valid_relationship_types():
