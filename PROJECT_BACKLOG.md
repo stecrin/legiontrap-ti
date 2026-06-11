@@ -1,6 +1,6 @@
 # PROJECT BACKLOG — LegionTrap TI
 
-_Last updated: 2026-06-11_
+_Last updated: 2026-06-11 (PR #87)_
 
 > Owner: Stefan. Review and reprioritize before acting on any item.
 
@@ -48,10 +48,15 @@ _Last updated: 2026-06-11_
 ## Epic C — Testing Infrastructure
 
 ### C1 — Review and extend test coverage for actor endpoints
-**Priority:** medium (in progress)
-**Why:** Actor intelligence (Phase 7) is the most recently added subsystem. Integration tests exist (`tests/integration/test_actor_endpoints.py`, `test_actor_stability_endpoints.py`, `test_actor_suggestions_endpoints.py`, `test_actor_linking_endpoints.py`) but coverage of edge cases is unknown.
+**Status: COMPLETE** — PRs #84, #86, #87 (2026-06-11): all 8 gaps identified in Stage 14A resolved.
+**Priority:** medium (resolved)
+**Why:** Actor intelligence (Phase 7) is the most recently added subsystem. Integration tests exist (`tests/integration/test_actor_endpoints.py`, `test_actor_stability_endpoints.py`, `test_actor_suggestions_endpoints.py`, `test_actor_linking_endpoints.py`) but coverage of edge cases was unknown.
 **Done when:** Coverage report reviewed; gaps identified and filled.
-**Progress:** Stage 14A (2026-06-11) identified 8 gaps across the four test files. PR #84 resolved three high-priority gaps: GAP-1 (list ordering), GAP-2 (blank PATCH display_name), GAP-6 (suggestions campaign status filtering). Remaining open gaps: GAP-3 (PATCH empty body, low), GAP-4 (GET /api/actors limit boundaries, medium), GAP-5 (campaign-link evidence round-trip, medium), GAP-7 (PATCH archived→active reactivation, medium), GAP-8 (GET /api/actors/{id}/campaigns limit boundary, low).
+**Resolution:**
+- PR #84 (2026-06-11): GAP-1 (list ordering), GAP-2 (blank PATCH display_name), GAP-6 (suggestions campaign status filtering)
+- PR #86 (2026-06-11): GAP-4 (GET /api/actors limit boundaries), GAP-5 (campaign-link evidence round-trip), GAP-7 (PATCH archived→active reactivation)
+- PR #87 (2026-06-11): GAP-3 (PATCH empty body no-op), GAP-8 (GET /api/actors/{id}/campaigns limit boundary)
+- 114 actor integration tests pass across all four test files (CI run 27349314838).
 
 ### C2 — Add smoke test to CI
 **Priority:** low
