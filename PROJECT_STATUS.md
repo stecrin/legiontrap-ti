@@ -33,7 +33,7 @@ Post-Phase 7 / maintenance and hygiene hardening complete. Phase 7 (Actor Intell
 * **Action:** D2 — Verify `docs/LEGIONTRAP_EXPLAINED.md` accuracy against Phase 7 state.
 * **Why it matters:** The explanatory documentation was added in PR #77 (2026-05-30). It should accurately reflect Phase 7 (Actor Intelligence) before being treated as authoritative reference material.
 * **Done when:** File reviewed and confirmed current — human verification of Phase 7 accuracy required before closing.
-* **Owner:** Stefan (human sign-off required; Claude can inspect and report but cannot close unilaterally).
+* **Owner:** Stefan (human sign-off required; cannot be closed by automated review alone).
 
 ## Commands / tests last run
 - **Command:** `pytest -q`, `black --check .`, `ruff check .`, `bandit -r app/ -ll`, `pip-audit`
