@@ -1,6 +1,6 @@
 # PROJECT STATUS — LegionTrap TI
 
-_Last updated: 2026-06-12 (D2 closed)_
+_Last updated: 2026-06-12 (Stage 21 pilot-operator onboarding documentation complete)_
 
 ## Current phase
 Post-Phase 7 / maintenance and hygiene hardening complete. Phase 7 (Actor Intelligence) is closed. Phase 8 (Behavioral Federation) is conditional on operational prerequisites (two willing pilot operators + validated fingerprint serialization format).
@@ -26,34 +26,34 @@ Post-Phase 7 / maintenance and hygiene hardening complete. Phase 7 (Actor Intell
 - **Backlog:** see `PROJECT_BACKLOG.md`
 
 ## Last completed task
-2026-06-12 — D2 closed: `docs/LEGIONTRAP_EXPLAINED.md` reviewed against Phase 7 / Actor Intelligence state (Stage 20A), two editorial corrections applied and merged (PR #90, commits `cfa705d` / `5069b3a`), human sign-off granted. Prior: C2 closed 2026-06-11.
+2026-06-12 — Stage 21 pilot-operator onboarding documentation complete: README Quick Start extended with GeoIP setup, optional demo seed path (with real-data warnings), DASH_PASS/JWT_SECRET generation guidance, dashboard first-use note, and ValueError troubleshooting; `scripts/seed_demo.sh` warning header added; `ui/dashboard/README.md` replaced with LegionTrap-specific content. Merged PR #92 (feature commit `5925beb`, merge commit `ef70d95`). Prior: D2 closed 2026-06-12 via PR #90.
 
 ## Next task
 
-* **Action:** Strategic backlog review — no further items in Epics A, C, or D remain open. Epics B1 and B2 are blocked on external prerequisites (two pilot operators). Next prioritisation decision is at Stefan's discretion.
-* **Why it matters:** All active maintenance and documentation stories are closed. Proceeding requires a deliberate choice about what to work on next.
+* **Action:** Strategic decision on pilot-operator outreach readiness — the platform is at Phase 7 complete with all active backlog closed. README Quick Start, demo seed path, and dashboard guidance are current. Options: (1) begin outreach to candidate pilot operators using the current README as evaluation material; (2) document the Docker deployment path before outreach (storage mount decision required first — see icebox); (3) export OpenAPI spec to lower evaluation friction; (4) hold and revisit when outreach leads emerge.
+* **Why it matters:** All active backlog items are closed. The platform can be evaluated by a new operator following the updated README. The primary constraint on Phase 8 is adoption, not implementation.
 * **Done when:** Stefan selects the next priority and updates this file.
 * **Owner:** Stefan.
 
 ## Commands / tests last run
 - **Command:** `pytest -q`, `black --check .`, `ruff check .`, `bandit -r app/ -ll`, `pip-audit`
-  **Result:** All pass (CI run 27349314838 on PR #87, 2026-06-11)
-  **Date:** 2026-06-11
-  **Notes:** 114 actor integration tests pass across all four actor test files. Bandit and pip-audit blocking gates remain clean.
+  **Result:** All pass (CI run 27404052699 on PR #92, 2026-06-12)
+  **Date:** 2026-06-12
+  **Notes:** 1638 tests pass, 3 skipped. Bandit and pip-audit blocking gates remain clean.
 
 ## Known risks
 - `storage/legiontrap.db` and `storage/events*.jsonl` contain real sensor data — must never be edited, exposed, or deleted.
 - Phase 8 (Behavioral Federation) has no timeline — blocked on finding two willing pilot operators.
 
 ## Test status
-Pass (CI 2026-06-11) — `pytest -q` on main. 3 test directories: `tests/unit/` (26 files), `tests/integration/` (26 files), `tests/db/` (10 files). Tests use in-memory SQLite (`DB_PATH=:memory:`) via pytest.ini env config.
+Pass (CI 2026-06-12, PR #92) — `pytest -q` on main. 3 test directories: `tests/unit/` (26 files), `tests/integration/` (26 files), `tests/db/` (10 files). Tests use in-memory SQLite (`DB_PATH=:memory:`) via pytest.ini env config.
 
 ## Deployment status
 Not publicly deployed. Local only via `make run` (uvicorn :8088) or Docker Compose (`docker/docker-compose.edge.yml`). Current release: v0.34.2.
 
 ## Human review required
 
-* **Required:** no — all active backlog items are closed. D2 closed 2026-06-12 after human sign-off.
+* **Required:** no — all active backlog items are closed. Stage 21 pilot-operator onboarding documentation complete 2026-06-12 (PR #92).
 
 ## Open decisions
 - Phase 8 prerequisites — options: wait / proactively seek pilot partners — owner: Stefan — blocking? no

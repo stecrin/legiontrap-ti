@@ -1,6 +1,6 @@
 # PROJECT BACKLOG — LegionTrap TI
 
-_Last updated: 2026-06-12 (D2 closed)_
+_Last updated: 2026-06-12 (Stage 21 pilot-operator onboarding documentation complete)_
 
 > Owner: Stefan. Review and reprioritize before acting on any item.
 
@@ -89,4 +89,5 @@ _Last updated: 2026-06-12 (D2 closed)_
 
 - Evaluate PostgreSQL migration for scale (currently SQLite only)
 - Consider formal OpenAPI documentation generation from FastAPI app
-- Verify whether `node_modules` is tracked by Git. If tracked, remove from tracking and add to `.gitignore`; if not tracked, no action needed.
+- Verify whether `node_modules` is tracked by Git — **Verified 2026-06-12 (Stage 21A): not tracked by Git, no action needed.**
+- Consider documenting the Docker Quick Start deployment path — deferred from Stage 21C because the current `docker/docker-compose.edge.yml` mounts `../storage:/data:rw` (live sensor data exposure risk); requires a deliberate decision on volume strategy before this is documented as a supported path.
