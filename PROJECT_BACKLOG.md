@@ -1,6 +1,6 @@
 # PROJECT BACKLOG — LegionTrap TI
 
-_Last updated: 2026-06-11 (C2 closed)_
+_Last updated: 2026-06-12 (D2 closed)_
 
 > Owner: Stefan. Review and reprioritize before acting on any item.
 
@@ -77,10 +77,11 @@ _Last updated: 2026-06-11 (C2 closed)_
 **Done when:** README includes `npm install` + `npm run dev` steps for the frontend.
 
 ### D2 — Update LEGIONTRAP_EXPLAINED.md status
-**Priority:** low
+**Status: COMPLETE** — 2026-06-12: reviewed Stage 20A–20G, corrections merged PR #90 (commits `cfa705d` / `5069b3a`), human sign-off granted.
+**Priority:** low (resolved)
 **Why:** The `docs/LEGIONTRAP_EXPLAINED.md` file was added/updated in PR #77 (`f5a755b`, 2026-05-30). Confirm it accurately reflects Phase 7 state.
 **Done when:** File reviewed and confirmed current — **human verification of Phase 7 accuracy required before marking complete.**
-**Note:** PR #77 (`docs/legiontrap-explained`) likely addressed this item, but the done-when criterion is a human judgment call that has not been formally verified. Do not mark complete without explicit human sign-off.
+**Resolution:** Stage 20A full accuracy review confirmed the document substantively accurate against Phase 7 / Actor Intelligence state. Two editorial corrections applied: (1) duplicated/truncated "The three explanations" section removed; (2) "Audit every action" scoped to "Maintain audit trails for ingest and AI-assisted analysis actions". PR #90 merged to main 2026-06-12. Human sign-off granted by Stefan after Stage 20G review.
 
 ---
 

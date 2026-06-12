@@ -1,6 +1,6 @@
 # PROJECT STATUS — LegionTrap TI
 
-_Last updated: 2026-06-11 (C2 closed)_
+_Last updated: 2026-06-12 (D2 closed)_
 
 ## Current phase
 Post-Phase 7 / maintenance and hygiene hardening complete. Phase 7 (Actor Intelligence) is closed. Phase 8 (Behavioral Federation) is conditional on operational prerequisites (two willing pilot operators + validated fingerprint serialization format).
@@ -21,19 +21,19 @@ Post-Phase 7 / maintenance and hygiene hardening complete. Phase 7 (Actor Intell
 
 ## Current Agile context
 - **Current epic:** Testing infrastructure hardening
-- **Current story:** C2 — COMPLETE; D2 — pending human verification
-- **Acceptance criteria:** C2: smoke-level API coverage running in CI via isolated in-memory SQLite — satisfied by `tests/unit/test_api_smoke.py` running under `pytest -q`. D2: `docs/LEGIONTRAP_EXPLAINED.md` accuracy confirmed against Phase 7 state — requires human sign-off.
+- **Current story:** C2 — COMPLETE; D2 — COMPLETE
+- **Acceptance criteria:** C2: smoke-level API coverage running in CI via isolated in-memory SQLite — satisfied by `tests/unit/test_api_smoke.py` running under `pytest -q`. D2: `docs/LEGIONTRAP_EXPLAINED.md` accuracy confirmed against Phase 7 state — reviewed Stage 20A–20G, corrections merged in PR #90 (commit `cfa705d`), human sign-off granted 2026-06-12.
 - **Backlog:** see `PROJECT_BACKLOG.md`
 
 ## Last completed task
-2026-06-11 — C2 closed: smoke-level API coverage is satisfied by the existing `tests/unit/test_api_smoke.py`, which is discovered and run by `pytest -q` in CI. Tests cover health, authenticated and unauthenticated stats and events, and CORS enforcement using `DB_PATH=:memory:` (isolated, no operational data touched). No separate named CI step is required. `make smoke` remains unsuitable for CI without isolated DB design because it writes a synthetic event via `POST /api/ingest`. Prior: C1 completion documentation (PR #88, 2026-06-11).
+2026-06-12 — D2 closed: `docs/LEGIONTRAP_EXPLAINED.md` reviewed against Phase 7 / Actor Intelligence state (Stage 20A), two editorial corrections applied and merged (PR #90, commits `cfa705d` / `5069b3a`), human sign-off granted. Prior: C2 closed 2026-06-11.
 
 ## Next task
 
-* **Action:** D2 — Verify `docs/LEGIONTRAP_EXPLAINED.md` accuracy against Phase 7 state.
-* **Why it matters:** The explanatory documentation was added in PR #77 (2026-05-30). It should accurately reflect Phase 7 (Actor Intelligence) before being treated as authoritative reference material.
-* **Done when:** File reviewed and confirmed current — human verification of Phase 7 accuracy required before closing.
-* **Owner:** Stefan (human sign-off required; cannot be closed by automated review alone).
+* **Action:** Strategic backlog review — no further items in Epics A, C, or D remain open. Epics B1 and B2 are blocked on external prerequisites (two pilot operators). Next prioritisation decision is at Stefan's discretion.
+* **Why it matters:** All active maintenance and documentation stories are closed. Proceeding requires a deliberate choice about what to work on next.
+* **Done when:** Stefan selects the next priority and updates this file.
+* **Owner:** Stefan.
 
 ## Commands / tests last run
 - **Command:** `pytest -q`, `black --check .`, `ruff check .`, `bandit -r app/ -ll`, `pip-audit`
@@ -53,7 +53,7 @@ Not publicly deployed. Local only via `make run` (uvicorn :8088) or Docker Compo
 
 ## Human review required
 
-* **Required:** no — prior onboarding review complete; D2 (LEGIONTRAP_EXPLAINED.md accuracy) pending human verification before that backlog item can be closed.
+* **Required:** no — all active backlog items are closed. D2 closed 2026-06-12 after human sign-off.
 
 ## Open decisions
 - Phase 8 prerequisites — options: wait / proactively seek pilot partners — owner: Stefan — blocking? no
