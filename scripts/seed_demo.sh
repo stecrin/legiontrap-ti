@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# WARNING: This script writes synthetic events to the database via POST /api/ingest.
+# Do NOT run this script against a database containing real sensor data.
+# Override the API key if yours differs from the default: H='x-api-key: your-key' bash scripts/seed_demo.sh
 set -euo pipefail
 
 # Base API URL and auth header (can be overridden via env vars)

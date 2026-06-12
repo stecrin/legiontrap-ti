@@ -166,7 +166,11 @@ Each phase builds on the previous. See [docs/ROADMAP.md](docs/ROADMAP.md) for fu
 ```bash
 # 1. Copy and populate required environment variables
 cp .env.example .env
-# Edit .env: set API_KEY, FEED_SALT, DASH_USER, DASH_PASS (bcrypt hash)
+# Edit .env: set API_KEY, FEED_SALT, DASH_USER, DASH_PASS, JWT_SECRET
+# DASH_PASS must be a bcrypt hash, not a plaintext password. Generate one with:
+#   python -c "from passlib.context import CryptContext; print(CryptContext(schemes=['bcrypt']).hash('your-password'))"
+# JWT_SECRET must be a long random string. Generate one with:
+#   python -c "import secrets; print(secrets.token_hex(32))"
 
 # 2. Install dependencies
 pip install -r requirements.txt
@@ -174,17 +178,36 @@ pip install -r requirements.txt
 # 3. Apply database migrations
 make db-migrate
 
-# 4. Start the API
+# 4. Download GeoIP databases (optional — enables geographic and ASN enrichment)
+# Without these files the system runs correctly, but country, city, and ASN fields
+# will be NULL on all ingested events. Free registration required.
+# Download source: https://dev.maxmind.com/geoip/geolite2-free-geolocation-data
+# Place the extracted .mmdb files at:
+#   storage/GeoLite2-City.mmdb
+#   storage/GeoLite2-ASN.mmdb
+
+# 5. Start the API
 make run
 
-# 5. Start the dashboard (separate terminal, from project root)
+# 6. Seed demo data (optional — skip if the database already contains real sensor data)
+# WARNING: This script writes synthetic events via POST /api/ingest.
+# Do NOT run this against a database containing real sensor data.
+# Override the API key to match your .env:
+H='x-api-key: <your-API_KEY>' bash scripts/seed_demo.sh
+# Seeds 5 synthetic events from distinct source IPs. Triggers fingerprinting and
+# campaign clustering. Useful for evaluating the dashboard without a live honeypot.
+
+# 7. Start the dashboard (separate terminal, from project root)
 cd ui/dashboard && npm install  # first time only
 npm run dev                     # dashboard at http://localhost:5173, proxies /api to :8088
+# Login with DASH_USER and the plaintext password corresponding to DASH_PASS.
+# With a fresh database, Events and Campaigns views may be empty until step 6 is run.
+# AI Summaries require a configured AI backend (set AI_BACKEND in .env).
 
-# 6. Health check
+# 8. Health check
 curl -s http://127.0.0.1:8088/api/health | python -m json.tool
 
-# 7. Ingest a test event
+# 9. Ingest a test event
 # NOTE: This writes a synthetic event to the selected database.
 # Skip this step if the database already contains real sensor data.
 H='x-api-key: <your-API_KEY>'
@@ -192,7 +215,7 @@ curl -s -H "$H" -H 'Content-Type: application/json' \
   -d '{"events":[{"ts":"2025-10-28T18:31:08+00:00","source":"cowrie","type":"cowrie.login.failed","data":{"ip":"1.2.3.4","username":"root","password":"bad"}}]}' \
   http://127.0.0.1:8088/api/ingest | python -m json.tool
 
-# 8. Stats and IOC exports
+# 10. Stats and IOC exports
 curl -s -H "$H" http://127.0.0.1:8088/api/stats | python -m json.tool
 curl -s -H "$H" http://127.0.0.1:8088/api/iocs/ufw.txt
 curl -s -H "$H" http://127.0.0.1:8088/api/iocs/pf.conf
@@ -242,6 +265,8 @@ make db-validate
 | `FEED_SALT`        | Yes      | HMAC salt for privacy-mode IP hashing.                           |
 | `DASH_USER`        | Yes      | Dashboard login username.                                        |
 | `DASH_PASS`        | Yes      | Dashboard password as a bcrypt hash.                             |
+| `JWT_SECRET`       | Yes      | Secret key for signing dashboard JWT tokens. Generate with: `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `JWT_EXPIRE_SECONDS` | No     | JWT token lifetime in seconds (default: 3600).                   |
 | `PRIVACY_MODE`     | No       | Set `on` to enable privacy masking on IOC exports and block STIX export (default off). |
 | `CORS_ORIGINS`     | No       | Comma-separated allowed origins (default: localhost variants).   |
 | `DB_PATH`          | No       | SQLite file path (default: `storage/legiontrap.db`).             |
@@ -308,6 +333,9 @@ Run `make db-migrate` to create the schema. The application does not auto-migrat
 
 **Port already in use**
 Free port 8088 or set `PORT=<other>` when calling `make run`.
+
+**`ValueError` on startup / dashboard login always fails**
+`DASH_PASS` must be a bcrypt hash, not a plaintext password. Regenerate with: `python -c "from passlib.context import CryptContext; print(CryptContext(schemes=['bcrypt']).hash('your-password'))"` — update `DASH_PASS` in `.env` and restart.
 
 ---
 
