@@ -227,6 +227,8 @@ curl -s -H "$H" http://127.0.0.1:8088/api/iocs/pf.conf
 
 The complete API endpoint reference, authentication model, and contract details are documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+For connecting a real honeypot sensor to the ingest endpoint, see [docs/SENSOR_INTEGRATION.md](docs/SENSOR_INTEGRATION.md).
+
 ---
 
 ## Database Operations
