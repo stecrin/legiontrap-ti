@@ -1,6 +1,6 @@
 # PROJECT BACKLOG — LegionTrap TI
 
-_Last updated: 2026-06-12 (Stage 21 pilot-operator onboarding documentation complete)_
+_Last updated: 2026-06-12 (Stage 22 sensor integration guide complete)_
 
 > Owner: Stefan. Review and reprioritize before acting on any item.
 
@@ -82,6 +82,12 @@ _Last updated: 2026-06-12 (Stage 21 pilot-operator onboarding documentation comp
 **Why:** The `docs/LEGIONTRAP_EXPLAINED.md` file was added/updated in PR #77 (`f5a755b`, 2026-05-30). Confirm it accurately reflects Phase 7 state.
 **Done when:** File reviewed and confirmed current — **human verification of Phase 7 accuracy required before marking complete.**
 **Resolution:** Stage 20A full accuracy review confirmed the document substantively accurate against Phase 7 / Actor Intelligence state. Two editorial corrections applied: (1) duplicated/truncated "The three explanations" section removed; (2) "Audit every action" scoped to "Maintain audit trails for ingest and AI-assisted analysis actions". PR #90 merged to main 2026-06-12. Human sign-off granted by Stefan after Stage 20G review.
+
+### D3 — Add sensor integration guide for honeypot operators
+**Status: COMPLETE** — PR #94 (2026-06-12): `docs/SENSOR_INTEGRATION.md` added; README linked from API Reference section.
+**Priority:** medium (resolved)
+**Why:** No operator-facing guide existed for connecting a real honeypot sensor to `POST /api/ingest`. Potential pilot operators needed a clear integration path before evaluation.
+**Done when:** Guide covers canonical payload format, sensor-specific field mapping notes (Cowrie VERIFIED, OpenCanary PARTIAL/INFERRED, T-Pot PARTIAL/SENSOR-DEPENDENT), historical backfill via `import_jsonl.py`, continuous forwarding pattern, troubleshooting, and privacy/safety warnings.
 
 ---
 
