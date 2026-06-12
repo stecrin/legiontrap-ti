@@ -67,7 +67,7 @@ Content-Type: application/json
 | `type` | **Yes** | Event type string. Sensor-native strings are accepted and normalized internally. |
 | `data` | No | Sensor-specific fields dict. Additional top-level fields outside `data` are also accepted. |
 
-**Limits:** 500 events per request, 5 MB max body, 1000 requests/minute per API key.
+**Limits:** 500 events per request, 1000 requests/minute per API key.
 
 **Response:**
 ```json
