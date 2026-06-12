@@ -1,6 +1,6 @@
 # PROJECT STATUS — LegionTrap TI
 
-_Last updated: 2026-06-12 (Stage 21 pilot-operator onboarding documentation complete)_
+_Last updated: 2026-06-12 (Stage 22 sensor integration guide complete)_
 
 ## Current phase
 Post-Phase 7 / maintenance and hygiene hardening complete. Phase 7 (Actor Intelligence) is closed. Phase 8 (Behavioral Federation) is conditional on operational prerequisites (two willing pilot operators + validated fingerprint serialization format).
@@ -26,13 +26,13 @@ Post-Phase 7 / maintenance and hygiene hardening complete. Phase 7 (Actor Intell
 - **Backlog:** see `PROJECT_BACKLOG.md`
 
 ## Last completed task
-2026-06-12 — Stage 21 pilot-operator onboarding documentation complete: README Quick Start extended with GeoIP setup, optional demo seed path (with real-data warnings), DASH_PASS/JWT_SECRET generation guidance, dashboard first-use note, and ValueError troubleshooting; `scripts/seed_demo.sh` warning header added; `ui/dashboard/README.md` replaced with LegionTrap-specific content. Merged PR #92 (feature commit `5925beb`, merge commit `ef70d95`). Prior: D2 closed 2026-06-12 via PR #90.
+2026-06-12 — Stage 22 sensor integration guide complete: `docs/SENSOR_INTEGRATION.md` added — operator-facing guide for connecting real honeypot sensors (Cowrie, OpenCanary, T-Pot) to `POST /api/ingest`. Covers canonical payload format, sensor-specific field mapping notes (Cowrie VERIFIED, OpenCanary PARTIAL/INFERRED, T-Pot PARTIAL/SENSOR-DEPENDENT), historical backfill via `import_jsonl.py`, continuous forwarding pattern, troubleshooting, privacy notes, and operator safety warnings. README linked from API Reference section. Merged PR #94 (commits `aca6734`, `8808d74`, merge commit `2ee69dc`). Prior: Stage 21 onboarding docs complete 2026-06-12 via PR #92.
 
 ## Next task
 
-* **Action:** Strategic decision on pilot-operator outreach readiness — the platform is at Phase 7 complete with all active backlog closed. README Quick Start, demo seed path, and dashboard guidance are current. Options: (1) begin outreach to candidate pilot operators using the current README as evaluation material; (2) document the Docker deployment path before outreach (storage mount decision required first — see icebox); (3) export OpenAPI spec to lower evaluation friction; (4) hold and revisit when outreach leads emerge.
-* **Why it matters:** All active backlog items are closed. The platform can be evaluated by a new operator following the updated README. The primary constraint on Phase 8 is adoption, not implementation.
-* **Done when:** Stefan selects the next priority and updates this file.
+* **Action:** Begin first-wave manual outreach to candidate pilot operators. The sensor integration documentation gap is now closed — `docs/SENSOR_INTEGRATION.md`, the README Quick Start, onboarding documentation, and dashboard guidance are all current and ready for external evaluation. Options: (1) begin direct outreach to candidate operators in the honeypot community; (2) document the Docker deployment path before outreach (storage mount decision required first — see icebox); (3) export OpenAPI spec to lower evaluation friction; (4) hold and revisit when outreach leads emerge.
+* **Why it matters:** All technical and documentation preparation is complete. The primary constraint on Phase 8 is adoption, not implementation. Phase 8 entry requires two confirmed pilot operators.
+* **Done when:** Stefan selects the next priority and begins outreach, or updates this file to defer.
 * **Owner:** Stefan.
 
 ## Commands / tests last run
@@ -53,7 +53,7 @@ Not publicly deployed. Local only via `make run` (uvicorn :8088) or Docker Compo
 
 ## Human review required
 
-* **Required:** no — all active backlog items are closed. Stage 21 pilot-operator onboarding documentation complete 2026-06-12 (PR #92).
+* **Required:** no — Stage 22 sensor integration guide complete 2026-06-12 (PR #94). All active backlog items are closed.
 
 ## Open decisions
 - Phase 8 prerequisites — options: wait / proactively seek pilot partners — owner: Stefan — blocking? no
